@@ -22,8 +22,10 @@ export default function EditBranchPage() {
   const params = useParams()
   const router = useRouter()
   const branchId = params.id as string
-  
+  const [listCurrentStaffIds, setListCurrentStaffIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true)
+  const [branch, setBranch] = useState<GarageBranch | null>(null)
+
   const [submitting, setSubmitting] = useState(false)
   const [shouldValidate, setShouldValidate] = useState(false)
   const [formData, setFormData] = useState<UpdateBranchRequest | null>(null)
@@ -35,25 +37,30 @@ export default function EditBranchPage() {
     const loadBranch = async () => {
       try {
         setLoading(true)
-        const branch = await branchService.getBranchById(branchId)
+        const branchExisting = await branchService.getBranchById(branchId)
         
         // Transform branch data to match UpdateBranchRequest
         const updateData: UpdateBranchRequest = {
-          branchId: branch.branchId,
-          branchName: branch.branchName,
-          phoneNumber: branch.phoneNumber,
-          email: branch.email,
-          street: branch.street,
-          ward: branch.ward,
-          district: branch.district,
-          city: branch.city,
-          description: branch.description,
-          isActive: branch.isActive,
-          serviceIds: branch.services.map(s => s.serviceId),
-          staffIds: branch.staffs.map(s => s.id),
-          operatingHours: branch.operatingHours
+          branchId: branchExisting.branchId,
+          branchName: branchExisting.branchName,
+          phoneNumber: branchExisting.phoneNumber,
+          email: branchExisting.email,
+          street: branchExisting.street,
+          ward: branchExisting.ward,
+          district: branchExisting.district,
+          city: branchExisting.city,
+          description: branchExisting.description,
+          isActive: branchExisting.isActive,
+          serviceIds: branchExisting.services.map(s => s.serviceId),
+          staffIds: branchExisting.staffs.map(s => s.id),
+          operatingHours: branchExisting.operatingHours
         }
-        
+        // Extract Staff IDs from branchExisting
+        const staffIds = branchExisting.staffs.map((s: { id: string }) => s.id);
+
+        // Update state
+        setListCurrentStaffIds(staffIds);
+        setBranch(branch)
         setFormData(updateData)
       } catch (error) {
         console.error('Failed to load branch:', error)
@@ -302,6 +309,7 @@ export default function EditBranchPage() {
           technicians={technicians}
           managersWithoutBranch={managersWithoutBranch}
           techniciansWithoutBranch={techniciansWithoutBranch}
+          currentBranchStaffIds={listCurrentStaffIds}
           onStaffToggle={handleStaffToggle}
           onStaffRemove={handleStaffRemove}
         />

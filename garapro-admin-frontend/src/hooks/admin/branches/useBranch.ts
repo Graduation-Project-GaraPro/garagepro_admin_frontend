@@ -56,6 +56,7 @@ export const useBranchData = () => {
   }
 }
 
+// hooks/admin/branches/useBranch.ts
 export const useLocationData = () => {
   const [provinces, setProvinces] = useState<Province[]>([])
   const [districts, setDistricts] = useState<District[]>([])
@@ -66,10 +67,14 @@ export const useLocationData = () => {
   const loadProvinces = useCallback(async () => {
     try {
       setLoading(true)
+      setError(null)
       const data = await branchService.getProvinces()
       setProvinces(data)
+      return data
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load provinces')
+      const msg = err instanceof Error ? err.message : 'Failed to load provinces'
+      setError(msg)
+      return []
     } finally {
       setLoading(false)
     }
@@ -78,11 +83,15 @@ export const useLocationData = () => {
   const loadDistricts = useCallback(async (provinceCode: string) => {
     try {
       setLoading(true)
+      setError(null)
       const data = await branchService.getDistricts(provinceCode)
       setDistricts(data)
-      setWards([]) // Clear previous wards
+      setWards([])
+      return data
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load districts')
+      const msg = err instanceof Error ? err.message : 'Failed to load districts'
+      setError(msg)
+      return []
     } finally {
       setLoading(false)
     }
@@ -91,10 +100,14 @@ export const useLocationData = () => {
   const loadWards = useCallback(async (districtCode: string) => {
     try {
       setLoading(true)
+      setError(null)
       const data = await branchService.getWards(districtCode)
       setWards(data)
+      return data
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load wards')
+      const msg = err instanceof Error ? err.message : 'Failed to load wards'
+      setError(msg)
+      return []
     } finally {
       setLoading(false)
     }

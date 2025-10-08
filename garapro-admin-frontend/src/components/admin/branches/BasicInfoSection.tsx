@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -31,15 +31,17 @@ export const BasicInfoSection = ({
 
   const [selectedProvinceCode, setSelectedProvinceCode] = useState('')
   const [selectedDistrictCode, setSelectedDistrictCode] = useState('')
-  const [isInitializing, setIsInitializing] = useState(true)
+  const [selectedWardCode, setSelectedWardCode] = useState('')
+  
+  const initializedRef = useRef(false)
 
-  // Initialize from form data - chỉ chạy một lần khi provinces được load
+  // Unified initialization logic
   useEffect(() => {
-    if (provinces.length === 0 || !isInitializing) return
-
-    const initializeFromFormData = async () => {
+    if (initializedRef.current || provinces.length === 0) return
+    
+    const initializeLocationData = async () => {
       try {
-        // Tìm province từ form data
+        // Initialize province
         if (formData.city) {
           const province = provinces.find(p => 
             p.name === formData.city || 
@@ -48,18 +50,32 @@ export const BasicInfoSection = ({
           
           if (province) {
             setSelectedProvinceCode(province.code)
-            await loadDistricts(province.code)
             
-            // Sau khi districts được load, tìm district từ form data
-            if (formData.district) {
-              const district = districts.find(d => 
+            // Load and initialize district
+            const districtData = await loadDistricts(province.code)
+            
+            if (formData.district && districtData) {
+              const district = districtData.find(d => 
                 d.name === formData.district || 
                 d.name.toLowerCase().includes(formData.district.toLowerCase())
               )
               
               if (district) {
                 setSelectedDistrictCode(district.code)
-                await loadWards(district.code)
+                
+                // Load and initialize ward
+                const wardData = await loadWards(district.code)
+                
+                if (formData.ward && wardData) {
+                  const ward = wardData.find(w => 
+                    w.name === formData.ward || 
+                    w.name.toLowerCase().includes(formData.ward.toLowerCase())
+                  )
+                  
+                  if (ward) {
+                    setSelectedWardCode(ward.code)
+                  }
+                }
               }
             }
           }
@@ -67,114 +83,63 @@ export const BasicInfoSection = ({
       } catch (err) {
         console.error('Error initializing location data:', err)
       } finally {
-        setIsInitializing(false)
+        initializedRef.current = true
       }
     }
 
-    initializeFromFormData()
-  }, [provinces, formData.city, formData.district, loadDistricts, loadWards, districts, isInitializing])
+    initializeLocationData()
+  }, [provinces, formData.city, formData.district, formData.ward, loadDistricts, loadWards])
 
-  // Xử lý khi chọn province
+  // Handle province change
   const handleProvinceChange = useCallback(async (provinceCode: string) => {
-    setSelectedProvinceCode(provinceCode)
-    
     const province = provinces.find(p => p.code === provinceCode)
-    if (province) {
-      onChange('city', province.name)
-      onChange('district', '')
-      onChange('ward', '')
-      setSelectedDistrictCode('')
-      
-      // Load districts cho province mới
-      await loadDistricts(provinceCode)
-    }
+    if (!province) return
+
+    setSelectedProvinceCode(provinceCode)
+    setSelectedDistrictCode('')
+    setSelectedWardCode('')
+    
+    onChange('city', province.name)
+    onChange('district', '')
+    onChange('ward', '')
+    
+    await loadDistricts(provinceCode)
   }, [provinces, onChange, loadDistricts])
 
-  // Xử lý khi chọn district
+  // Handle district change
   const handleDistrictChange = useCallback(async (districtCode: string) => {
-    setSelectedDistrictCode(districtCode)
-    
     const district = districts.find(d => d.code === districtCode)
-    if (district) {
-      onChange('district', district.name)
-      onChange('ward', '')
-      
-      // Load wards cho district mới
-      await loadWards(districtCode)
-    }
+    if (!district) return
+
+    setSelectedDistrictCode(districtCode)
+    setSelectedWardCode('')
+    
+    onChange('district', district.name)
+    onChange('ward', '')
+    
+    await loadWards(districtCode)
   }, [districts, onChange, loadWards])
 
-  // Xử lý khi chọn ward
+  // Handle ward change
   const handleWardChange = useCallback((wardCode: string) => {
     const ward = wards.find(w => w.code === wardCode)
-    if (ward) {
-      onChange('ward', ward.name)
-    }
+    if (!ward) return
+
+    setSelectedWardCode(wardCode)
+    onChange('ward', ward.name)
   }, [wards, onChange])
 
-  // Tìm giá trị hiện tại cho dropdowns
-  const getCurrentProvinceCode = useCallback(() => {
-    // Ưu tiên giá trị đang được chọn
-    if (selectedProvinceCode) return selectedProvinceCode
-    
-    // Nếu không có giá trị đang chọn, tìm từ form data
-    if (formData.city) {
-      const province = provinces.find(p => 
-        p.name === formData.city || 
-        p.name.toLowerCase().includes(formData.city.toLowerCase())
-      )
-      return province?.code || ''
-    }
-    
-    return ''
-  }, [selectedProvinceCode, formData.city, provinces])
-
-  const getCurrentDistrictCode = useCallback(() => {
-    // Ưu tiên giá trị đang được chọn
-    if (selectedDistrictCode) return selectedDistrictCode
-    
-    // Nếu không có giá trị đang chọn, tìm từ form data
-    if (formData.district && selectedProvinceCode) {
-      const district = districts.find(d => 
-        d.name === formData.district || 
-        d.name.toLowerCase().includes(formData.district.toLowerCase())
-      )
-      return district?.code || ''
-    }
-    
-    return ''
-  }, [selectedDistrictCode, formData.district, selectedProvinceCode, districts])
-
-  const getCurrentWardCode = useCallback(() => {
-    // Tìm từ form data
-    if (formData.ward && selectedDistrictCode) {
-      const ward = wards.find(w => 
-        w.name === formData.ward || 
-        w.name.toLowerCase().includes(formData.ward.toLowerCase())
-      )
-      return ward?.code || ''
-    }
-    
-    return ''
-  }, [formData.ward, selectedDistrictCode, wards])
-
-  const currentProvinceCode = getCurrentProvinceCode()
-  const currentDistrictCode = getCurrentDistrictCode()
-  const currentWardCode = getCurrentWardCode()
-
-  // Hiển thị loading state trong khi khởi tạo
-  if (isInitializing && provinces.length > 0) {
+  // Show loading during initialization
+  if (!initializedRef.current && provinces.length > 0 && formData.city) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
           <CardDescription>Loading location data...</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin mr-2" />
-            <span>Loading location data...</span>
-          </div>
+        <CardContent className="flex items-center justify-center py-8">
+          <Loader2 className="h-8 w-8 animate-spin mr-2" />
+          <span>Initializing location data...</span>
         </CardContent>
       </Card>
     )
@@ -218,7 +183,7 @@ export const BasicInfoSection = ({
           <div className="space-y-2">
             <Label htmlFor="city">Province/City *</Label>
             <Select 
-              value={currentProvinceCode}
+              value={selectedProvinceCode}
               onValueChange={handleProvinceChange}
               disabled={loading}
             >
@@ -226,7 +191,7 @@ export const BasicInfoSection = ({
                 {loading && provinces.length === 0 ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading provinces...</span>
+                    <span>Loading...</span>
                   </div>
                 ) : (
                   <SelectValue placeholder="Select Province" />
@@ -247,18 +212,18 @@ export const BasicInfoSection = ({
           <div className="space-y-2">
             <Label htmlFor="district">District/Quận *</Label>
             <Select 
-              value={currentDistrictCode}
+              value={selectedDistrictCode}
               onValueChange={handleDistrictChange}
-              disabled={!currentProvinceCode || loading}
+              disabled={!selectedProvinceCode || loading}
             >
               <SelectTrigger className={errors.district ? 'border-red-500' : ''}>
-                {loading ? (
+                {loading && selectedProvinceCode ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading districts...</span>
+                    <span>Loading...</span>
                   </div>
                 ) : (
-                  <SelectValue placeholder={currentProvinceCode ? "Select District" : "Select Province First"} />
+                  <SelectValue placeholder={selectedProvinceCode ? "Select District" : "Select Province First"} />
                 )}
               </SelectTrigger>
               <SelectContent>
@@ -276,18 +241,18 @@ export const BasicInfoSection = ({
           <div className="space-y-2">
             <Label htmlFor="ward">Ward/Phường *</Label>
             <Select 
-              value={currentWardCode}
+              value={selectedWardCode}
               onValueChange={handleWardChange}
-              disabled={!currentDistrictCode || loading}
+              disabled={!selectedDistrictCode || loading}
             >
               <SelectTrigger className={errors.ward ? 'border-red-500' : ''}>
-                {loading ? (
+                {loading && selectedDistrictCode ? (
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading wards...</span>
+                    <span>Loading...</span>
                   </div>
                 ) : (
-                  <SelectValue placeholder={currentDistrictCode ? "Select Ward" : "Select District First"} />
+                  <SelectValue placeholder={selectedDistrictCode ? "Select Ward" : "Select District First"} />
                 )}
               </SelectTrigger>
               <SelectContent>
@@ -345,7 +310,7 @@ export const BasicInfoSection = ({
           </p>
         </div>
 
-        {/* Error message for location data */}
+        {/* Error message */}
         {error && (
           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
