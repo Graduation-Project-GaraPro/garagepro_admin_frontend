@@ -47,7 +47,7 @@ export default function CreateBranchPage() {
   const [shouldValidate, setShouldValidate] = useState(false)
   const [formData, setFormData] = useState<CreateBranchRequest>(INITIAL_FORM_DATA)
   
-  const { managers, technicians, services,categories, loading: dataLoading, error: dataError } = useBranchData()
+  const { managers, technicians,managersWithoutBranch,techniciansWithoutBranch,  services,categories, loading: dataLoading, error: dataError } = useBranchData()
   const errors = useFormValidation(formData, shouldValidate)
 
   // Memoize loading state to prevent unnecessary renders
@@ -274,6 +274,8 @@ export default function CreateBranchPage() {
           errors={errors}
           managers={managers}
           technicians={technicians}
+          managersWithoutBranch={managersWithoutBranch}
+          techniciansWithoutBranch={techniciansWithoutBranch}
           onStaffToggle={handleStaffToggle}
           onStaffRemove={handleStaffRemove}
         />

@@ -3,13 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Service } from '@/types/service';
 import { serviceService } from '@/services/service-Service';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Clock, DollarSign, MapPin, Package, Settings, Calendar } from 'lucide-react';
+import { ArrowLeft, Clock, DollarSign, MapPin, Package, Edit, Loader2, Box, Hash, BarChart3 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -17,9 +16,72 @@ interface ServiceDetailProps {
   serviceId: string;
 }
 
+interface ApiService {
+  serviceId: string;
+  serviceCategoryId: string;
+  serviceName: string;
+  serviceStatus: string;
+  description: string;
+  price: number;
+  estimatedDuration: number;
+  isActive: boolean;
+  isAdvanced: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+  serviceCategory: {
+    serviceCategoryId: string;
+    categoryName: string;
+    serviceTypeId: string;
+    parentServiceCategoryId: string | null;
+    description: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string | null;
+  };
+  branches: Array<{
+    branchId: string;
+    branchName: string;
+    phoneNumber: string;
+    email: string;
+    street: string;
+    ward: string;
+    district: string;
+    city: string;
+    description: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string | null;
+  }>;
+  parts?: Array<{
+    partId: string;
+    name: string;
+    description?: string;
+    price: number;
+    stock: number;
+    sku?: string;
+    category?: string;
+    unit?: string;
+    minStockLevel?: number;
+    isActive?: boolean;
+  }>;
+}
+
+// Format currency for Vietnamese Dong
+const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND'
+  }).format(amount);
+};
+
+// Format numbers
+const formatNumber = (number: number): string => {
+  return new Intl.NumberFormat('vi-VN').format(number);
+};
+
 export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
   const router = useRouter();
-  const [service, setService] = useState<Service | null>(null);
+  const [service, setService] = useState<ApiService | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -28,7 +90,7 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
 
   const loadService = async () => {
     try {
-      const serviceData = await serviceService.getService(serviceId);
+      const serviceData = await serviceService.getServiceByIdForDetails(serviceId);
       setService(serviceData);
     } catch (error) {
       console.error('Error loading service:', error);
@@ -38,281 +100,259 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
     }
   };
 
+  // Calculate total parts price
+  const totalPartsPrice = service?.parts?.reduce((total, part) => total + part.price, 0) || 0;
+  const totalServicePrice = (service?.price || 0) + totalPartsPrice;
+
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <div className="h-8 w-1/3 bg-gray-200 rounded animate-pulse"></div>
-          <div className="h-4 w-2/3 bg-gray-200 rounded animate-pulse"></div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="h-4 w-full bg-gray-200 rounded animate-pulse"></div>
-            <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse"></div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center min-h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (!service) {
     return (
-      <div className="text-center py-12">
-        <Settings className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-4 text-lg font-medium text-gray-900">Service not found</h3>
-        <p className="mt-2 text-sm text-gray-500">
-          The service you are looking for does not exist.
-        </p>
-        <div className="mt-6">
-          <Button asChild>
-            <Link href="/admin/services">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Services
-            </Link>
-          </Button>
+      <div className="text-center space-y-4 py-12">
+        <Package className="h-12 w-12 mx-auto text-muted-foreground" />
+        <div>
+          <h3 className="text-lg font-medium">Service Not Found</h3>
+          <p className="text-muted-foreground mt-1">The service you are looking for does not exist.</p>
         </div>
+        <Button asChild>
+          <Link href="/admin/services">
+            Back to Services List
+          </Link>
+        </Button>
       </div>
     );
   }
 
-  const totalPartsCost = service.parts.reduce(
-    (total, partService) => total + (partService.part?.cost || 0) * partService.quantity,
-    0
-  );
-
-  const totalPartsPrice = service.parts.reduce(
-    (total, partService) => total + (partService.part?.price || 0) * partService.quantity,
-    0
-  );
-
-  const totalServiceCost = totalPartsCost;
-  const totalServicePrice = service.basePrice + totalPartsPrice;
-  const profitMargin = totalServicePrice - totalServiceCost;
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" asChild>
-          <Link href="/admin/services">
-            <ArrowLeft className="h-4 w-4" />
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" asChild>
+            <Link href="/admin/services">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">{service.serviceName}</h2>
+            <p className="text-muted-foreground">{service.description}</p>
+          </div>
+        </div>
+        <Button asChild>
+          <Link href={`/admin/services/edit/${service.serviceId}`}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Service
           </Link>
         </Button>
-        <h2 className="text-3xl font-bold tracking-tight">Service Details</h2>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Service Information Card */}
+        {/* Basic Information */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="h-5 w-5" />
-              Service Information
-            </CardTitle>
-            <CardDescription>
-              Detailed information about the service
-            </CardDescription>
+            <CardTitle>Service Information</CardTitle>
+            <CardDescription>Basic information about this service</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Service Category</p>
+                <p>{service.serviceCategory?.categoryName}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Status</p>
+                <Badge variant={service.isActive ? "default" : "secondary"}>
+                  {service.isActive ? "Active" : "Inactive"}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Base Price</p>
+                  <p className="font-medium">{formatCurrency(service.price)}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Estimated Duration</p>
+                  <p>{service.estimatedDuration} minutes</p>
+                </div>
+              </div>
+            </div>
+
+            {service.parts && service.parts.length > 0 && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Parts Cost</p>
+                    <p className="font-medium">{formatCurrency(totalPartsPrice)}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Service Price</p>
+                    <p className="font-semibold text-primary">{formatCurrency(totalServicePrice)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
-              <h3 className="text-lg font-medium">{service.name}</h3>
-              <p className="text-muted-foreground">{service.description}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Service Type</p>
-                <p className="text-sm">{service.serviceType?.name}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Category</p>
-                <p className="text-sm">{service.serviceType?.category?.name}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Base Price</p>
-                <div className="flex items-center">
-                  <DollarSign className="mr-1 h-4 w-4" />
-                  <span className="text-sm">{service.basePrice.toFixed(2)}</span>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Duration</p>
-                <div className="flex items-center">
-                  <Clock className="mr-1 h-4 w-4" />
-                  <span className="text-sm">{service.estimatedDuration} minutes</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Status</p>
-              <Badge variant={service.isActive ? "default" : "secondary"}>
-                {service.isActive ? "Active" : "Inactive"}
-              </Badge>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Available at Branches</p>
+              <p className="text-sm font-medium text-muted-foreground mb-2">Available Branches</p>
               <div className="flex flex-wrap gap-2">
-                {service.branchIds.map((branchId) => (
-                  <Badge key={branchId} variant="outline">
-                    Branch #{branchId}
+                {service.branches.map((branch) => (
+                  <Badge key={branch.branchId} variant="outline" className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    {branch.branchName}
                   </Badge>
                 ))}
               </div>
             </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Created</p>
-              <div className="flex items-center">
-                <Calendar className="mr-1 h-4 w-4" />
-                <span className="text-sm">
-                  {new Date(service.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
-        {/* Pricing & Profitability Card */}
+        {/* Parts Information */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              Pricing & Profitability
-            </CardTitle>
-            <CardDescription>
-              Cost breakdown and profit analysis
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Service Price</p>
-                <div className="flex items-center">
-                  <DollarSign className="mr-1 h-4 w-4" />
-                  <span className="text-sm">{totalServicePrice.toFixed(2)}</span>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Service Cost</p>
-                <div className="flex items-center">
-                  <DollarSign className="mr-1 h-4 w-4" />
-                  <span className="text-sm">{totalServiceCost.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Profit</p>
-                <div className="flex items-center">
-                  <DollarSign className="mr-1 h-4 w-4" />
-                  <span className="text-sm">{profitMargin.toFixed(2)}</span>
-                </div>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Margin</p>
-                <span className="text-sm">
-                  {totalServicePrice > 0 
-                    ? `${((profitMargin / totalServicePrice) * 100).toFixed(2)}%` 
-                    : 'N/A'}
-                </span>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-2">Cost Breakdown</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Base Service</span>
-                  <span>${service.basePrice.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>Parts Cost</span>
-                  <span>${totalPartsCost.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm font-medium pt-2 border-t">
-                  <span>Total Cost</span>
-                  <span>${totalServiceCost.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Required Parts Card */}
-        <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
               Required Parts
+              {service.parts && service.parts.length > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {service.parts.length}
+                </Badge>
+              )}
             </CardTitle>
-            <CardDescription>
-              Parts needed for this service
-            </CardDescription>
+            <CardDescription>Parts needed for this service</CardDescription>
           </CardHeader>
           <CardContent>
-            {service.parts.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Part Name</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Unit Cost</TableHead>
-                    <TableHead>Unit Price</TableHead>
-                    <TableHead>Total Cost</TableHead>
-                    <TableHead>Total Price</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {service.parts.map((partService) => {
-                    const part = partService.part;
-                    if (!part) return null;
-                    
-                    return (
-                      <TableRow key={partService.id}>
-                        <TableCell className="font-medium">{part.name}</TableCell>
-                        <TableCell>{part.sku}</TableCell>
-                        <TableCell>{partService.quantity}</TableCell>
-                        <TableCell>${part.cost.toFixed(2)}</TableCell>
-                        <TableCell>${part.price.toFixed(2)}</TableCell>
-                        <TableCell>${(part.cost * partService.quantity).toFixed(2)}</TableCell>
-                        <TableCell>${(part.price * partService.quantity).toFixed(2)}</TableCell>
+            {service.parts && service.parts.length > 0 ? (
+              <div className="space-y-4">
+                {/* Parts Table */}
+                <div className="border rounded-lg">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Part Information</TableHead>
+                        <TableHead className="text-right">Unit Price</TableHead>
+                        <TableHead className="text-right">Stock</TableHead>
+                        <TableHead className="text-right">Status</TableHead>
                       </TableRow>
-                    );
-                  })}
-                  <TableRow className="font-medium">
-                    <TableCell colSpan={5} className="text-right">Total</TableCell>
-                    <TableCell>${totalPartsCost.toFixed(2)}</TableCell>
-                    <TableCell>${totalPartsPrice.toFixed(2)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {service.parts.map((part, index) => (
+                        <TableRow key={part.partId || index}>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Box className="h-4 w-4 text-muted-foreground" />
+                                <span className="font-medium">{part.name}</span>
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                {part.sku && (
+                                  <div className="flex items-center gap-1">
+                                    <Hash className="h-3 w-3" />
+                                    <span>SKU: {part.sku}</span>
+                                  </div>
+                                )}
+                                {part.category && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {part.category}
+                                  </Badge>
+                                )}
+                              </div>
+                              {part.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-1">
+                                  {part.description}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {formatCurrency(part.price)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <span className={part.stock < (part.minStockLevel || 5) ? 'text-destructive font-medium' : 'text-muted-foreground'}>
+                                {formatNumber(part.stock)}
+                              </span>
+                              {part.unit && (
+                                <span className="text-xs text-muted-foreground">{part.unit}</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge 
+                              variant={part.isActive === false ? "secondary" : part.stock === 0 ? "destructive" : "outline"}
+                              className="text-xs"
+                            >
+                              {part.isActive === false ? 'Discontinued' : part.stock === 0 ? 'Out of Stock' : 'Available'}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Summary */}
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Parts</p>
+                    <p className="text-lg font-semibold">{formatNumber(service.parts.length)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Parts Cost</p>
+                    <p className="text-lg font-semibold">{formatCurrency(totalPartsPrice)}</p>
+                  </div>
+                </div>
+
+                {/* Stock Alert */}
+                {service.parts.some(part => part.stock < (part.minStockLevel || 5)) && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <BarChart3 className="h-4 w-4" />
+                      <p className="text-sm font-medium">Low Stock Alert</p>
+                    </div>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Some parts are running low on stock. Consider restocking.
+                    </p>
+                  </div>
+                )}
+              </div>
             ) : (
-              <div className="text-center py-8">
-                <Package className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium text-gray-900">No parts required</h3>
-                <p className="mt-2 text-sm text-gray-500">
-                  This service doesn't require any parts.
-                </p>
+              <div className="text-center py-8 text-muted-foreground">
+                <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p className="font-medium">No Parts Required</p>
+                <p className="text-sm mt-1">This service does not require additional parts</p>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="flex justify-end gap-4">
+      {/* Quick Actions */}
+      <div className="flex justify-end gap-4 pt-6 border-t">
         <Button variant="outline" asChild>
           <Link href="/admin/services">
-            Back to Services
+            Back to List
           </Link>
         </Button>
         <Button asChild>
-          <Link href={`/admin/services/edit/${service.id}`}>
+          <Link href={`/admin/services/edit/${service.serviceId}`}>
+            <Edit className="h-4 w-4 mr-2" />
             Edit Service
           </Link>
         </Button>

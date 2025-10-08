@@ -19,7 +19,7 @@ export default function EditServicePage() {
   const loadService = async () => {
     try {
       if (params.id) {
-        const serviceData = await serviceService.getService(params.id as string);
+        const serviceData = await serviceService.getServiceById(params.id as string);
         setService(serviceData);
       }
     } catch (error) {

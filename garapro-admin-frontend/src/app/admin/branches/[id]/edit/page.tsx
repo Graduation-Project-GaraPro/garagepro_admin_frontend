@@ -28,7 +28,7 @@ export default function EditBranchPage() {
   const [shouldValidate, setShouldValidate] = useState(false)
   const [formData, setFormData] = useState<UpdateBranchRequest | null>(null)
   
-  const { managers, technicians, categories, loading: dataLoading, error: dataError } = useBranchData()
+  const { managers, technicians,managersWithoutBranch,techniciansWithoutBranch, categories, loading: dataLoading, error: dataError } = useBranchData()
   const errors = useFormValidation(formData || {} as UpdateBranchRequest, shouldValidate)
 
   useEffect(() => {
@@ -295,11 +295,13 @@ export default function EditBranchPage() {
           onServiceRemove={handleServiceRemove}
         />
 
-        <StaffSection
+       <StaffSection
           formData={formData}
           errors={errors}
           managers={managers}
           technicians={technicians}
+          managersWithoutBranch={managersWithoutBranch}
+          techniciansWithoutBranch={techniciansWithoutBranch}
           onStaffToggle={handleStaffToggle}
           onStaffRemove={handleStaffRemove}
         />
