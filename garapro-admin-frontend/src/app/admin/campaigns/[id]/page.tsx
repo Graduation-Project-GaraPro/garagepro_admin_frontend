@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Edit, Trash2, ToggleLeft, ToggleRight } from 'lucide-react'
+import { ArrowLeft, Edit, Trash2, ToggleLeft, ToggleRight, Calendar, DollarSign, Users, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -25,6 +25,7 @@ export default function CampaignDetailPage() {
       setCampaign(data)
     } catch (e) {
       setError('Failed to load campaign')
+      console.error('Error loading campaign:', e)
     } finally {
       setLoading(false)
     }
@@ -35,26 +36,58 @@ export default function CampaignDetailPage() {
   }, [campaignId, loadCampaign])
 
   const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
-  const formatDate = (date: string) => new Date(date).toLocaleDateString()
+  const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
 
   const getStatusBadge = (isActive: boolean) => (
-    isActive ? <Badge className="bg-green-100 text-green-800">Active</Badge> : <Badge variant="secondary">Inactive</Badge>
+    isActive ? 
+      <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge> : 
+      <Badge variant="secondary" className="bg-gray-100 text-gray-600">Inactive</Badge>
   )
 
   const getTypeBadge = (type: string) => {
     const typeColors: Record<string, string> = {
-      discount: 'bg-blue-100 text-blue-800',
-      seasonal: 'bg-orange-100 text-orange-800',
-      loyalty: 'bg-purple-100 text-purple-800',
+      discount: 'bg-blue-100 text-blue-800 border-blue-200',
+      seasonal: 'bg-orange-100 text-orange-800 border-orange-200',
+      loyalty: 'bg-purple-100 text-purple-800 border-purple-200',
     }
-    return <Badge className={typeColors[type] || 'bg-gray-100 text-gray-800'}>{type.charAt(0).toUpperCase() + type.slice(1)}</Badge>
+    const typeLabels: Record<string, string> = {
+      discount: 'Discount',
+      seasonal: 'Seasonal',
+      loyalty: 'Loyalty'
+    }
+    return (
+      <Badge className={typeColors[type] || 'bg-gray-100 text-gray-800 border-gray-200'}>
+        {typeLabels[type] || type.charAt(0).toUpperCase() + type.slice(1)}
+      </Badge>
+    )
+  }
+
+  const getDiscountDisplay = (campaign: PromotionalCampaign) => {
+    switch (campaign.discountType) {
+      case 'percentage':
+        return `${campaign.discountValue}% off`
+      case 'fixed':
+        return `${formatCurrency(campaign.discountValue)} off`
+      case 'free_service':
+        return 'Free Service'
+      default:
+        return `${campaign.discountValue}% off`
+    }
   }
 
   const handleDelete = async () => {
     if (!campaign) return
-    if (confirm('Are you sure you want to delete this campaign?')) {
-      await campaignService.deleteCampaign(campaign.id)
-      window.location.href = '/admin/campaigns'
+    if (confirm('Are you sure you want to delete this campaign? This action cannot be undone.')) {
+      try {
+        await campaignService.deleteCampaign(campaign.id)
+        window.location.href = '/admin/campaigns'
+      } catch (e) {
+        setBanner({ type: 'error', message: 'Failed to delete campaign. Please try again.' })
+      }
     }
   }
 
@@ -63,41 +96,74 @@ export default function CampaignDetailPage() {
     try {
       if (campaign.isActive) {
         await campaignService.deactivateCampaign(campaign.id)
+        setBanner({ type: 'success', message: 'Campaign deactivated successfully.' })
       } else {
         await campaignService.activateCampaign(campaign.id)
+        setBanner({ type: 'success', message: 'Campaign activated successfully.' })
       }
-      const updated = await campaignService.getCampaignById(campaign.id)
-      setCampaign(updated)
-      setBanner({ type: 'success', message: 'Status updated.' })
+      // Reload campaign data
+      await loadCampaign()
     } catch (e) {
-      setBanner({ type: 'error', message: 'Failed to update status.' })
+      setBanner({ type: 'error', message: 'Failed to update campaign status. Please try again.' })
     }
   }
 
-  if (loading) return <div className="space-y-6"><div className="text-center py-8">Loading campaign...</div></div>
-  if (error || !campaign) return <div className="space-y-6"><div className="text-center py-8">{error || 'Campaign not found'}</div></div>
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Loading campaign...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !campaign) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <div className="text-red-500 mb-4">{error || 'Campaign not found'}</div>
+          <Link href="/admin/campaigns">
+            <Button variant="outline">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Campaigns
+            </Button>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
       {banner && (
-        <div className={`${banner.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'} border rounded p-3`}>
+        <div className={`${banner.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'} border rounded-lg p-4`}>
           {banner.message}
         </div>
       )}
-      <div className="flex items-center gap-4">
-        <Link href="/admin/campaigns">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Campaigns
-          </Button>
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">Campaign Details</h1>
-          <p className="text-muted-foreground">View configuration and status for {campaign.name}</p>
+      
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link href="/admin/campaigns">
+            <Button variant="ghost" size="sm">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Campaigns
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{campaign.name}</h1>
+            <p className="text-muted-foreground">View configuration and performance details</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleToggle}>
-            {campaign.isActive ? <ToggleRight className="h-4 w-4 mr-2" /> : <ToggleLeft className="h-4 w-4 mr-2" />} 
+            {campaign.isActive ? (
+              <ToggleRight className="h-4 w-4 mr-2 text-green-600" />
+            ) : (
+              <ToggleLeft className="h-4 w-4 mr-2 text-gray-600" />
+            )} 
             {campaign.isActive ? 'Deactivate' : 'Activate'}
           </Button>
           <Link href={`/admin/campaigns/${campaign.id}/edit`}>
@@ -111,72 +177,208 @@ export default function CampaignDetailPage() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Overview</CardTitle>
-          <CardDescription>Basic information and current status</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-muted-foreground">Campaign Name</div>
-              <div className="text-lg font-semibold">{campaign.name}</div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-muted-foreground">Type</div>
-              <div>{getTypeBadge(campaign.type)}</div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-muted-foreground">Status</div>
-              <div>{getStatusBadge(campaign.isActive)}</div>
-            </div>
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-muted-foreground">Usage</div>
-              <div className="text-lg font-semibold">{campaign.usedCount}{campaign.usageLimit ? ` / ${campaign.usageLimit}` : ''}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Status</CardTitle>
+            {campaign.isActive ? (
+              <div className="h-2 w-2 rounded-full bg-green-600"></div>
+            ) : (
+              <div className="h-2 w-2 rounded-full bg-gray-400"></div>
+            )}
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{getStatusBadge(campaign.isActive)}</div>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Configuration</CardTitle>
-          <CardDescription>Discounts and conditions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-2">Description</h4>
-                <p className="text-sm text-muted-foreground">{campaign.description}</p>
-              </div>
-              <div>
-                <h4 className="font-medium mb-2">Discount</h4>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <div>Type: {campaign.discountType}</div>
-                  <div>
-                    Value: {campaign.discountType === 'percentage' ? `${campaign.discountValue}%` : (campaign.discountType === 'fixed' ? formatCurrency(campaign.discountValue) : 'Free Service')}
-                  </div>
-                  {campaign.minimumOrderValue ? <div>Minimum Order: {formatCurrency(campaign.minimumOrderValue)}</div> : null}
-                  {campaign.maximumDiscount ? <div>Maximum Discount: {formatCurrency(campaign.maximumDiscount)}</div> : null}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Campaign Type</CardTitle>
+            <Badge variant="outline" className="text-xs">Type</Badge>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{getTypeBadge(campaign.type)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Usage</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{campaign.usedCount}</div>
+            <p className="text-xs text-muted-foreground">
+              {campaign.usageLimit && campaign.usageLimit !== 2147483647 
+                ? `of ${campaign.usageLimit} limit` 
+                : 'Unlimited usage'
+              }
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Discount</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{getDiscountDisplay(campaign)}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Campaign Details */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Basic Information */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Campaign Details</CardTitle>
+            <CardDescription>Basic information and configuration</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <h4 className="font-medium mb-2 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Schedule
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-muted-foreground">Start Date</div>
+                  <div className="font-medium">{formatDate(campaign.startDate)}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">End Date</div>
+                  <div className="font-medium">{formatDate(campaign.endDate)}</div>
                 </div>
               </div>
             </div>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-2">Schedule</h4>
-                <div className="text-sm text-muted-foreground space-y-1">
-                  <div>Start: {formatDate(campaign.startDate)}</div>
-                  <div>End: {formatDate(campaign.endDate)}</div>
+
+            <div>
+              <h4 className="font-medium mb-2">Description</h4>
+              <p className="text-sm text-muted-foreground bg-gray-50 rounded-lg p-3">
+                {campaign.description}
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-medium mb-2">Discount Details</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-muted-foreground">Discount Type</div>
+                  <div className="font-medium capitalize">{campaign.discountType.replace('_', ' ')}</div>
                 </div>
+                <div>
+                  <div className="text-muted-foreground">Discount Value</div>
+                  <div className="font-medium">
+                    {campaign.discountType === 'percentage' 
+                      ? `${campaign.discountValue}%`
+                      : campaign.discountType === 'fixed'
+                      ? formatCurrency(campaign.discountValue)
+                      : 'Free Service'
+                    }
+                  </div>
+                </div>
+                {campaign.minimumOrderValue > 0 && (
+                  <div>
+                    <div className="text-muted-foreground">Minimum Order</div>
+                    <div className="font-medium">{formatCurrency(campaign.minimumOrderValue)}</div>
+                  </div>
+                )}
+                {campaign.maximumDiscount > 0 && (
+                  <div>
+                    <div className="text-muted-foreground">Maximum Discount</div>
+                    <div className="font-medium">{formatCurrency(campaign.maximumDiscount)}</div>
+                  </div>
+                )}
               </div>
-              <div>
-                <h4 className="font-medium mb-2">Applicable Services</h4>
-                <div className="flex flex-wrap gap-1">
-                  {campaign.applicableServices.map((service) => (
-                    <Badge key={service} variant="outline" className="text-xs">{service}</Badge>
-                  ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Services */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wrench className="h-4 w-4" />
+              Applicable Services
+            </CardTitle>
+            <CardDescription>Services included in this campaign</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {campaign.services && campaign.services.length > 0 ? (
+                campaign.services.map((service) => (
+                  <div key={service.serviceId} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{service.serviceName}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {service.description}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="outline" className="text-xs">
+                          {formatCurrency(service.price)}
+                        </Badge>
+                        {service.isAdvanced && (
+                          <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700">
+                            Advanced
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No services assigned to this campaign
                 </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Metadata */}
+      <Card>
+        <CardHeader>
+          <CardTitle>System Information</CardTitle>
+          <CardDescription>Campaign metadata and timestamps</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <div className="text-muted-foreground">Campaign ID</div>
+              <div className="font-mono text-xs mt-1 p-2 bg-gray-50 rounded border">
+                {campaign.id}
+              </div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Created At</div>
+              <div className="font-medium">
+                {new Date(campaign.createdAt).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Last Updated</div>
+              <div className="font-medium">
+                {campaign.updatedAt ? 
+                  new Date(campaign.updatedAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }) : 
+                  'Never'
+                }
               </div>
             </div>
           </div>
@@ -185,5 +387,3 @@ export default function CampaignDetailPage() {
     </div>
   )
 }
-
-

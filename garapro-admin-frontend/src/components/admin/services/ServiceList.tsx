@@ -22,7 +22,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
-  ChevronsRight
+  ChevronsRight,
+  CheckSquare,
+  Square,
+  Play,
+  Pause,
+  Zap,
+  FolderTree
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -44,6 +50,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import  ServiceCategoryDialog from '@/components/admin/services/ServiceCategoryDialog'
+import { Part } from '@/types/service';
 
 // Currency formatting function
 const formatCurrency = (amount: number): string => {
@@ -52,7 +61,12 @@ const formatCurrency = (amount: number): string => {
     currency: 'VND'
   }).format(amount);
 };
-
+const TotalPrice = (service: Service): string => {
+  const totalPartsPrice = service?.parts?.reduce((t, p) => t + p.price, 0) || 0;
+  const total = (service?.basePrice || 0) + totalPartsPrice;
+  console.log("partPrice",totalPartsPrice)
+  return `${formatCurrency(total)} (base + parts)`;
+};
 // Debounce hook
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -95,12 +109,27 @@ interface PaginatedResponse {
   data: Service[];
 }
 
+interface BulkAction {
+  type: 'delete' | 'activate' | 'deactivate' | 'toggle-advance';
+  services: Service[];
+}
+
 export default function ServiceList() {
   const [services, setServices] = useState<Service[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isBulkAction, setIsBulkAction] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bulkActionDialogOpen, setBulkActionDialogOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
+  const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
+  
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+
+
+  // Selection states
+  const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
+  const [isAllSelected, setIsAllSelected] = useState(false);
   
   // Filter and pagination states
   const [searchTerm, setSearchTerm] = useState('');
@@ -129,6 +158,8 @@ export default function ServiceList() {
   useEffect(() => {
     // Reset to page 1 when filters change
     setPagination(prev => ({ ...prev, pageNumber: 1 }));
+    setSelectedServices(new Set());
+    setIsAllSelected(false);
   }, [debouncedSearchTerm, statusFilter, typeFilter]);
 
   useEffect(() => {
@@ -161,6 +192,10 @@ export default function ServiceList() {
         hasNext: response.pageNumber < response.totalPages
       });
       
+      // Reset selection when services change
+      setSelectedServices(new Set());
+      setIsAllSelected(false);
+      
     } catch (error) {
       console.error('Error loading services:', error);
       toast.error('Failed to load services', {
@@ -180,43 +215,163 @@ export default function ServiceList() {
     }
   };
 
+  // Selection handlers
+  const toggleServiceSelection = (serviceId: string) => {
+    const newSelected = new Set(selectedServices);
+    if (newSelected.has(serviceId)) {
+      newSelected.delete(serviceId);
+    } else {
+      newSelected.add(serviceId);
+    }
+    setSelectedServices(newSelected);
+    setIsAllSelected(newSelected.size === services.length && services.length > 0);
+  };
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedServices(new Set());
+    } else {
+      const allIds = new Set(services.map(service => service.id));
+      setSelectedServices(allIds);
+    }
+    setIsAllSelected(!isAllSelected);
+  };
+
+  const getSelectedServices = (): Service[] => {
+    return services.filter(service => selectedServices.has(service.id));
+  };
+
+  // Single service actions
   const handleDeleteClick = (service: Service) => {
     setServiceToDelete(service);
     setDeleteDialogOpen(true);
+    setIsBulkAction(false);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!serviceToDelete) return;
+  if (!serviceToDelete && !bulkAction) return;
 
-    try {
-      setIsDeleting(true);
+  try {
+    setIsDeleting(true);
+    
+    if (isBulkAction && bulkAction) {
+      // Bulk delete
+      const promises = bulkAction.services.map(service => 
+        serviceService.deleteService(service.id)
+      );
+      await Promise.all(promises);
+      
+      toast.success('Services deleted successfully', {
+        description: `${bulkAction.services.length} services have been removed.`
+      });
+    } else if (serviceToDelete) {
+      // Single delete
       await serviceService.deleteService(serviceToDelete.id);
       
       toast.success('Service deleted successfully', {
         description: `${serviceToDelete.name} has been removed.`
       });
-      
-      loadServices(); // Reload the list
-    } catch (error: any) {
-      console.error('Error deleting service:', error);
-      
-      if (error.message && error.message.includes('HTTP error')) {
-        const errorMatch = error.message.match(/message: (.+)$/);
-        const serverMessage = errorMatch ? errorMatch[1] : 'Unknown server error';
-        toast.error('Failed to delete service', {
-          description: serverMessage
-        });
-      } else {
-        toast.error('Failed to delete service', {
-          description: 'Please try again later.'
-        });
-      }
-    } finally {
-      setIsDeleting(false);
-      setDeleteDialogOpen(false);
-      setServiceToDelete(null);
     }
+    
+    loadServices(); // Reload the list
+    setSelectedServices(new Set());
+    setIsAllSelected(false);
+    
+  } catch (error: any) {
+    console.error('Error deleting service:', error);
+    
+    if (error.message && error.message.includes('HTTP error')) {
+      const errorMatch = error.message.match(/message: (.+)$/);
+      const serverMessage = errorMatch ? errorMatch[1] : 'Unknown server error';
+      toast.error('Failed to delete service', {
+        description: serverMessage
+      });
+    } else {
+      toast.error('Failed to delete service', {
+        description: 'Please try again later.'
+      });
+    }
+  } finally {
+    // Luôn reset state trong finally block
+    setIsDeleting(false);
+    setDeleteDialogOpen(false);
+    setBulkActionDialogOpen(false);
+    setServiceToDelete(null);
+    setBulkAction(null);
+    setIsBulkAction(false);
+  }
+};
+
+  // Bulk actions
+  const handleBulkDelete = () => {
+    const selected = getSelectedServices();
+    if (selected.length === 0) return;
+    
+    setBulkAction({
+      type: 'delete',
+      services: selected
+    });
+    setBulkActionDialogOpen(true);
+    setIsBulkAction(true);
   };
+
+  const handleBulkStatusUpdate = async (isActive: boolean) => {
+  const selected = getSelectedServices();
+  if (selected.length === 0) return;
+
+  try {
+    setIsBulkAction(true);
+    
+    // Chỉ sử dụng bulkUpdateServiceStatus
+    const serviceIds = selected.map(service => service.id);
+    await serviceService.bulkUpdateServiceStatus(serviceIds, isActive);
+    
+    toast.success(`Services ${isActive ? 'activated' : 'deactivated'} successfully`, {
+      description: `${selected.length} services have been ${isActive ? 'activated' : 'deactivated'}.`
+    });
+    
+    loadServices();
+    setSelectedServices(new Set());
+    setIsAllSelected(false);
+    
+  } catch (error: any) {
+    console.error('Error updating services:', error);
+    toast.error(`Failed to ${isActive ? 'activate' : 'deactivate'} services`, {
+      description: error.message || 'Please try again later.'
+    });
+  } finally {
+    setIsBulkAction(false);
+  }
+};
+
+
+ const handleBulkAdvanceToggle = async (setToAdvance: boolean) => {
+  const selected = getSelectedServices();
+  if (selected.length === 0) return;
+
+  try {
+    setIsBulkAction(true);
+    
+    const serviceIds = selected.map(service => service.id);
+    await serviceService.bulkUpdateServiceAdvanceStatus(serviceIds, setToAdvance);
+    
+    toast.success('Services updated successfully', {
+      description: `${selected.length} services have been ${setToAdvance ? 'marked as' : 'removed from'} advance booking.`
+    });
+    
+    loadServices();
+    setSelectedServices(new Set());
+    setIsAllSelected(false);
+    
+  } catch (error: any) {
+    console.error('Error updating services:', error);
+    toast.error('Failed to update services', {
+      description: error.message || 'Please try again later.'
+    });
+  } finally {
+    setIsBulkAction(false);
+  }
+};
 
   const clearFilters = () => {
     setSearchTerm('');
@@ -234,11 +389,14 @@ export default function ServiceList() {
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
-    // Don't trigger loadServices here - it will be triggered by the debounced effect
   };
 
+  const selectedCount = selectedServices.size;
+  const hasSelection = selectedCount > 0;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6">    
+      {/* Category management */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Services</h2>
@@ -246,14 +404,91 @@ export default function ServiceList() {
             Manage all services offered at your branches
           </p>
         </div>
-        <Button asChild>
-          <Link href="/admin/services/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Service
-          </Link>
-        </Button>
-      </div>
+        <>
+        <div className="flex items-center space-x-1">
+      {hasSelection && (
+  <>
+    {/* Chỉ hiển thị Activate nếu có ít nhất 1 service đang inactive */}
+    {getSelectedServices().some(service => !service.isActive) && (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => handleBulkStatusUpdate(true)}
+        disabled={isBulkAction}
+      >
+        <Play className="mr-1 h-4 w-4" />
+        Activate ({selectedCount})
+      </Button>
+    )}
 
+    {/* Chỉ hiển thị Deactivate nếu có ít nhất 1 service đang active */}
+    {getSelectedServices().some(service => service.isActive) && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleBulkStatusUpdate(false)}
+          disabled={isBulkAction}
+        >
+          <Pause className="mr-1 h-4 w-4" />
+          Deactivate ({selectedCount})
+        </Button>
+      )}
+
+      {/* Hiển thị Toggle Advance với label thông minh */}
+      {getSelectedServices().some(service => !service.isAdvanced) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkAdvanceToggle(true)}
+                disabled={isBulkAction}
+              >
+                <Zap className="mr-1 h-4 w-4" />
+                Set Advance ({selectedCount})
+              </Button>
+            )}
+
+            {getSelectedServices().some(service => service.isAdvanced) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBulkAdvanceToggle(false)}
+                disabled={isBulkAction}
+              >
+                <Zap className="mr-1 h-4 w-4" />
+                Remove Advance ({selectedCount})
+              </Button>
+            )}
+
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={isBulkAction}
+            >
+              <Trash2 className="mr-1 h-4 w-4" />
+              Delete ({selectedCount})
+            </Button>
+          </>
+      )}
+          </div>
+
+        
+        </>
+        <div className="flex items-center gap-2">
+          {/* Thêm nút Manage Categories */}
+          <Button variant="outline" onClick={() => setCategoryDialogOpen(true)}>
+            <FolderTree className="mr-2 h-4 w-4" />
+            Manage Categories
+          </Button>
+          <Button asChild>
+            <Link href="/admin/services/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Service
+            </Link>
+          </Button>
+        </div>
+      </div>
+      
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -366,18 +601,33 @@ export default function ServiceList() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-12">
+                        <Checkbox
+                          checked={isAllSelected}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Select all services"
+                        />
+                      </TableHead>
                       <TableHead>Service Name</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Duration</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Branches</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Advance</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {services.map((service) => (
                       <TableRow key={service.id} className="group">
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedServices.has(service.id)}
+                            onCheckedChange={() => toggleServiceSelection(service.id)}
+                            aria-label={`Select ${service.name}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-medium">
                           <div>
                             <p className="font-semibold">{service.name}</p>
@@ -402,7 +652,8 @@ export default function ServiceList() {
                         <TableCell>
                           <div className="flex items-center text-sm font-medium">
                             <DollarSign className="mr-1 h-4 w-4 text-muted-foreground" />
-                            {formatCurrency(service.basePrice)}
+                            
+                            {TotalPrice(service)}                            
                           </div>
                         </TableCell>
                         <TableCell>
@@ -417,6 +668,14 @@ export default function ServiceList() {
                             className={service.isActive ? "bg-green-100 text-green-800 hover:bg-green-100" : ""}
                           >
                             {service.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={service.isAdvanced ? "default" : "outline"}
+                            className={service.isAdvanced ? "bg-blue-100 text-blue-800 hover:bg-blue-100" : ""}
+                          >
+                            {service.isAdvanced ? "Advance" : "Regular"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -538,29 +797,88 @@ export default function ServiceList() {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the service
-              <span className="font-semibold"> "{serviceToDelete?.name}"</span> and remove it from our servers.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete Service
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Single Delete Confirmation Dialog */}
+      <AlertDialog 
+          open={deleteDialogOpen} 
+          onOpenChange={(open) => {
+            setDeleteDialogOpen(open);
+            if (!open) {
+              // Reset deleting state when dialog closes (including when cancel is clicked)
+              setIsDeleting(false);
+              setServiceToDelete(null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the service
+                <span className="font-semibold"> "{serviceToDelete?.name}"</span> and remove it from our servers.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete Service
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog 
+          open={bulkActionDialogOpen} 
+          onOpenChange={(open) => {
+            setBulkActionDialogOpen(open);
+            if (!open) {
+              // Reset deleting state when dialog closes
+              setIsDeleting(false);
+              setBulkAction(null);
+              setIsBulkAction(false);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete{" "}
+                <span className="font-semibold">{bulkAction?.services.length} services</span>:
+                <ul className="mt-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                  {bulkAction?.services.map(service => (
+                    <li key={service.id} className="text-sm py-1">
+                      • {service.name}
+                    </li>
+                  ))}
+                </ul>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete {bulkAction?.services.length} Services
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        
+        <ServiceCategoryDialog 
+          open={categoryDialogOpen}
+          onOpenChange={setCategoryDialogOpen}
+        />
     </div>
+    
   );
 }

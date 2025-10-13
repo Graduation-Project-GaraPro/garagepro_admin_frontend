@@ -63,6 +63,7 @@ export interface PartService {
   partId: string;
   quantity: number;
   part?: Part;
+  price: number;
 }
 
 // API Request/Response Interfaces (giữ nguyên)
@@ -206,6 +207,8 @@ export const serviceService = {
         isAdvanced: item.isAdvanced,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
+        parts: item.parts || [],
+
         partIds: item.parts?.map((part: any) => part.partId) || []
       }));
       
@@ -269,6 +272,7 @@ async getServicesWithPagination(params: ServiceFilterParams): Promise<PaginatedR
       isAdvanced: item.isAdvanced,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
+      parts: item.parts || [],
       partIds: item.parts?.map((part: any) => part.partId) || []
     }));
 
@@ -540,6 +544,53 @@ async getServiceByIdForDetails(id: string): Promise<ApiService | null> {
       throw error;
     }
   },
+
+ async bulkUpdateServiceStatus(serviceIds: string[], isActive: boolean): Promise<void> {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`${API_BASE_URL}/services/bulk-update-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ serviceIds, isActive: isActive }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to bulk update service status: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error bulk updating service status:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Bulk update advance status for multiple services
+   */
+  async bulkUpdateServiceAdvanceStatus(serviceIds: string[], isAdvance: boolean): Promise<void> {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch(`${API_BASE_URL}/services/bulk-update-advance-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ serviceIds, isAdvanced: isAdvance }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to bulk update service advance status: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error bulk updating service advance status:', error);
+      throw error;
+    }
+  },
+
+
 
   // Delete service (giữ nguyên)
   async deleteService(id: string): Promise<boolean> {

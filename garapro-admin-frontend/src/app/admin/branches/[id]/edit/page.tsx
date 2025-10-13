@@ -313,7 +313,7 @@ export default function EditBranchPage() {
           onStaffToggle={handleStaffToggle}
           onStaffRemove={handleStaffRemove}
         />
-
+        
         <OperatingHoursSection
           operatingHours={formData.operatingHours}
           onOperatingHoursChange={handleOperatingHoursChange}

@@ -259,8 +259,9 @@ class BranchService {
     const url = `${this.baseURL}/ServiceCategories`
     return this.request<ServiceCategory[]>(url)
   }
+
   async toggleBranchStatus(id: string, isActive: boolean): Promise<void> {
-    const url = `${this.baseURL}/${id}/status`
+    const url = `${this.baseURL}/Branch/${id}/status`
     const response = await fetch(url, {
       method: 'PATCH',
       headers: {
@@ -271,6 +272,44 @@ class BranchService {
 
     if (!response.ok) {
       throw new Error(`Failed to toggle branch status: ${response.status}`)
+    }
+  }
+
+  
+   async bulkActivateBranchesApi(ids: string[]): Promise<void> {
+    const response = await fetch(`${this.baseURL}/Branch/bulk-activate`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ids),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to activate branches: ${errorText}`)
+    }
+  }
+  async bulkDeactivateBranchesApi(ids: string[]): Promise<void> {
+    const response = await fetch(`${this.baseURL}/Branch/bulk-deactivate`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ids),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to deactivate branches: ${errorText}`)
+    }
+  }
+async bulkDeleteBranchesApi(ids: string[]): Promise<void> {
+    const response = await fetch(`${this.baseURL}/Branch/bulk-delete`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ids),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to delete branches: ${errorText}`)
     }
   }
 
