@@ -1,6 +1,9 @@
+// app/login/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/auth-context";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,14 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Eye, EyeOff, Phone, Lock, ArrowRight } from "lucide-react";
-import { authService } from "@/services/authService";
 import Link from "next/link";
-
-declare global {
-  interface Window {
-    google: any;
-  }
-}
 
 interface LoginFormData {
   phoneNumber: string;
@@ -32,28 +28,37 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState("phone");
 
-  
-  
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect') || '/admin';
+  const sessionExpired = searchParams.get('session') === 'expired';
+
+  // Redirect nếu đã đăng nhập
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      router.push(redirect);
+    }
+  }, [isAuthenticated, authLoading, router, redirect]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-  
+
     if (!loginForm.phoneNumber.trim()) {
       newErrors.phoneNumber = "Please enter your phone number";
     } else if (!/^(0[3|5|7|8|9])+([0-9]{8})$/.test(loginForm.phoneNumber)) {
       newErrors.phoneNumber = "Invalid phone number format";
     }
-  
+
     if (!loginForm.password) {
       newErrors.password = "Please enter your password";
     } else if (loginForm.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
     }
-  
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
 
   const handlePhoneLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,21 +71,32 @@ export default function LoginPage() {
     setErrors({});
 
     try {
-      // Gọi API đăng nhập bằng số điện thoại từ authService
-      const result = await authService.phoneLogin({
+      await login({
         phoneNumber: loginForm.phoneNumber,
         password: loginForm.password,
       });
 
-      console.log("✅ Phone login success:", result);
-
-      localStorage.setItem("auth_token", result.token);
-      // Redirect to dashboard or home page
-      window.location.href = "/admin";
-    } catch (err) {
+      // Redirect sẽ được xử lý tự động trong useEffect
+      console.log("✅ Login successful, redirecting...");
+      
+    } catch (err: any) {
       console.error("❌ Phone login failed:", err);
+      
+      let errorMessage = "Đăng nhập thất bại";
+      
+      // Xử lý các loại lỗi cụ thể
+      if (err.message.includes("User not found")) {
+        errorMessage = "Số điện thoại không tồn tại";
+      } else if (err.message.includes("Invalid login attempt")) {
+        errorMessage = "Sai mật khẩu";
+      } else if (err.message.includes("Account is temporarily locked")) {
+        errorMessage = "Tài khoản tạm thời bị khóa do đăng nhập sai nhiều lần";
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
       setErrors({ 
-        general: err instanceof Error ? err.message : "Đăng nhập thất bại" 
+        general: errorMessage
       });
     } finally {
       setIsLoading(false);
@@ -98,6 +114,30 @@ export default function LoginPage() {
     }
   };
 
+  // Hiển thị loading nếu đang check auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <p className="text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Không hiển thị form nếu đã đăng nhập (sẽ redirect)
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <p className="text-gray-600">Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md shadow-xl">
@@ -111,6 +151,15 @@ export default function LoginPage() {
         </CardHeader>
         
         <CardContent className="space-y-6">
+          {/* Session expired notification */}
+          {sessionExpired && (
+            <div className="p-3 border border-yellow-200 bg-yellow-50 rounded-md">
+              <p className="text-sm text-yellow-700 text-center">
+                Your session has expired. Please login again.
+              </p>
+            </div>
+          )}
+
           {/* General error display */}
           {errors.general && (
             <div className="p-3 border border-red-200 bg-red-50 rounded-md">
@@ -119,8 +168,8 @@ export default function LoginPage() {
           )}
   
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full g">
-              <TabsTrigger className="w-full" value="phone">Phone Number</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-1">
+              <TabsTrigger value="phone">Phone Number</TabsTrigger>
             </TabsList>
             
             {/* Phone number login tab */}
@@ -131,7 +180,7 @@ export default function LoginPage() {
                     Phone Number
                   </Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       id="phoneNumber"
                       type="tel"
@@ -152,7 +201,7 @@ export default function LoginPage() {
                     Password
                   </Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
@@ -168,11 +217,12 @@ export default function LoginPage() {
                       size="sm"
                       className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
+                      disabled={isLoading}
                     >
                       {showPassword ? (
-                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        <EyeOff className="h-4 w-4 text-gray-400" />
                       ) : (
-                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        <Eye className="h-4 w-4 text-gray-400" />
                       )}
                     </Button>
                   </div>
@@ -183,7 +233,11 @@ export default function LoginPage() {
   
                 <div className="flex justify-between items-center">
                   <Link href="/forgot-password">
-                    <Button variant="link" className="p-0 text-blue-600 hover:text-blue-800 text-sm">
+                    <Button 
+                      variant="link" 
+                      className="p-0 text-blue-600 hover:text-blue-800 text-sm"
+                      type="button"
+                    >
                       Forgot password?
                     </Button>
                   </Link>
@@ -193,6 +247,7 @@ export default function LoginPage() {
                   type="submit" 
                   className="w-full" 
                   disabled={isLoading}
+                  size="lg"
                 >
                   {isLoading ? (
                     <>
@@ -210,43 +265,40 @@ export default function LoginPage() {
             </TabsContent>
           </Tabs>
   
-          {/* Separator for alternative login options */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <Separator className="w-full" />
             </div>
-            {/* <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-gray-500">Or continue with</span>
-            </div> */}
-          </div>
-  
-          {/* Google Sign-In Button outside tabs */}
-          <div className="space-y-3">
-            {/* <div id="googleBtnMain" /> */}
-            
-            {/* <div className="text-center">
-              <p className="text-sm text-gray-600">
-                Don’t have an account?{" "}
-                <Link href="/register">
-                  <Button variant="link" className="p-0 text-blue-600 hover:text-blue-800 font-medium">
-                    Register now
-                  </Button>
-                </Link>
-              </p>
-            </div> */}
           </div>
   
           {/* Additional links */}
-          {/* <div className="text-center space-y-2">
+          <div className="text-center space-y-3">
+            <div className="text-sm text-gray-600">
+              Don't have an account?{" "}
+              <Link href="/register">
+                <Button 
+                  variant="link" 
+                  className="p-0 text-blue-600 hover:text-blue-800 font-medium"
+                  type="button"
+                >
+                  Register now
+                </Button>
+              </Link>
+            </div>
+            
             <Link href="/">
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-800">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-gray-600 hover:text-gray-800"
+                type="button"
+              >
                 ← Back to homepage
               </Button>
             </Link>
-          </div> */}
+          </div>
         </CardContent>
       </Card>
     </div>
   );
-  
 }

@@ -1,3 +1,6 @@
+import { authService } from "@/services/authService"
+
+
 // services/branch-service.ts
 export interface GarageBranch {
   branchId: string
@@ -30,7 +33,6 @@ export interface CreateBranchRequest {
   staffIds: string[]
   operatingHours: OperatingHour[]
 }
-// services/branch-service.ts
 
 export interface UpdateBranchRequest {
   branchId: string
@@ -68,7 +70,6 @@ export interface User {
   lastLogin: string | null
 }
 
-
 export interface Service {
   serviceId: string
   serviceCategoryId: string
@@ -101,6 +102,7 @@ export interface Staff {
   lastLogin: string | null
   lastPasswordChangeDate: string | null
 }
+
 export interface ServiceCategory {
   serviceCategoryId: string
   categoryName: string
@@ -109,6 +111,7 @@ export interface ServiceCategory {
   services: Service[]
   childCategories: ServiceCategory[] | null
 }
+
 export interface OperatingHour {
   dayOfWeek: number
   isOpen: boolean
@@ -148,24 +151,89 @@ export interface Ward {
   name: string
   district_code: string
 }
-
 class BranchService {
-  private baseURL = 'https://localhost:7113/api'
+  private baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
 
-  private async request<T>(url: string, options: RequestInit = {}): Promise<T> {
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+ private async getAuthToken(): Promise<string> {
+    try {
+      const token = await authService.getValidToken();
+      console.log('🔑 Current token:', token ? '✅ Available' : '❌ Missing');
+      return token;
+    } catch (error) {
+      console.log('🔑 Token error:', error.message);
+      throw new Error('Authentication required');
     }
+  }
 
-    return response.json()
+  private async request<T>(url: string, options: RequestInit = {}, retryCount = 0): Promise<T> {
+    console.log('🚀 Making request to:', url);
+    
+    try {
+      const token = await this.getAuthToken();
+      
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        ...options.headers,
+      };
+
+      const response = await fetch(url, {
+        ...options,
+        headers,
+      });
+
+      console.log('📡 Response status:', response.status);
+
+      // Token expired - try to refresh and retry
+      if (response.status === 401 && retryCount === 0) {
+        console.log('🔄 Token expired, attempting refresh...');
+        try {
+          await authService.handleTokenRefresh();
+          return this.request(url, options, retryCount + 1);
+        } catch (refreshError) {
+          console.log('❌ Token refresh failed');
+          throw new Error('Session expired. Please login again.');
+        }
+      }
+
+      // Access denied
+      if (response.status === 403) {
+        console.log('🚫 Access denied');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/access-denied';
+        }
+        throw new Error('Access denied: You do not have permission to access this resource.');
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      // For responses with no content
+      if (response.status === 204) {
+        return {} as T;
+      }
+
+      return response.json();
+    } catch (error) {
+      console.log('💥 Request failed:', error);
+      if (error instanceof Error && error.message.includes('Authentication required')) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+      }
+      throw error;
+    }
   }
 
   async getBranches(
@@ -182,138 +250,99 @@ class BranchService {
     })
 
     const url = `${this.baseURL}/Branch?${params}`
-    const data = await this.request<GarageBranch[]>(url)
-    console.log(data);
+    const data = await this.request<GetBranchesResponse>(url)
+    console.log(data)
     return {
       branches: data.branches,
-      totalCount: data.length,
-      page,
-      pageSize,
-      totalPages: Math.ceil(data.length / pageSize)
+      totalCount: data.totalCount,
+      page: data.page,
+      pageSize: data.pageSize,
+      totalPages: data.totalPages
     }
   }
 
-  // services/branch-service.ts
   async getBranchById(id: string): Promise<GarageBranch> {
     const url = `${this.baseURL}/Branch/${id}`
-    console.log('Fetching branch from:', url) // Debug URL
+    console.log('Fetching branch from:', url)
     const response = await this.request<GarageBranch>(url)
-    console.log('Branch response:', response) // Debug response
+    console.log('Branch response:', response)
     return response
   }
+
   async createBranch(branchData: CreateBranchRequest): Promise<void> {
-    const url = `${this.baseURL}/Branch`
-    const response = await fetch(url, {
+    const url = `${this.baseURL}/Branch`;
+    await this.request(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(branchData),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.json();
-      throw new Error(`Failed to create branch: ${response.status} ${errorText.message ?? "Error"}`)
-    }
+    });
   }
+
   async updateBranch(branchId: string, branchData: UpdateBranchRequest): Promise<void> {
-    const url = `${this.baseURL}/Branch/${branchId}`
-    const response = await fetch(url, {
+    const url = `${this.baseURL}/Branch/${branchId}`;
+    await this.request(url, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(branchData),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.json();
-      throw new Error(`Failed to create branch: ${response.status} ${errorText.message ?? "Error"}`)
-    }
+    });
   }
+
   async getServices(): Promise<Service[]> {
-    const url = `${this.baseURL}/Services`
-    return this.request<Service[]>(url)
+    const url = `${this.baseURL}/Services`;
+    return this.request<Service[]>(url);
   }
 
   async getManagers(): Promise<User[]> {
-    const url = `${this.baseURL}/Users/managers`
-    return this.request<User[]>(url)
+    const url = `${this.baseURL}/Users/managers`;
+    return this.request<User[]>(url);
   }
 
   async getTechnicians(): Promise<User[]> {
-    const url = `${this.baseURL}/Users/technicians`
-    return this.request<User[]>(url)
+    const url = `${this.baseURL}/Users/technicians`;
+    return this.request<User[]>(url);
   }
-  async deleteBranch(id: string): Promise<void> {
-    const url = `${this.baseURL}/Branch/${id}`
-    const response = await fetch(url, {
-      method: 'DELETE',
-    })
 
-    if (!response.ok) {
-      throw new Error(`Failed to delete branch: ${response.status}`)
-    }
+  async deleteBranch(id: string): Promise<void> {
+    const url = `${this.baseURL}/Branch/${id}`;
+    await this.request(url, {
+      method: 'DELETE',
+    });
   }
+
   async getServiceCategories(): Promise<ServiceCategory[]> {
-    const url = `${this.baseURL}/ServiceCategories`
-    return this.request<ServiceCategory[]>(url)
+    const url = `${this.baseURL}/ServiceCategories`;
+    return this.request<ServiceCategory[]>(url);
   }
 
   async toggleBranchStatus(id: string, isActive: boolean): Promise<void> {
-    const url = `${this.baseURL}/Branch/${id}/status`
-    const response = await fetch(url, {
+    const url = `${this.baseURL}/Branch/${id}/status`;
+    await this.request(url, {
       method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ isActive }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Failed to toggle branch status: ${response.status}`)
-    }
+    });
   }
 
-  
-   async bulkActivateBranchesApi(ids: string[]): Promise<void> {
-    const response = await fetch(`${this.baseURL}/Branch/bulk-activate`, {
+  async bulkActivateBranchesApi(ids: string[]): Promise<void> {
+    await this.request(`${this.baseURL}/Branch/bulk-activate`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(ids),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Failed to activate branches: ${errorText}`)
-    }
+    });
   }
+
   async bulkDeactivateBranchesApi(ids: string[]): Promise<void> {
-    const response = await fetch(`${this.baseURL}/Branch/bulk-deactivate`, {
+    await this.request(`${this.baseURL}/Branch/bulk-deactivate`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(ids),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Failed to deactivate branches: ${errorText}`)
-    }
+    });
   }
-async bulkDeleteBranchesApi(ids: string[]): Promise<void> {
-    const response = await fetch(`${this.baseURL}/Branch/bulk-delete`, {
+
+  async bulkDeleteBranchesApi(ids: string[]): Promise<void> {
+    await this.request(`${this.baseURL}/Branch/bulk-delete`, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(ids),
-    })
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Failed to delete branches: ${errorText}`)
-    }
+    });
   }
 
-   async getManagersWithoutBranch(): Promise<User[]> {
+
+  async getManagersWithoutBranch(): Promise<User[]> {
     const url = `${this.baseURL}/Users/managers/without-branch`
     return this.request<User[]>(url)
   }
@@ -324,20 +353,36 @@ async bulkDeleteBranchesApi(ids: string[]): Promise<void> {
   }
 
   async exportBranches(filters: any, format: 'csv' | 'excel'): Promise<Blob> {
-    // Simulate export functionality
-    return new Blob(['Export data'], { type: format === 'csv' ? 'text/csv' : 'application/vnd.ms-excel' })
+    const token = this.getAuthToken()
+    const headers: HeadersInit = {}
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    // Thực hiện request export với token
+    const response = await fetch(`${this.baseURL}/Branch/export?format=${format}`, {
+      headers,
+      // ... thêm các tham số filters nếu cần
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to export branches')
+    }
+
+    return response.blob()
   }
 
   async bulkActivateBranches(ids: string[]): Promise<void> {
-    await Promise.all(ids.map(id => this.toggleBranchStatus(id, true)))
+    await this.bulkActivateBranchesApi(ids)
   }
 
   async bulkDeactivateBranches(ids: string[]): Promise<void> {
-    await Promise.all(ids.map(id => this.toggleBranchStatus(id, false)))
+    await this.bulkDeactivateBranchesApi(ids)
   }
 
   async bulkDeleteBranches(ids: string[]): Promise<void> {
-    await Promise.all(ids.map(id => this.deleteBranch(id)))
+    await this.bulkDeleteBranchesApi(ids)
   }
 
   // Helper methods for UI
@@ -373,16 +418,13 @@ async bulkDeleteBranchesApi(ids: string[]): Promise<void> {
     return days[dayOfWeek - 1] || 'Unknown'
   }
 
-
   async getProvinces(): Promise<Province[]> {
     try {
-      // Sử dụng API công cộng
       const response = await fetch('https://provinces.open-api.vn/api/')
       if (!response.ok) throw new Error('Failed to fetch provinces')
       return response.json()
     } catch (error) {
       console.error('Failed to fetch provinces:', error)
-      // Fallback data
       return [
         { code: '79', name: 'Thành phố Hồ Chí Minh' },
         { code: '01', name: 'Thành phố Hà Nội' },

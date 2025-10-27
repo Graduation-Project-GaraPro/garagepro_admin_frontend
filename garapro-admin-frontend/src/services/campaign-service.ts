@@ -144,8 +144,11 @@ export interface CampaignAnalytics {
   conversionRate: number;
   redemptionRate: number;
 }
+
+import { authService } from "@/services/authService"
+
 class CampaignService {
-   private baseURL = 'https://localhost:7113/api'
+   private baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
 
   // Map enum values to strings for display
   private campaignTypeMap = {
@@ -159,6 +162,72 @@ class CampaignService {
     [DiscountType.Fixed]: 'fixed',
     [DiscountType.FreeService]: 'free_service'
   };
+
+ private async getAuthToken(): Promise<string> {
+  try {
+    const token = await authService.getValidToken();
+    console.log('🔑 Current token:', token ? '✅ Available' : '❌ Missing');
+    return token;
+  } catch (error) {
+    console.log('🔑 Token error:', error.message);
+    throw new Error('Authentication required');
+  }
+}
+
+private async authenticatedFetch(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
+  try {
+    const token = await this.getAuthToken();
+    
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...options.headers,
+    };
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    console.log('📡 Response status:', response.status);
+
+    // Token expired - try to refresh and retry
+    if (response.status === 401 && retryCount === 0) {
+      console.log('🔄 Token expired, attempting refresh...');
+      try {
+        await authService.handleTokenRefresh();
+        return this.authenticatedFetch(url, options, retryCount + 1);
+      } catch (refreshError) {
+        console.log('❌ Token refresh failed');
+        throw new Error('Session expired. Please login again.');
+      }
+    }
+
+    // Access denied
+    if (response.status === 403) {
+      console.log('🚫 Access denied');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/access-denied';
+      }
+      throw new Error('Access denied: You do not have permission to access this resource.');
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+
+    return response;
+  } catch (error) {
+    console.log('💥 Request failed:', error);
+    if (error instanceof Error && error.message.includes('Authentication required')) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    }
+    throw error;
+  }
+}
 
   async getCampaigns(params: GetCampaignsParams = {}): Promise<CampaignsResponse> {
     const queryParams = new URLSearchParams();
@@ -182,11 +251,7 @@ class CampaignService {
     if (params.startDate) queryParams.append('startDate', params.startDate);
     if (params.endDate) queryParams.append('endDate', params.endDate);
 
-    const response = await fetch(`${this.baseURL}/PromotionalCampaigns/paged?${queryParams}`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch campaigns: ${response.statusText}`);
-    }
+    const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/paged?${queryParams}`);
 
     const data = await response.json();
     
@@ -206,11 +271,7 @@ class CampaignService {
   }
 
   async getCampaignById(id: string): Promise<PromotionalCampaign> {
-    const response = await fetch(`${this.baseURL}/PromotionalCampaigns/${id}`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch campaign: ${response.statusText}`);
-    }
+    const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}`);
 
     const campaign = await response.json();
     
@@ -239,28 +300,16 @@ class CampaignService {
     };
 
     console.log(payload);
-    const response = await fetch(`${this.baseURL}/PromotionalCampaigns`, {
+    const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(payload),
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to create campaign: ${response.statusText}`);
-    }
 
     return response.json();
   }
 
   async getServiceCategories(): Promise<ServiceCategory[]> {
-    const response = await fetch(`${this.baseURL}/ServiceCategories`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch service categories: ${response.statusText}`);
-    }
-
+    const response = await this.authenticatedFetch(`${this.baseURL}/ServiceCategories`);
     return response.json();
   }
 
@@ -306,19 +355,10 @@ class CampaignService {
 
     console.log('Update payload:', payload);
 
-    const response = await fetch(`${this.baseURL}/PromotionalCampaigns/${id}`, {
+    const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(payload),
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Update campaign error:', errorText);
-      throw new Error(`Failed to update campaign: ${response.statusText}`);
-    }
 
     const campaign = await response.json();
     
@@ -330,90 +370,55 @@ class CampaignService {
     };
   }
 
-
   async deleteCampaign(id: string): Promise<void> {
-    const response = await fetch(`${this.baseURL}/PromotionalCampaigns/${id}`, {
+    await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}`, {
       method: 'DELETE',
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to delete campaign: ${response.statusText}`);
-    }
   }
 
   async activateCampaign(id: string): Promise<void> {
-    const response = await fetch(`${this.baseURL}/PromotionalCampaigns/${id}/activate`, {
+    await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}/activate`, {
       method: 'POST',
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to activate campaign: ${response.statusText}`);
-    }
   }
 
   async deactivateCampaign(id: string): Promise<void> {
-    const response = await fetch(`${this.baseURL}/PromotionalCampaigns/${id}/deactivate`, {
+    await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}/deactivate`, {
       method: 'POST',
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to deactivate campaign: ${response.statusText}`);
-    }
   }
 
   async bulkActivateCampaigns(ids: string[]): Promise<void> {
-    const response = await fetch(`${this.baseURL}/PromotionalCampaigns/bulk/activate`, {
+    await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/bulk/activate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(ids),
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to bulk activate campaigns: ${response.statusText}`);
-    }
   }
 
   async bulkDeactivateCampaigns(ids: string[]): Promise<void> {
-    const response = await fetch(`${this.baseURL}/PromotionalCampaigns/bulk/deactivate`, {
+    await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/bulk/deactivate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(ids),
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to bulk deactivate campaigns: ${response.statusText}`);
-    }
   }
 
   async bulkDeleteCampaigns(ids: string[]): Promise<void> {
-  if (!ids || ids.length === 0) {
-    throw new Error("No campaign IDs provided for bulk delete.");
-  }
-
-  try {
-    const response = await fetch(`${this.baseURL}/PromotionalCampaigns/range`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(ids),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Failed to bulk delete campaigns (${response.status}): ${errorText}`
-      );
+    if (!ids || ids.length === 0) {
+      throw new Error("No campaign IDs provided for bulk delete.");
     }
 
-    console.log(`✅ Successfully deleted ${ids.length} campaigns`);
-  } catch (error) {
-    console.error("❌ bulkDeleteCampaigns error:", error);
-    throw error;
+    try {
+      await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/range`, {
+        method: "DELETE",
+        body: JSON.stringify(ids),
+      });
+
+      console.log(`✅ Successfully deleted ${ids.length} campaigns`);
+    } catch (error) {
+      console.error("❌ bulkDeleteCampaigns error:", error);
+      throw error;
+    }
   }
-}
 
   async exportCampaigns(params: GetCampaignsParams, format: 'csv' | 'excel'): Promise<Blob> {
     const queryParams = new URLSearchParams();
@@ -429,12 +434,7 @@ class CampaignService {
     }
     if (params.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
 
-    const response = await fetch(`${this.baseUrl}/export/${format}?${queryParams}`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to export campaigns: ${response.statusText}`);
-    }
-
+    const response = await this.authenticatedFetch(`${this.baseURL}/export/${format}?${queryParams}`);
     return response.blob();
   }
 
@@ -457,13 +457,8 @@ class CampaignService {
     return discountTypeMap[discountTypeString] || DiscountType.Percentage;
   }
 
-async getCampaignAnalytics(campaignId: string): Promise<CampaignAnalytics> {
-    const response = await fetch(`${this.baseURL}/${campaignId}/analytics`);
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch campaign analytics: ${response.statusText}`);
-    }
-
+  async getCampaignAnalytics(campaignId: string): Promise<CampaignAnalytics> {
+    const response = await this.authenticatedFetch(`${this.baseURL}/${campaignId}/analytics`);
     const analytics = await response.json();
     
     return {
@@ -478,7 +473,7 @@ async getCampaignAnalytics(campaignId: string): Promise<CampaignAnalytics> {
     };
   }
 
-async getCampaignAnalyticsMock(campaignId: string): Promise<CampaignAnalytics> {
+  async getCampaignAnalyticsMock(campaignId: string): Promise<CampaignAnalytics> {
     // Giả lập dữ liệu analytics cho demo
     const mockAnalytics: CampaignAnalytics = {
       totalUsage: Math.floor(Math.random() * 500) + 100,
@@ -557,7 +552,6 @@ async getCampaignAnalyticsMock(campaignId: string): Promise<CampaignAnalytics> {
 
     return mockAnalytics;
   }
-
 }
 
 export const campaignService = new CampaignService();

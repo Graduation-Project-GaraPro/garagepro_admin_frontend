@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Clock, DollarSign, MapPin, Package, Edit, Loader2, Box, Hash, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Clock, DollarSign, MapPin, Package, Edit, Loader2, Box, Hash, BarChart3 ,Zap} from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -189,8 +189,24 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
                 </div>
               </div>
             </div>
+             <div className="grid grid-cols-2 gap-4">
+              
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-muted-foreground" />
+                <p
+                  className={`px-2 py-1 rounded-md text-sm font-medium ${
+                    service.isAdvanced
+                      ? "bg-blue-100 text-blue-800"
+                      : "border border-gray-300 text-gray-700"
+                  }`}
+                >
+                  {service.isAdvanced ? "Advanced Service" : "Regular Service"}
+                </p>
+              </div>
 
-            {service.parts && service.parts.length > 0 && (
+            </div>
+
+            {/* {service.parts && service.parts.length > 0 && (
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
                   <Package className="h-4 w-4 text-muted-foreground" />
@@ -207,7 +223,7 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
                   </div>
                 </div>
               </div>
-            )}
+            )} */}
 
             <div>
               <p className="text-sm font-medium text-muted-foreground mb-2">Available Branches</p>
@@ -308,16 +324,7 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
                 </div>
 
                 {/* Summary */}
-                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Parts</p>
-                    <p className="text-lg font-semibold">{formatNumber(service.parts.length)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total Parts Cost</p>
-                    <p className="text-lg font-semibold">{formatCurrency(totalPartsPrice)}</p>
-                  </div>
-                </div>
+                
 
                 {/* Stock Alert */}
                 {service.parts.some(part => part.stock < (part.minStockLevel || 5)) && (

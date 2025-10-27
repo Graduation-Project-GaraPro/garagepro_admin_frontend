@@ -653,7 +653,7 @@ export default function ServiceList() {
                           <div className="flex items-center text-sm font-medium">
                             <DollarSign className="mr-1 h-4 w-4 text-muted-foreground" />
                             
-                            {TotalPrice(service)}                            
+                            {formatCurrency(service.basePrice)}                            
                           </div>
                         </TableCell>
                         <TableCell>
