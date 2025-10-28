@@ -68,64 +68,146 @@ export default function ServiceForm({ service }: ServiceFormProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   
+  const [serviceCategories, setServiceCategories] = useState<any[]>([]);
+  const [availableSubCategories, setAvailableSubCategories] = useState<any[]>([]);
+
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string>('');
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>('');
+
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+
+  // Thêm state cho basePrice input
+  const [basePriceInput, setBasePriceInput] = useState(
+    service?.basePrice ? formatNumber(service.basePrice) : ''
+  );
+
+  const [touchedFields, setTouchedFields] = useState({
+  name: false,
+  serviceType: false,
+  basePrice: false,
+  branches: false,
+  durationEstimate: false,
+  description: false
+});
+  
   const [formData, setFormData] = useState({
-    name: service?.name || '',
-    description: service?.description || '',
-    serviceTypeId: service?.serviceType?.id || '',
-    basePrice: service?.basePrice || 0,
-    estimatedDuration: service?.estimatedDuration || 30,
-    isActive: service?.isActive ?? true,
-    isAdvanced: service?.isAdvanced ?? true,
-    branchIds: service?.branchIds || [],
-    partIds: service?.partIds || []
-  });
+  name: service?.name || '',
+  description: service?.description || '',
+  serviceTypeId: service?.serviceType?.id || '',
+  basePrice: service?.basePrice || 1000,
+  estimatedDuration: service?.estimatedDuration || 1,
+  isActive: service?.isActive ?? true,
+  isAdvanced: service?.isAdvanced ?? true,
+  branchIds: service?.branchIds || [],
+  partIds: service?.partIds || [] // Đảm bảo có phần này
+});
+// Thêm validation cho description
+const isDescriptionValid = formData.description.length === 0 || 
+  (formData.description.length >= 10 && formData.description.length <= 500);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+// Thêm validation cho service name
+const isNameValid = formData.name.length >= 3 && formData.name.length <= 100;
 
-  useEffect(() => {
-    if (service) {
-      setFormData({
-        name: service.name || '',
-        description: service.description || '',
-        serviceTypeId: service.serviceType?.id || '',
-        basePrice: service.basePrice || 0,
-        estimatedDuration: service.estimatedDuration || 30,
-        isActive: service.isActive ?? true,
-        isAdvanced: service?.isAdvanced ?? true,
-        branchIds: service.branchIds || [],
-        partIds: service.partIds || []
-      });
+useEffect(() => {
+  loadData();
+}, []);
+useEffect(() => {
+  if (service && service.partIds && service.partIds.length > 0) {
+    setSelectedPartIds(service.partIds);
+  }
+}, [service]);
+// Chỉ MỘT useEffect để xử lý khi categories loaded và có service
+// Sửa useEffect khởi tạo categories từ service
+// Sửa useEffect khởi tạo categories từ service
+useEffect(() => {
+  if (categoriesLoaded && service && service.serviceType) {
+    const serviceTypeId = service.serviceType.id;
+    const parentCategoryId = service.serviceType.parentServiceCategoryId;
+    
+    console.log('Initializing from service:', {
+      serviceTypeId,
+      parentCategoryId,
+      serviceTypeName: service.serviceType.name
+    });
+
+    if (parentCategoryId) {
+      // Đặt parent category trước
+      setSelectedParentCategory(parentCategoryId);
       
-      setSelectedPartIds(service.partIds || []);
+      // ĐỢI cho đến khi availableSubCategories được cập nhật từ parent
+      // rồi mới set sub category
+      const timer = setTimeout(() => {
+        setSelectedSubCategory(serviceTypeId);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    } else {
+      // ServiceType là parent category
+      setSelectedParentCategory(serviceTypeId);
+      setSelectedSubCategory('');
     }
-  }, [service]);
+  }
+}, [categoriesLoaded, service, serviceCategories]);
 
-  const loadData = async () => {
-    try {
-      setIsLoading(true);
-      const [types, categoriesData, branchesData] = await Promise.all([
-        serviceService.getServiceTypes(),
-        serviceService.getPartCategories(),
-        serviceService.getBranches()
-      ]);
-
-      setServiceTypes(types);
-      setPartCategories(categoriesData);
-      setBranches(branchesData);
-
-      toast.success('Form data loaded successfully');
-    } catch (error) {
-      console.error('Error loading data:', error);
-      toast.error('Failed to load form data', {
-        description: 'Please refresh the page and try again.'
-      });
-    } finally {
-      setIsLoading(false);
+useEffect(() => {
+  if (selectedParentCategory && service && availableSubCategories.length > 0) {
+    const serviceTypeId = service.serviceType?.id;
+    // Kiểm tra xem serviceTypeId có trong availableSubCategories không
+    const exists = availableSubCategories.some(sub => sub.serviceCategoryId === serviceTypeId);
+    if (exists && !selectedSubCategory) {
+      setSelectedSubCategory(serviceTypeId);
     }
-  };
+  }
+}, [availableSubCategories, selectedParentCategory, service, selectedSubCategory]);
 
+// Chỉ MỘT useEffect để xử lý khi parent category thay đổi
+useEffect(() => {
+  if (selectedParentCategory) {
+    const selectedParent = serviceCategories.find(cat => 
+      cat.serviceCategoryId === selectedParentCategory
+    );
+    const subCategories = selectedParent?.childCategories || [];
+    setAvailableSubCategories(subCategories);
+    
+    // LUÔN reset sub category khi parent thay đổi
+    setSelectedSubCategory('');
+  }
+}, [selectedParentCategory, serviceCategories]);
+
+// Chỉ MỘT useEffect để xử lý serviceTypeId
+useEffect(() => {
+  // Ưu tiên dùng sub category, nếu không có thì dùng parent (nếu parent không có child)
+  if (selectedSubCategory) {
+    setFormData(prev => ({ ...prev, serviceTypeId: selectedSubCategory }));
+  } else if (selectedParentCategory && availableSubCategories.length === 0) {
+    setFormData(prev => ({ ...prev, serviceTypeId: selectedParentCategory }));
+  }
+}, [selectedSubCategory, selectedParentCategory, availableSubCategories.length]);
+
+const loadData = async () => {
+  try {
+    setIsLoading(true);
+    const [categoriesData, partCategoriesData, branchesData] = await Promise.all([
+      serviceService.getParentCategories(),
+      serviceService.getPartCategories(),
+      serviceService.getBranches()
+    ]);
+
+    setServiceCategories(categoriesData);
+    setPartCategories(partCategoriesData);
+    setBranches(branchesData);
+    setCategoriesLoaded(true);
+
+    toast.success('Form data loaded successfully');
+  } catch (error) {
+    console.error('Error loading data:', error);
+    toast.error('Failed to load form data', {
+      description: 'Please refresh the page and try again.'
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
   // Get all parts from categories
   const allParts = partCategories.flatMap(category => 
     category.parts.map(part => ({
@@ -253,6 +335,30 @@ export default function ServiceForm({ service }: ServiceFormProps) {
   // Calculate total parts price
   const totalPartsPrice = selectedParts.reduce((total, part) => total + part.price, 0);
 
+
+  // Hàm để mark field as touched
+  const markFieldAsTouched = (fieldName: keyof typeof touchedFields) => {
+    setTouchedFields(prev => ({ ...prev, [fieldName]: true }));
+  };
+
+  const handleBasePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\./g, ''); // Remove existing dots
+    const numericValue = parseFloat(rawValue) || 0;
+    
+    setBasePriceInput(formatNumber(numericValue)); // Format for display
+    setFormData({ ...formData, basePrice: numericValue });
+  };
+
+  const handleBasePriceBlur = () => {
+  markFieldAsTouched('basePrice');
+  // Ensure minimum value
+  if (formData.basePrice < 1000) {
+    const minValue = 1000;
+    setBasePriceInput(formatNumber(minValue));
+    setFormData({ ...formData, basePrice: minValue });
+  }
+};
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -309,54 +415,156 @@ export default function ServiceForm({ service }: ServiceFormProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name" className="flex items-center gap-2">
-                  Service Name
-                  <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter service name"
-                  required
-                  className="focus-visible:ring-primary"
-                />
-              </div>
+                  <Label htmlFor="name" className="flex items-center gap-2">
+                    Service Name
+                    <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onBlur={() => markFieldAsTouched('name')}
+                    placeholder="Enter service name"
+                    required
+                    className="focus-visible:ring-primary"
+                  />
+                  <div className="flex justify-between text-xs">
+                    <span className={touchedFields.name && !isNameValid ? "text-destructive" : "text-muted-foreground"}>
+                      {formData.name.length}/100 characters
+                      {touchedFields.name && !isNameValid && (
+                        <span className="ml-2">
+                          Service name must be between 3-100 characters
+                        </span>
+                      )}
+                    </span>
+                    {formData.name.length > 0 && (
+                      <span className={isNameValid ? "text-green-600" : "text-destructive"}>
+                        {isNameValid ? "✓ Valid" : "✗ Invalid"}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Enter service description"
-                  rows={3}
-                  className="resize-none focus-visible:ring-primary"
-                />
-              </div>
+                  <Label htmlFor="description">Description
+                    <span className="text-destructive">*</span>
+                  </Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    onBlur={() => markFieldAsTouched('description')}
+                    placeholder="Enter service description"
+                    rows={3}
+                    className="resize-none focus-visible:ring-primary"
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>
+                      {formData.description.length}/500 characters
+                      {touchedFields.description && !isDescriptionValid && (
+                        <span className="text-destructive ml-2">
+                          Description must be between 10-500 characters
+                        </span>
+                      )}
+                    </span>
+                    {formData.description.length > 0 && (
+                      <span className={formData.description.length < 10 || formData.description.length > 500 ? "text-destructive" : "text-green-600"}>
+                        {isDescriptionValid ? "✓ Valid" : "✗ Invalid"}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
               <div className="space-y-2">
                 <Label htmlFor="serviceTypeId" className="flex items-center gap-2">
-                  Service Type
+                  Service Category
                   <span className="text-destructive">*</span>
                 </Label>
-                <Select
-                  value={formData.serviceTypeId}
-                  onValueChange={(value) => setFormData({ ...formData, serviceTypeId: value })}
+  
+              {/* Main Category Selector */}
+              <Select
+                  value={selectedParentCategory}
+                  onValueChange={(value) => {
+                    setSelectedParentCategory(value);
+                    markFieldAsTouched('serviceType');
+                  }}
                   required
                 >
                   <SelectTrigger className="focus-visible:ring-primary">
-                    <SelectValue placeholder="Select service type" />
+                    <SelectValue placeholder="Select main category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {serviceTypes.filter(type => type.isActive).map((type) => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.name}
-                      </SelectItem>
-                    ))}
+                    {serviceCategories
+                      .filter(cat => cat.isActive)
+                      .map((category) => (
+                        <SelectItem key={category.serviceCategoryId} value={category.serviceCategoryId}>
+                          {category.categoryName}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
-              </div>
+
+                  {/* Sub Category Selector - chỉ hiển thị khi có subcategories */}
+                   {availableSubCategories.length > 0 && (
+                      <div className="mt-3">
+                        <Label htmlFor="subCategoryId" className="flex items-center gap-2 text-sm">
+                          Sub Category
+                          <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
+                          value={selectedSubCategory}
+                          onValueChange={(value) => {
+                            setSelectedSubCategory(value);
+                            markFieldAsTouched('serviceType');
+                          }}
+                          required={availableSubCategories.length > 0}
+                        >
+                          <SelectTrigger className="focus-visible:ring-primary mt-1">
+                            <SelectValue placeholder="Select sub category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableSubCategories
+                              .filter(subCat => subCat.isActive)
+                              .map((subCategory) => (
+                                <SelectItem key={subCategory.serviceCategoryId} value={subCategory.serviceCategoryId}>
+                                  {subCategory.categoryName}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Please select a specific sub-category for this service
+                        </p>
+                        
+                      </div>
+                    )}
+
+                    {/* Validation for category selection */}
+                    {touchedFields.serviceType && !selectedParentCategory && (
+                      <p className="text-sm text-destructive">Main category is required</p>
+                    )}
+                    {touchedFields.serviceType && selectedParentCategory && availableSubCategories.length > 0 && !selectedSubCategory && (
+                      <p className="text-sm text-destructive">Please select a sub category</p>
+                    )}
+
+                  {/* Hiển thị giá trị đã chọn */}
+                  {formData.serviceTypeId && (
+                    <div className="mt-2 p-2 bg-muted/50 rounded-md text-sm">
+                      <span className="font-medium">Selected: </span>
+                      {serviceCategories.find(cat => 
+                        cat.serviceCategoryId === selectedParentCategory
+                      )?.categoryName}
+                      {selectedSubCategory && (
+                        <>
+                          <span className="mx-2">→</span>
+                          {availableSubCategories.find(sub => 
+                            sub.serviceCategoryId === selectedSubCategory
+                          )?.categoryName}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -366,36 +574,44 @@ export default function ServiceForm({ service }: ServiceFormProps) {
                   </Label>
                   <Input
                     id="basePrice"
-                    type="number"
-                    step="1000"
-                    min="0"
-                    value={formData.basePrice}
-                    onChange={(e) => setFormData({ ...formData, basePrice: parseFloat(e.target.value) || 0 })}
+                    type="text" // Change to text to handle formatting
+                    value={basePriceInput}
+                    onChange={handleBasePriceChange}
+                    onBlur={handleBasePriceBlur}
                     placeholder="0"
                     required
-                    className="focus-visible:ring-primary"
+                    className="focus-visible:ring-primary  font-mono"
                   />
                   <p className="text-xs text-muted-foreground">
                     {formatCurrency(formData.basePrice)}
                   </p>
+                  {touchedFields.basePrice && formData.basePrice < 1000 && (
+                    <p className="text-sm text-destructive">
+                      Base price must be greater than or equal to {formatCurrency(1000)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="estimatedDuration" className="flex items-center gap-2">
-                    Duration (minutes)
-                    <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="estimatedDuration"
-                    type="number"
-                    min="1"
-                    value={formData.estimatedDuration}
-                    onChange={(e) => setFormData({ ...formData, estimatedDuration: parseInt(e.target.value) || 30 })}
-                    placeholder="30"
-                    required
-                    className="focus-visible:ring-primary"
-                  />
-                </div>
+                    <Label htmlFor="estimatedDuration" className="flex items-center gap-2">
+                      Duration (minutes)
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="estimatedDuration"
+                      type="number"
+                      min="1"
+                      value={formData.estimatedDuration}
+                      onBlur={() => markFieldAsTouched('durationEstimate')}
+                      onChange={(e) => setFormData({ ...formData, estimatedDuration: parseInt(e.target.value)})}
+                      placeholder="30"
+                      required
+                      className="focus-visible:ring-primary"
+                    />
+                    {touchedFields.durationEstimate && formData.estimatedDuration < 1 && (
+                      <p className="text-sm text-destructive">Duration must be at least 1 minute</p>
+                    )}
+                  </div>
               </div>
 
               <div className="flex items-center space-x-2 p-4 border rounded-lg bg-muted/50">
@@ -514,56 +730,57 @@ export default function ServiceForm({ service }: ServiceFormProps) {
 
                 {/* Parts Selection Grid */}
                 <div className="border rounded-lg bg-card">
-                  <div className="max-h-48 overflow-y-auto">
-                    {filteredParts.length > 0 ? (
-                      <div className="p-2 space-y-2">
-                        {filteredParts.map((part) => (
-                          <div
-                            key={part.id}
-                            className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
-                              selectedPartIds.includes(part.id)
-                                ? 'bg-primary/10 border-primary shadow-sm'
-                                : 'hover:bg-muted/50 border-muted'
-                            }`}
-                            onClick={() => togglePartSelection(part.id)}
-                          >
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                  selectedPartIds.includes(part.id)
-                                    ? 'bg-primary border-primary'
-                                    : 'border-muted-foreground'
-                                }`}>
-                                  {selectedPartIds.includes(part.id) && (
-                                    <CheckCircle2 className="h-3 w-3 text-primary-foreground" />
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="font-medium text-sm">{part.name}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {part.categoryName} • {formatCurrency(part.price)} • Stock: {formatNumber(part.stock)}
-                                  </p>
+                    <div className="max-h-48 overflow-y-auto">
+                      {filteredParts.length > 0 ? (
+                        <div className="p-2 space-y-2">
+                          {filteredParts.map((part) => (
+                            <div
+                              key={part.id}
+                              className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                                selectedPartIds.includes(part.id)
+                                  ? 'bg-primary/10 border-primary shadow-sm'
+                                  : 'hover:bg-muted/50 border-muted'
+                              }`}
+                              onClick={() => togglePartSelection(part.id)}
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  {/* Đổi thành hình vuông */}
+                                  <div className={`w-4 h-4 border-2 flex items-center justify-center rounded ${
+                                    selectedPartIds.includes(part.id)
+                                      ? 'bg-primary border-primary'
+                                      : 'border-muted-foreground'
+                                  }`}>
+                                    {selectedPartIds.includes(part.id) && (
+                                      <CheckCircle2 className="h-3 w-3 text-primary-foreground" />
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-sm">{part.name}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {part.categoryName} • {formatCurrency(part.price)} • Stock: {formatNumber(part.stock)}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
+                              <Badge 
+                                variant={selectedPartIds.includes(part.id) ? "default" : "outline"}
+                                className="ml-2"
+                              >
+                                {selectedPartIds.includes(part.id) ? 'Selected' : 'Select'}
+                              </Badge>
                             </div>
-                            <Badge 
-                              variant={selectedPartIds.includes(part.id) ? "default" : "outline"}
-                              className="ml-2"
-                            >
-                              {selectedPartIds.includes(part.id) ? 'Selected' : 'Select'}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No parts found</p>
-                        <p className="text-sm">Try adjusting your search or filters</p>
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>No parts found</p>
+                          <p className="text-sm">Try adjusting your search or filters</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
                 {/* Selected Parts Table */}
                 {selectedParts.length > 0 ? (
@@ -646,58 +863,61 @@ export default function ServiceForm({ service }: ServiceFormProps) {
 
             {/* Available Branches Card */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-primary" />
-                  Available Branches
-                  <span className="text-destructive">*</span>
-                </CardTitle>
-                <CardDescription>
-                  Select branches where this service is offered
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {branches.filter(branch => branch.isActive).length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {branches
-                      .filter(branch => branch.isActive)
-                      .map((branch) => (
-                        <Badge
-                          key={branch.id}
-                          variant={formData.branchIds.includes(branch.id) ? "default" : "outline"}
-                          className="cursor-pointer px-3 py-2 text-sm transition-all hover:scale-105"
-                          onClick={() => toggleBranch(branch.id)}
-                        >
-                          {branch.name}
-                          {formData.branchIds.includes(branch.id) && (
-                            <CheckCircle2 className="ml-1 h-3 w-3" />
-                          )}
-                        </Badge>
-                      ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">
-                    <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p>No active branches available</p>
-                  </div>
-                )}
-                
-                {formData.branchIds.length === 0 && (
-                  <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      Please select at least one branch where this service will be offered.
-                    </AlertDescription>
-                  </Alert>
-                )}
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-primary" />
+                Available Branches
+                <span className="text-destructive">*</span>
+              </CardTitle>
+              <CardDescription>
+                Select branches where this service is offered
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {branches.filter(branch => branch.isActive).length > 0 ? (
+                <div 
+                  className="flex flex-wrap gap-2"
+                  onClick={() => markFieldAsTouched('branches')}
+                >
+                  {branches
+                    .filter(branch => branch.isActive)
+                    .map((branch) => (
+                      <Badge
+                        key={branch.id}
+                        variant={formData.branchIds.includes(branch.id) ? "default" : "outline"}
+                        className="cursor-pointer px-3 py-2 text-sm transition-all hover:scale-105"
+                        onClick={() => toggleBranch(branch.id)}
+                      >
+                        {branch.name}
+                        {formData.branchIds.includes(branch.id) && (
+                          <CheckCircle2 className="ml-1 h-3 w-3" />
+                        )}
+                      </Badge>
+                    ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No active branches available</p>
+                </div>
+              )}
+              
+              {touchedFields.branches && formData.branchIds.length === 0 && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Please select at least one branch where this service will be offered.
+                  </AlertDescription>
+                </Alert>
+              )}
 
-                {formData.branchIds.length > 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    Selected {formData.branchIds.length} branch{formData.branchIds.length !== 1 ? 'es' : ''}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              {formData.branchIds.length > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  Selected {formData.branchIds.length} branch{formData.branchIds.length !== 1 ? 'es' : ''}
+                </div>
+              )}
+            </CardContent>
+          </Card>
           </div>
         </div>
 
@@ -710,7 +930,15 @@ export default function ServiceForm({ service }: ServiceFormProps) {
           </Button>
           <Button 
             type="submit" 
-            disabled={isSubmitting || !formData.name || !formData.serviceTypeId || formData.branchIds.length === 0}
+            disabled={isSubmitting || 
+              !isNameValid || // Thay !formData.name bằng !isNameValid
+              !formData.serviceTypeId || 
+              formData.branchIds.length === 0 ||
+              !isDescriptionValid ||
+              // Thêm validation: nếu category cha có con thì phải chọn con
+              (availableSubCategories.length > 0 && 
+              !availableSubCategories.some(subCat => subCat.serviceCategoryId === formData.serviceTypeId))
+            }
             className="min-w-32"
           >
             {isSubmitting ? (

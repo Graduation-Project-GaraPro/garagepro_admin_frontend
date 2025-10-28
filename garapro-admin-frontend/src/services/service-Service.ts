@@ -27,6 +27,7 @@ export interface ServiceType {
   name: string;
   description: string;
   isActive: boolean;
+  parentServiceCategoryId:string
 }
 
 export interface Branch {
@@ -350,7 +351,8 @@ export const serviceService = {
           id: item.serviceCategory?.serviceCategoryId || '',
           name: item.serviceCategory?.categoryName || 'Uncategorized',
           description: item.serviceCategory?.description || '',
-          isActive: item.serviceCategory?.isActive || false
+          isActive: item.serviceCategory?.isActive || false,
+          parentServiceCategoryId: item.serviceCategory.parentServiceCategoryId|| ''
         },
         branchIds: item.branches?.map((branch) => branch.branchId) || [],
         branches: item.branches?.map(branch => ({
@@ -419,6 +421,16 @@ export const serviceService = {
     }
   },
 
+  async getParentCategories(): Promise<any[]> {
+    try {
+      const response = await authenticatedFetch(`${API_BASE_URL}/ServiceCategories/parents`);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching parent categories:', error);
+      throw error;
+    }
+  },
   // Get all branches
   async getBranches(): Promise<Branch[]> {
     try {

@@ -134,9 +134,12 @@ export default function ServiceList() {
   // Filter and pagination states
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [serviceTypes, setServiceTypes] = useState<any[]>([]);
   
+  
+  const [serviceCategories, setServiceCategories] = useState<any[]>([]);
+  const [availableSubCategories, setAvailableSubCategories] = useState<any[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [subCategoryFilter, setSubCategoryFilter] = useState<string>('all');
   // Pagination states
   const [pagination, setPagination] = useState<PaginationInfo>({
     pageNumber: 1,
@@ -152,7 +155,7 @@ export default function ServiceList() {
 
   useEffect(() => {
     loadServices();
-    loadServiceTypes();
+    loadServiceCategories();
   }, []);
 
   useEffect(() => {
@@ -160,23 +163,40 @@ export default function ServiceList() {
     setPagination(prev => ({ ...prev, pageNumber: 1 }));
     setSelectedServices(new Set());
     setIsAllSelected(false);
-  }, [debouncedSearchTerm, statusFilter, typeFilter]);
+  }, [debouncedSearchTerm, statusFilter, categoryFilter, subCategoryFilter]);
 
   useEffect(() => {
     loadServices();
-  }, [pagination.pageNumber, pagination.pageSize, debouncedSearchTerm, statusFilter, typeFilter]);
+  }, [pagination.pageNumber, pagination.pageSize, debouncedSearchTerm, statusFilter, categoryFilter, subCategoryFilter]);
+
+  // Thêm useEffect để xử lý khi category cha thay đổi
+      useEffect(() => {
+        if (categoryFilter !== 'all') {
+          const selectedParent = serviceCategories.find(cat => cat.serviceCategoryId === categoryFilter);
+          setAvailableSubCategories(selectedParent?.childCategories || []);
+        } else {
+          setAvailableSubCategories([]);
+        }
+        setSubCategoryFilter('all'); // Reset subcategory khi category cha thay đổi
+      }, [categoryFilter, serviceCategories]);
+
+        // Cập nhật filterParams - sử dụng serviceCategoryId cho cả cha và con
+        
+
+
 
   const loadServices = async () => {
     try {
       setIsLoading(true);
       
       const filterParams: ServiceFilterParams = {
-        searchTerm: debouncedSearchTerm || undefined,
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        serviceTypeId: typeFilter !== 'all' ? typeFilter : undefined,
-        pageNumber: pagination.pageNumber,
-        pageSize: pagination.pageSize
-      };
+          searchTerm: debouncedSearchTerm || undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          serviceTypeId: subCategoryFilter !== 'all' ? subCategoryFilter : 
+                        categoryFilter !== 'all' ? categoryFilter : undefined,
+          pageNumber: pagination.pageNumber,
+          pageSize: pagination.pageSize
+        };
 
       const response: PaginatedResponse = await serviceService.getServicesWithPagination(filterParams);
       
@@ -206,12 +226,13 @@ export default function ServiceList() {
     }
   };
 
-  const loadServiceTypes = async () => {
+  // Sửa hàm loadServiceTypes thành loadServiceCategories
+  const loadServiceCategories = async () => {
     try {
-      const types = await serviceService.getServiceTypes();
-      setServiceTypes(types);
+      const categories = await serviceService.getParentCategories(); // Gọi API lấy categories cha
+      setServiceCategories(categories);
     } catch (error) {
-      console.error('Error loading service types:', error);
+      console.error('Error loading service categories:', error);
     }
   };
 
@@ -374,10 +395,11 @@ export default function ServiceList() {
 };
 
   const clearFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('all');
-    setTypeFilter('all');
-  };
+  setSearchTerm('');
+  setStatusFilter('all');
+  setCategoryFilter('all');
+  setSubCategoryFilter('all');
+};
 
   const handlePageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, pageNumber: newPage }));
@@ -498,7 +520,7 @@ export default function ServiceList() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-5">
             <div className="space-y-2">
               <label className="text-sm font-medium">Search</label>
               <div className="relative">
@@ -523,23 +545,52 @@ export default function ServiceList() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="True">Active</SelectItem>
+                  <SelectItem value="False">Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Main Category Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Main Category</label>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {serviceCategories.filter(cat => cat.isActive).map((category) => (
+                      <SelectItem key={category.serviceCategoryId} value={category.serviceCategoryId}>
+                        {category.categoryName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+            {/* Sub Category Filter */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Service Type</label>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <label className="text-sm font-medium">Sub Category</label>
+              <Select 
+                value={subCategoryFilter} 
+                onValueChange={setSubCategoryFilter}
+                disabled={categoryFilter === 'all' || availableSubCategories.length === 0}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="All types" />
+                  <SelectValue placeholder={
+                    categoryFilter === 'all' 
+                      ? "Select main category first" 
+                      : availableSubCategories.length === 0
+                      ? "No subcategories"
+                      : "All subcategories"
+                  } />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  {serviceTypes.filter(type => type.isActive).map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name}
+                  <SelectItem value="all">All Subcategories</SelectItem>
+                  {availableSubCategories.filter(subCat => subCat.isActive).map((subCategory) => (
+                    <SelectItem key={subCategory.serviceCategoryId} value={subCategory.serviceCategoryId}>
+                      {subCategory.categoryName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -750,6 +801,35 @@ export default function ServiceList() {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
+                    
+                    {/* Page numbers */}
+                    {pagination.totalPages > 0 && (
+                      <div className="flex items-center space-x-1">
+                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                          // Tính toán trang bắt đầu để luôn hiển thị 5 trang (nếu có)
+                          let startPage = Math.max(1, pagination.pageNumber - 2);
+                          if (pagination.totalPages - startPage < 4) {
+                            startPage = Math.max(1, pagination.totalPages - 4);
+                          }
+                          
+                          const pageNum = startPage + i;
+                          if (pageNum > pagination.totalPages) return null;
+                          
+                          return (
+                            <Button
+                              key={pageNum}
+                              variant={pagination.pageNumber === pageNum ? "default" : "outline"}
+                              className="h-8 w-8 p-0 text-xs"
+                              onClick={() => handlePageChange(pageNum)}
+                              disabled={isLoading}
+                            >
+                              {pageNum}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
                     <Button
                       variant="outline"
                       className="h-8 w-8 p-0"
