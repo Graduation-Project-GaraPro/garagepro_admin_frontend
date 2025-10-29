@@ -23,6 +23,7 @@ export default function BranchesPage() {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -49,7 +50,9 @@ export default function BranchesPage() {
     } catch (error) {
       console.error('Failed to load branches:', error)
       setError('Failed to load branches. Please try again later.')
-      toast.error('Failed to load branches')
+      toast.error('Failed to load branches', {
+        description: 'Please try again later.'
+      })
     } finally {
       setLoading(false)
     }
@@ -67,13 +70,17 @@ export default function BranchesPage() {
       toast.success(`Branch ${!currentStatus ? 'activated' : 'deactivated'} successfully`)
     } catch (error) {
       console.error('Failed to toggle branch status:', error)
-      toast.error('Failed to toggle branch status')
+      toast.error('Failed to toggle branch status', {
+        description: 'Please try again.'
+      })
     }
   }
 
   const handleDelete = async (branchId: string) => {
     setConfirmDeleteId(branchId)
   }
+
+  
 
   const handleCloseError = () => {
     setError(null)
@@ -121,7 +128,9 @@ export default function BranchesPage() {
       toast.success('Export started successfully')
     } catch (error) {
       console.error('Export failed', error)
-      toast.error('Failed to export branches')
+      toast.error('Failed to export branches', {
+        description: 'Please check your connection and try again.'
+      })
     } finally {
       setIsExporting(false)
     }
@@ -145,7 +154,9 @@ export default function BranchesPage() {
       setSelectedIds([])
       loadBranches()
     } catch (e) {
-      toast.error('Failed to activate selected branches')
+      toast.error('Failed to activate selected branches', {
+        description: e instanceof Error ? e.message : 'Please try again.'
+      })
     }
   }
 
@@ -157,22 +168,32 @@ export default function BranchesPage() {
       setSelectedIds([])
       loadBranches()
     } catch (e) {
-      toast.error('Failed to deactivate selected branches')
+      toast.error('Failed to deactivate selected branches', {
+        description: e instanceof Error ? e.message : 'Please try again.'
+      })
     }
   }
 
   
   const bulkDelete = async () => {
     if (selectedIds.length === 0) return
-    try {
-      await branchService.bulkDeleteBranchesApi(selectedIds)
-      toast.success('Selected branches deleted')
-      setSelectedIds([])
-      loadBranches()
-    } catch (e) {
-      toast.error('Failed to delete selected branches')
-    }
+    setConfirmBulkDelete(true)
   }
+
+
+  const handleConfirmBulkDelete = async () => {
+  try {
+    await branchService.bulkDeleteBranchesApi(selectedIds)
+    toast.success('Selected branches deleted')
+    setSelectedIds([])
+    setConfirmBulkDelete(false)
+    loadBranches()
+  } catch (e) {
+    toast.error('Failed to delete selected branches', {
+      description: e instanceof Error ? e.message : 'Unknown error occurred'
+    })
+  }
+}
 
   // Pagination functions
   const goToPage = (page: number) => {
@@ -643,6 +664,25 @@ export default function BranchesPage() {
       </Card>
 
 
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+            <h3 className="text-lg font-semibold mb-2">Delete Multiple Branches</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to delete {selectedIds.length} selected branch(es)? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setConfirmBulkDelete(false)}>Cancel</Button>
+              <Button
+                variant="destructive"
+                onClick={handleConfirmBulkDelete}
+              >
+                Delete {selectedIds.length} Branch(es)
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     
 
       {/* Confirm Delete Modal */}
@@ -662,7 +702,9 @@ export default function BranchesPage() {
                     toast.success('Branch deleted successfully')
                     loadBranches()
                   } catch (error) {
-                    toast.error('Failed to delete branch')
+                    toast.error('Failed to delete branch', {
+                        description: error instanceof Error ? error.message : 'Please try again.'
+                      })
                   }
                 }}
               >
@@ -673,5 +715,7 @@ export default function BranchesPage() {
         </div>
       )}
     </div>
+
+    
   )
 }

@@ -9,7 +9,7 @@ export interface SecurityPolicy {
   sessionTimeout: number;
   maxLoginAttempts: number;
   accountLockoutTime: number;
-  mfaRequired: boolean;
+  // mfaRequired: boolean;
   passwordExpiryDays: number;
   enableBruteForceProtection: boolean;
   updatedAt: string;

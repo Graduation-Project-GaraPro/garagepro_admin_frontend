@@ -30,7 +30,7 @@ export default function EditBranchPage() {
   const [shouldValidate, setShouldValidate] = useState(false)
   const [formData, setFormData] = useState<UpdateBranchRequest | null>(null)
   
-  const { managers, technicians,managersWithoutBranch,techniciansWithoutBranch, categories, loading: dataLoading, error: dataError } = useBranchData()
+  const { managers, technicians,managersWithoutBranch,techniciansWithoutBranch, categories,parentCategories, loading: dataLoading, error: dataError } = useBranchData()
   const errors = useFormValidation(formData || {} as UpdateBranchRequest, shouldValidate)
 
   useEffect(() => {
@@ -298,6 +298,7 @@ export default function EditBranchPage() {
           formData={formData}
           errors={errors}
           categories={categories}
+          parentCategories={parentCategories}
           onServiceToggle={handleServiceToggle}
           onServiceRemove={handleServiceRemove}
         />
@@ -317,31 +318,32 @@ export default function EditBranchPage() {
         <OperatingHoursSection
           operatingHours={formData.operatingHours}
           onOperatingHoursChange={handleOperatingHoursChange}
+           error={errors.operatingHours}
         />
 
         <div className="flex justify-end gap-4">
-          <Link href="/admin/branches">
-            <Button variant="outline" type="button" disabled={submitting}>
-              Cancel
+            <Link href="/admin/branches">
+              <Button variant="outline" type="button" disabled={submitting}>
+                Cancel
+              </Button>
+            </Link>
+            <Button 
+              type="submit" 
+              disabled={submitting || Object.keys(validateForm(formData)).length > 0}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Update Branch
+                </>
+              )}
             </Button>
-          </Link>
-          <Button 
-            type="submit" 
-            disabled={submitting}
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Updating...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Update Branch
-              </>
-            )}
-          </Button>
-        </div>
+          </div>
       </form>
     </div>
   )

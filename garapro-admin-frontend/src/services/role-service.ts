@@ -38,7 +38,7 @@ export interface CreateRoleRequest {
 
 export interface UpdateRoleRequest {
   roleId: string
-  newName: string
+  name: string
   description: string
   permissionIds: string[]
   
@@ -182,7 +182,7 @@ private async fetchAPI<T>(endpoint: string, options: RequestInit = {}, retryCoun
 
     const requestData: UpdateRoleRequest = {
       roleId: roleData.id,
-      newName: roleData.newName,
+      name: roleData.name,
       description: roleData.description,
       permissionIds: roleData.permissionIds,
       
