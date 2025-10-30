@@ -34,9 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      // Kiểm tra cả token và user data
       if (authService.isAuthenticated()) {
-        // Có token, nhưng cần kiểm tra user data
         const userData = await getCurrentUser();
         if (userData) {
           setUser(userData);
@@ -55,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const getCurrentUser = async (): Promise<User | null> => {
     try {
-      const token = authService.getToken();
+      const token = authService.getToken(); // DÙNG GETTOKEN
       if (!token) return null;
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'}/auth/me`, {
@@ -82,9 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         roles: authData.roles
       };
       setUser(userData);
-      
-      // Verify token is actually stored
-      console.log('Token after login:', authService.getToken());
     } catch (error) {
       throw error;
     }

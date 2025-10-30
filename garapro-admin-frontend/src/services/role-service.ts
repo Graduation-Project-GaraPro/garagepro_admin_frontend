@@ -73,7 +73,12 @@ private getCurrentUserEmail(): string | null {
 private async fetchAPI<T>(endpoint: string, options: RequestInit = {}, retryCount = 0): Promise<T> {
   const token = this.getAuthToken()
   const url = `${API_BASE_URL}${endpoint}`
-
+    if (!token) {
+            if (typeof window !== 'undefined') {
+              window.location.href = '/';
+            }
+            throw new Error('Authentication required');
+          }
   const defaultHeaders: HeadersInit = {
     "Content-Type": "application/json",
   }

@@ -1,14 +1,13 @@
-
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
 const SignalR_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113'
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
+import { authService } from './authService'
 
 export interface LogEntry {
   id: number
   timestamp: string
-  level: 'Error' | 'Warning' | 'Information' | 'Debug' | 'Critical'
-  source: 'System' | 'Security' | 'UserActivity' | 'Middleware' | 'Authentication' | 'ApiController' | 'Database'
+  level: 'Error' | 'Warning' | 'Information' | 'Critical'
+  source: 'System' | 'Security' | 'UserActivity' 
   userId: string | null
   userName: string
   message: string
@@ -33,8 +32,8 @@ export interface LogStats {
 export interface LogSearchRequest {
   pageNumber: number
   pageSize: number
-  levels?: number[]  // Sửa thành number[]
-  sources?: number[] // Sửa thành number[]
+  levels?: number[]
+  sources?: number[]
   searchTerm?: string
   startDate?: string
   endDate?: string
@@ -48,9 +47,65 @@ export interface LogSearchResult {
   pageSize: number
   totalPages: number
 }
+
 export class LogService {
   private connection: HubConnection | null = null
   private isConnected = false
+
+  private static async getAuthHeaders(): Promise<HeadersInit> {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      const token = await authService.getToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.log('No authentication token available for log service request');
+    }
+
+    return headers;
+  }
+
+  private static async authenticatedFetch(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
+    try {
+      const headers = await this.getAuthHeaders();
+      
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...headers,
+          ...options.headers,
+        },
+      });
+
+      // Token expired - try to refresh and retry
+      if (response.status === 401 && retryCount === 0) {
+        try {
+          await authService.handleTokenRefresh();
+          return this.authenticatedFetch(url, options, retryCount + 1);
+        } catch (refreshError) {
+          throw new Error('Session expired. Please login again.');
+        }
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      return response;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Authentication required')) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+      }
+      throw error;
+    }
+  }
 
   // Kết nối SignalR
   static async connectToLogHub(
@@ -58,8 +113,12 @@ export class LogService {
     onUpdateStats: () => void,
     onConnectionChange?: (connected: boolean) => void
   ): Promise<HubConnection> {
+    const token = authService.getToken();
+    
     const connection = new HubConnectionBuilder()
-      .withUrl(`${SignalR_BASE_URL}/logHub`)
+      .withUrl(`${SignalR_BASE_URL}/logHub`, {
+        accessTokenFactory: () => token || ''
+      })
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Information)
       .build()
@@ -105,57 +164,57 @@ export class LogService {
     }
   }
 
-
   // Search logs với POST
   static async searchLogs(request: LogSearchRequest): Promise<LogSearchResult> {
-    const response = await fetch(`${API_BASE_URL}/ActivityLogs/search`, {
+    const response = await this.authenticatedFetch(`${API_BASE_URL}/ActivityLogs/search`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(request),
     })
-
-    if (!response.ok) {
-      throw new Error(`Failed to search logs: ${response.statusText}`)
-    }
 
     return response.json()
   }
 
   // Lấy thống kê
   static async getQuickStats(days: number = 7): Promise<LogStats> {
-    const response = await fetch(`${API_BASE_URL}/ActivityLogs/quick-stats?days=${days}`)
-
-    if (!response.ok) {
-      throw new Error(`Failed to get quick stats: ${response.statusText}`)
-    }
-
+    const response = await this.authenticatedFetch(`${API_BASE_URL}/ActivityLogs/quick-stats?days=${days}`)
     return response.json()
   }
 
   // Export logs
   static async exportLogs(request: LogSearchRequest): Promise<Blob> {
-    const response = await fetch(`${API_BASE_URL}/ActivityLogs/export`, {
+    const response = await this.authenticatedFetch(`${API_BASE_URL}/ActivityLogs/export`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(request),
     })
 
-    if (!response.ok) {
-      throw new Error(`Failed to export logs: ${response.statusText}`)
-    }
-
     return response.blob()
+  }
+
+  // Lấy log details
+  static async getLogDetails(logId: number): Promise<LogEntry> {
+    const response = await this.authenticatedFetch(`${API_BASE_URL}/ActivityLogs/${logId}`)
+    return response.json()
+  }
+
+  // Xóa log
+  static async deleteLog(logId: number): Promise<void> {
+    await this.authenticatedFetch(`${API_BASE_URL}/ActivityLogs/${logId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Bulk delete logs
+  static async bulkDeleteLogs(logIds: number[]): Promise<void> {
+    await this.authenticatedFetch(`${API_BASE_URL}/ActivityLogs/bulk-delete`, {
+      method: 'POST',
+      body: JSON.stringify(logIds),
+    })
   }
 }
 
 // Constants
 export const logSources = [
-  'System', 'Security', 'UserActivity', 'Middleware', 
-  'Authentication', 'ApiController', 'Database'
+  'System', 'Security', 'UserActivity'
 ]
 
 export const environments = ['production', 'staging', 'development']

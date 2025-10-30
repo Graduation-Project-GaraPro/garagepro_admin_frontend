@@ -155,15 +155,8 @@ export interface Ward {
 class BranchService {
   private baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
 
- private async getAuthToken(): Promise<string> {
-    try {
-      const token = await authService.getValidToken();
-      console.log('🔑 Current token:', token ? '✅ Available' : '❌ Missing');
-      return token;
-    } catch (error) {
-      console.log('🔑 Token error:', error.message);
-      throw new Error('Authentication required');
-    }
+   private getAuthToken(): string | null {
+    return authService.getToken(); // CHỈ DÙNG GETTOKEN
   }
 
   private async request<T>(url: string, options: RequestInit = {}, retryCount = 0): Promise<T> {
@@ -171,7 +164,12 @@ class BranchService {
     
     try {
       const token = await this.getAuthToken();
-      
+       if (!token) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+        throw new Error('Authentication required');
+      }
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,

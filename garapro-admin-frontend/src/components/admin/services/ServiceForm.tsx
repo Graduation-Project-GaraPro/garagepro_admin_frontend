@@ -76,6 +76,8 @@ export default function ServiceForm({ service }: ServiceFormProps) {
 
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
+  
+
   // Thêm state cho basePrice input
   const [basePriceInput, setBasePriceInput] = useState(
     service?.basePrice ? formatNumber(service.basePrice) : ''

@@ -164,15 +164,21 @@ interface ServiceFilterParams {
   pageSize: number;
 }
 
-const getAuthToken = (): string | null => {
+const getAuthToken =  (): string | null => {
   return authService.getToken();
+  // return await authService.getValidToken();
 };
 
 // Helper function for making authenticated requests
 const authenticatedFetch = async (url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> => {
   try {
     const token = getAuthToken();
-    
+     if (!token) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+        throw new Error('Authentication required');
+      }
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -206,7 +212,7 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}, retryC
   } catch (error) {
     if (error instanceof Error && error.message.includes('Authentication required')) {
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.location.href = '/';
       }
     }
     throw error;

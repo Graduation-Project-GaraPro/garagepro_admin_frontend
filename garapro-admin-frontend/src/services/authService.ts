@@ -16,13 +16,14 @@ export interface LoginDto {
 
 // Biến global để chia sẻ trạng thái token
 let globalToken: string | null = null;
-let globalTokenExpiry: number | null = null;
 let globalUserId: string | null = null;
 let globalUserEmail: string | null = null;
 
 class AuthService {
   private isRefreshing = false;
   private failedQueue: Array<{resolve: (token: string) => void, reject: (error: any) => void}> = [];
+   
+  private isLoggingOut = false; // ← THÊM FLAG NÀY
 
   private getStoredToken(): string | null {
     if (globalToken) {
@@ -53,7 +54,6 @@ class AuthService {
 
   private clearStoredToken(): void {
     globalToken = null;
-    globalTokenExpiry = null;
     globalUserId = null;
     globalUserEmail = null;
     
@@ -61,7 +61,6 @@ class AuthService {
       sessionStorage.removeItem('authToken');
       sessionStorage.removeItem('userId');
       sessionStorage.removeItem('userEmail');
-      sessionStorage.removeItem('userData');
     }
   }
 
@@ -109,6 +108,7 @@ class AuthService {
     return authData.token;
   }
 
+  // CHỈ DÙNG MỘT HÀM GETTOKEN DUY NHẤT
   getToken(): string | null {
     return this.getStoredToken();
   }
@@ -143,17 +143,12 @@ class AuthService {
     return null;
   }
 
-  async getValidToken(): Promise<string> {
-    const token = this.getToken();
-    
-    if (!token) {
-      throw new Error('No authentication token available');
+  async handleTokenRefresh(): Promise<string> {
+    // KIỂM TRA NẾU ĐANG LOGOUT THÌ KHÔNG REFRESH
+    if (this.isLoggingOut) {
+      throw new Error('Logging out, cannot refresh token');
     }
 
-    return token;
-  }
-
-  async handleTokenRefresh(): Promise<string> {
     if (this.isRefreshing) {
       return new Promise((resolve, reject) => {
         this.failedQueue.push({ resolve, reject });
@@ -183,7 +178,10 @@ class AuthService {
     }
   }
 
+
   async logout(): Promise<void> {
+    this.isLoggingOut = true; // ← SET FLAG TRƯỚC KHI LOGOUT
+    
     try {
       const token = this.getToken();
       if (token) {
@@ -199,6 +197,7 @@ class AuthService {
       console.error('Logout API call failed:', error);
     } finally {
       this.clearStoredToken();
+      this.isLoggingOut = false; // ← RESET FLAG SAU KHI LOGOUT
     }
   }
 
@@ -207,5 +206,4 @@ class AuthService {
   }
 }
 
-// Tạo singleton instance
 export const authService = new AuthService();

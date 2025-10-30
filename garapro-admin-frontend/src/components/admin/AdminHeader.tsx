@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/contexts/auth-context'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -100,6 +101,16 @@ export function AdminHeader() {
   const [isLoading, setIsLoading] = useState(false)
   const [unreadCount, setUnreadCount] = useState(3)
 
+  const { user, logout, isAuthenticated } = useAuth()
+
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
   const handleRefreshData = async () => {
     setIsLoading(true)
     // Simulate API call
@@ -322,20 +333,24 @@ export function AdminHeader() {
           </Dialog>
 
           {/* User Menu */}
-          <DropdownMenu>
+         <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarFallback>AD</AvatarFallback>
+                  <AvatarFallback>
+                    {user?.email?.substring(0, 2).toUpperCase() || 'AD'}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Admin User</p>
+                  <p className="text-sm font-medium leading-none">
+                    {user?.email || 'User'}
+                  </p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    admin@garapro.com
+                    {user?.roles?.join(', ') || 'No roles'}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -353,7 +368,8 @@ export function AdminHeader() {
                 <span>Analytics</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
+              {/* Sửa logout item */}
+              <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>
