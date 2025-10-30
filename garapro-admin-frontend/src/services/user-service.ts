@@ -351,7 +351,7 @@ class UserService {
       const users = this.readCache();
       const index = users.findIndex((u) => u.id === id);
       if (index !== -1) {
-        users[index].status = "banned";
+        users[index].status = "inactive";
         users[index].details.accountHistory.push({
           action: `Banned: ${reason}`,
           date: new Date().toISOString(),
@@ -417,7 +417,7 @@ class UserService {
     role: "user" | "admin" | "manager"
   ): Promise<void> {
     try {
-      await apiClient.patch(`${this.baseUrl}/${id}/role`, { role });
+      await apiClient.put(`${this.baseUrl}/${id}/role`, { role });
     } catch (error) {
       console.error(`Failed to change role for user ${id}:`, error);
 
@@ -441,7 +441,7 @@ class UserService {
   // Verify user
   async verifyUser(id: number): Promise<void> {
     try {
-      await apiClient.patch(`${this.baseUrl}/${id}/verify`);
+      await apiClient.put(`${this.baseUrl}/${id}/verify`);
     } catch (error) {
       console.error(`Failed to verify user ${id}:`, error);
 
@@ -467,7 +467,7 @@ class UserService {
     activeUsers: number;
     newUsersThisMonth: number;
     bannedUsers: number;
-    pendingVerification: number;
+
     userGrowth: number[];
     roleDistribution: Record<string, number>;
   }> {
@@ -489,10 +489,7 @@ class UserService {
       const users = this.readCache();
       const totalUsers = users.length;
       const activeUsers = users.filter((u) => u.status === "active").length;
-      const bannedUsers = users.filter((u) => u.status === "banned").length;
-      const pendingVerification = users.filter(
-        (u) => !u.verified || u.status === "pending"
-      ).length;
+      const bannedUsers = users.filter((u) => u.status === "inactive").length;
 
       // Calculate new users this month (mock calculation)
       const thisMonth = new Date();
@@ -514,7 +511,6 @@ class UserService {
         activeUsers,
         newUsersThisMonth,
         bannedUsers,
-        pendingVerification,
         userGrowth: [10, 12, 14, 16, 18, 20], // Mock growth data
         roleDistribution,
       };
@@ -603,7 +599,7 @@ class UserService {
     updates: Partial<UserUpdateData>
   ): Promise<void> {
     try {
-      await apiClient.patch(`${this.baseUrl}/bulk-update`, {
+      await apiClient.put(`${this.baseUrl}/bulk-update`, {
         userIds,
         updates,
       });
