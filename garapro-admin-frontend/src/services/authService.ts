@@ -1,5 +1,6 @@
 // services/auth-service.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "https://localhost:7113/api";
 
 export interface AuthResponseDto {
   token: string;
@@ -16,21 +17,26 @@ export interface LoginDto {
 
 // Biến global để chia sẻ trạng thái token
 let globalToken: string | null = null;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 let globalTokenExpiry: number | null = null;
 let globalUserId: string | null = null;
 let globalUserEmail: string | null = null;
 
 class AuthService {
   private isRefreshing = false;
-  private failedQueue: Array<{resolve: (token: string) => void, reject: (error: any) => void}> = [];
+  private failedQueue: Array<{
+    resolve: (token: string) => void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    reject: (error: any) => void;
+  }> = [];
 
   private getStoredToken(): string | null {
     if (globalToken) {
       return globalToken;
     }
-    
-    if (typeof window !== 'undefined') {
-      const storedToken = sessionStorage.getItem('authToken');
+
+    if (typeof window !== "undefined") {
+      const storedToken = sessionStorage.getItem("authToken");
       if (storedToken) {
         globalToken = storedToken;
         return storedToken;
@@ -39,15 +45,19 @@ class AuthService {
     return null;
   }
 
-  private setStoredUserData(token: string, userId: string, email: string): void {
+  private setStoredUserData(
+    token: string,
+    userId: string,
+    email: string
+  ): void {
     globalToken = token;
     globalUserId = userId;
     globalUserEmail = email;
-    
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('authToken', token);
-      sessionStorage.setItem('userId', userId);
-      sessionStorage.setItem('userEmail', email);
+
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("authToken", token);
+      sessionStorage.setItem("userId", userId);
+      sessionStorage.setItem("userEmail", email);
     }
   }
 
@@ -56,22 +66,22 @@ class AuthService {
     globalTokenExpiry = null;
     globalUserId = null;
     globalUserEmail = null;
-    
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('authToken');
-      sessionStorage.removeItem('userId');
-      sessionStorage.removeItem('userEmail');
-      sessionStorage.removeItem('userData');
+
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("authToken");
+      sessionStorage.removeItem("userId");
+      sessionStorage.removeItem("userEmail");
+      sessionStorage.removeItem("userData");
     }
   }
 
   async phoneLogin(data: LoginDto): Promise<AuthResponseDto> {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
       },
-      credentials: 'include',
+      credentials: "include",
       body: JSON.stringify(data),
     });
 
@@ -82,18 +92,18 @@ class AuthService {
 
     const authData = await response.json();
     this.setStoredUserData(authData.token, authData.userId, authData.email);
-    
+
     return authData;
   }
 
   async refreshToken(): Promise<string> {
     const response = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
       method: "POST",
-      credentials: 'include',
+      credentials: "include",
     });
 
     if (!response.ok) {
-      throw new Error('Failed to refresh token');
+      throw new Error("Failed to refresh token");
     }
 
     const authData = await response.json();
@@ -101,11 +111,11 @@ class AuthService {
     const currentUserId = this.getCurrentUserId();
     const currentUserEmail = this.getCurrentUserEmail();
     this.setStoredUserData(
-      authData.token, 
-      currentUserId || authData.userId || '', 
-      currentUserEmail || authData.email || ''
+      authData.token,
+      currentUserId || authData.userId || "",
+      currentUserEmail || authData.email || ""
     );
-    
+
     return authData.token;
   }
 
@@ -117,9 +127,9 @@ class AuthService {
     if (globalUserId) {
       return globalUserId;
     }
-    
-    if (typeof window !== 'undefined') {
-      const storedUserId = sessionStorage.getItem('userId');
+
+    if (typeof window !== "undefined") {
+      const storedUserId = sessionStorage.getItem("userId");
       if (storedUserId) {
         globalUserId = storedUserId;
         return storedUserId;
@@ -132,9 +142,9 @@ class AuthService {
     if (globalUserEmail) {
       return globalUserEmail;
     }
-    
-    if (typeof window !== 'undefined') {
-      const storedUserEmail = sessionStorage.getItem('userEmail');
+
+    if (typeof window !== "undefined") {
+      const storedUserEmail = sessionStorage.getItem("userEmail");
       if (storedUserEmail) {
         globalUserEmail = storedUserEmail;
         return storedUserEmail;
@@ -145,9 +155,9 @@ class AuthService {
 
   async getValidToken(): Promise<string> {
     const token = this.getToken();
-    
+
     if (!token) {
-      throw new Error('No authentication token available');
+      throw new Error("No authentication token available");
     }
 
     return token;
@@ -164,18 +174,18 @@ class AuthService {
 
     try {
       const newToken = await this.refreshToken();
-      
+
       this.failedQueue.forEach(({ resolve }) => resolve(newToken));
       this.failedQueue = [];
-      
+
       return newToken;
     } catch (error) {
       this.failedQueue.forEach(({ reject }) => reject(error));
       this.failedQueue = [];
-      
+
       this.clearStoredToken();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login?session=expired';
+      if (typeof window !== "undefined") {
+        window.location.href = "/login?session=expired";
       }
       throw error;
     } finally {
@@ -190,13 +200,13 @@ class AuthService {
         await fetch(`${API_BASE_URL}/auth/logout`, {
           method: "POST",
           headers: {
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
           },
-          credentials: 'include'
+          credentials: "include",
         });
       }
     } catch (error) {
-      console.error('Logout API call failed:', error);
+      console.error("Logout API call failed:", error);
     } finally {
       this.clearStoredToken();
     }

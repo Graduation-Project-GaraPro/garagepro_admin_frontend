@@ -174,7 +174,7 @@ class RevenueService {
 
       // 2️⃣ Gọi API trực tiếp tới backend
       const response = await fetch(
-        `http://localhost:5117/api/Statistics/revenuea?${params.toString()}`,
+        `http://localhost:5117/api/Statistics/revenue?${params.toString()}`,
         {
           method: "GET",
           headers: {

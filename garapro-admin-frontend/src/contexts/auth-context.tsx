@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // contexts/auth-context.tsx
-'use client';
+"use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { authService } from '@/services/authService';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { authService } from "@/services/authService";
 
 export interface User {
   userId: string;
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error("Auth check failed:", error);
       await authService.logout();
     } finally {
       setIsLoading(false);
@@ -58,11 +59,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = authService.getToken();
       if (!token) return null;
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      const response = await fetch(
+        `${
+          process.env.NEXT_PUBLIC_API_BASE_URL || "https://localhost:7113/api"
+        }/auth/me`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-      });
+      );
 
       if (response.ok) {
         return await response.json();
@@ -79,12 +85,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userData = {
         userId: authData.userId,
         email: authData.email,
-        roles: authData.roles
+        roles: authData.roles,
       };
       setUser(userData);
-      
+
       // Verify token is actually stored
-      console.log('Token after login:', authService.getToken());
+      console.log("Token after login:", authService.getToken());
     } catch (error) {
       throw error;
     }
@@ -94,9 +100,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await authService.logout();
       setUser(null);
-      router.push('/login');
+      router.push("/login");
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   };
 
@@ -105,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const hasAnyRole = (roles: string[]): boolean => {
-    return user?.roles.some(role => roles.includes(role)) || false;
+    return user?.roles.some((role) => roles.includes(role)) || false;
   };
 
   const value: AuthContextType = {
@@ -118,17 +124,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hasAnyRole,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

@@ -1,3 +1,5 @@
+import { authService } from "./authService";
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface ApiResponse<T> {
   data: T;
@@ -92,7 +94,7 @@ class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
 
     // ✅ Thêm Bearer Token nếu có
-    const token = this.getAccessToken();
+    const token = authService.getToken();
     const headers: Record<string, string> = {
       ...this.defaultHeaders,
       ...(options.headers as Record<string, string>),
