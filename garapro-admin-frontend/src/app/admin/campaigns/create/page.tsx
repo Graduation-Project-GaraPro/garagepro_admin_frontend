@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Calendar, DollarSign, Percent, Gift } from 'lucide-react'
+import { ArrowLeft, Save, Calendar, DollarSign, Percent, Gift,Search, Filter , CheckCircle2, Banknote} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,8 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 
-import { campaignService, CreateCampaignRequest, ServiceCategory } from '@/services/campaign-service'
+import { campaignService, CreateCampaignRequest, ServiceCategory,Service } from '@/services/campaign-service'
 import { ServiceCategoryList } from '@/components/admin/campaigns/service-category-list'
+import { FilterSection } from '@/components/admin/campaigns/filter-section-service'
+import { SelectedServicesSummary } from '@/components/admin/campaigns/selected-services-summary'
 import Link from 'next/link'
 
 export default function CreateCampaignPage() {
@@ -21,6 +23,30 @@ export default function CreateCampaignPage() {
   const [loading, setLoading] = useState(false)
   const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([])
   const [servicesLoading, setServicesLoading] = useState(true)
+
+  const [parentCategories, setParentCategories] = useState<ServiceCategory[]>([]);
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [isActiveFilter, setIsActiveFilter] = useState<boolean>(true);
+
+  const [touchedFields, setTouchedFields] = useState({
+    name: false,
+    description: false,
+    startDate: false,
+    endDate: false,
+    discountValue: false,
+    minimumOrderValue: false,
+    maximumDiscount: false,
+    usageLimit: false,
+    applicableServices: false
+  });
+
+  const [displayValues, setDisplayValues] = useState({
+    discountValue: '',
+    minimumOrderValue: '', 
+    maximumDiscount: ''
+  });
+
   const [formData, setFormData] = useState<CreateCampaignRequest>({
     name: '',
     description: '',
@@ -41,23 +67,70 @@ export default function CreateCampaignPage() {
     loadServiceCategories()
   }, [])
 
+  useEffect(() => {
+    validateForm();
+  }, [formData, touchedFields]);
+
   const loadServiceCategories = async () => {
     try {
-      setServicesLoading(true)
-      const categories = await campaignService.getServiceCategories()
-      setServiceCategories(categories)
+        setServicesLoading(true);
+        const parentCategoriesData = await campaignService.getParentCategories();
+        console.log(parentCategoriesData);
+        setParentCategories(parentCategoriesData);
     } catch (error) {
-      console.error('Failed to load service categories:', error)
-     toast("Error", {
-      description: "Failed to load services. Please try again.",
-})
+      console.error('Failed to load parent categories:', error);
+      toast("Error", {
+        description: "Failed to load categories. Please try again.",
+      });
+    } finally {
+      setServicesLoading(false);
+    }
+  }
+
+  const loadServices = async () => {
+    try {
+      setServicesLoading(true)
+      const categoriesData = await campaignService.getServicesByFilter({
+        parentServiceCategoryId: selectedParentCategory === 'all' ? undefined : selectedParentCategory,
+        searchTerm: searchTerm || undefined,
+        isActive: isActiveFilter
+      })
+      console.log(categoriesData)
+      setServiceCategories(categoriesData)
+    } catch (error) {
+      console.error('Failed to load services:', error)
+      toast("Error", {
+        description: "Failed to load services. Please try again.",
+      })
     } finally {
       setServicesLoading(false)
     }
   }
 
+  useEffect(() => {
+    loadServices()
+  }, [selectedParentCategory, searchTerm, isActiveFilter])
+
+  useEffect(() => {
+    if (formData.applicableServices.length > 0 && errors.applicableServices) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.applicableServices;
+        return newErrors;
+      });
+    }
+  }, [formData.applicableServices]);
+
+  const markFieldAsTouched = (fieldName: keyof typeof touchedFields) => {
+    setTouchedFields(prev => ({ ...prev, [fieldName]: true }));
+  };
+
   const handleInputChange = (field: keyof CreateCampaignRequest, value: string | number | boolean | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    // Mark field as touched when user starts typing
+    if (field in touchedFields) {
+      markFieldAsTouched(field as keyof typeof touchedFields);
+    }
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
@@ -65,6 +138,7 @@ export default function CreateCampaignPage() {
   }
 
   const handleServiceToggle = (serviceId: string, checked: boolean) => {
+    markFieldAsTouched('applicableServices');
     if (checked) {
       handleInputChange('applicableServices', [...formData.applicableServices, serviceId])
     } else {
@@ -72,47 +146,122 @@ export default function CreateCampaignPage() {
     }
   }
 
+  const formatNumber = (value: number | undefined): string => {
+    if (!value || value === 0) return '';
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const handleDiscountValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\./g, '');
+    const numericValue = parseFloat(rawValue) || 0;
+    
+    let displayValue = '';
+    if (formData.discountType === 'percentage') {
+      displayValue = rawValue;
+    } else {
+      displayValue = formatNumber(numericValue);
+    }
+    
+    setDisplayValues(prev => ({ ...prev, discountValue: displayValue }));
+    handleInputChange('discountValue', numericValue);
+  };
+
+  const handleDiscountValueBlur = () => {
+    markFieldAsTouched('discountValue');
+    if (formData.discountValue > 0) {
+      const formatted = formData.discountType === 'percentage' 
+        ? formData.discountValue.toString()
+        : formatNumber(formData.discountValue);
+      setDisplayValues(prev => ({ ...prev, discountValue: formatted }));
+    }
+  };
+
+  const handleMinimumOrderValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\./g, '');
+    const numericValue = parseFloat(rawValue) || 0;
+    
+    setDisplayValues(prev => ({ ...prev, minimumOrderValue: formatNumber(numericValue) }));
+    handleInputChange('minimumOrderValue', numericValue);
+  };
+
+  const handleMinimumOrderValueBlur = () => {
+    markFieldAsTouched('minimumOrderValue');
+    if (formData.minimumOrderValue && formData.minimumOrderValue > 0) {
+      setDisplayValues(prev => ({ 
+        ...prev, 
+        minimumOrderValue: formatNumber(formData.minimumOrderValue) 
+      }));
+    }
+  };
+
+  const handleMaximumDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\./g, '');
+    const numericValue = parseFloat(rawValue) || 0;
+    
+    setDisplayValues(prev => ({ ...prev, maximumDiscount: formatNumber(numericValue) }));
+    handleInputChange('maximumDiscount', numericValue);
+  };
+
+  const handleMaximumDiscountBlur = () => {
+    markFieldAsTouched('maximumDiscount');
+    if (formData.maximumDiscount && formData.maximumDiscount > 1000) {
+      setDisplayValues(prev => ({ 
+        ...prev, 
+        maximumDiscount: formatNumber(formData.maximumDiscount) 
+      }));
+    }
+  };
+
+  const formatVietnameseCurrency = (price: number) => {
+    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.name.trim()) {
+    // Chỉ validate các field đã được touched
+    if (touchedFields.name && !formData.name.trim()) {
       newErrors.name = 'Campaign name is required'
     }
 
-    if (!formData.description.trim()) {
+    if (touchedFields.description && !formData.description.trim()) {
       newErrors.description = 'Description is required'
     }
 
-    if (!formData.startDate) {
+    if (touchedFields.startDate && !formData.startDate) {
       newErrors.startDate = 'Start date is required'
     }
 
-    if (!formData.endDate) {
+    if (touchedFields.endDate && !formData.endDate) {
       newErrors.endDate = 'End date is required'
     }
 
-    if (formData.startDate && formData.endDate && new Date(formData.startDate) >= new Date(formData.endDate)) {
+    if (touchedFields.startDate && touchedFields.endDate && formData.startDate && formData.endDate && new Date(formData.startDate) >= new Date(formData.endDate)) {
       newErrors.endDate = 'End date must be after start date'
     }
 
-    if (formData.discountValue <= 0) {
+    if (touchedFields.discountValue && formData.discountValue <= 0) {
       newErrors.discountValue = 'Discount value must be greater than 0'
     }
 
-    if (formData.discountType === 'percentage' && formData.discountValue > 100) {
+    if (touchedFields.discountValue && formData.discountType === 'percentage' && formData.discountValue > 100) {
       newErrors.discountValue = 'Percentage discount cannot exceed 100%'
     }
 
-    if (formData.minimumOrderValue && formData.minimumOrderValue < 0) {
+    if (touchedFields.minimumOrderValue && formData.minimumOrderValue && formData.minimumOrderValue < 0) {
       newErrors.minimumOrderValue = 'Minimum order value cannot be negative'
     }
 
-    if (formData.maximumDiscount && formData.maximumDiscount < 0) {
-      newErrors.maximumDiscount = 'Maximum discount cannot be negative'
+    if (touchedFields.maximumDiscount && formData.maximumDiscount &&  formData.maximumDiscount < 1000 ) {
+      newErrors.maximumDiscount = 'Maximum discount must greater than 1.000đ'
     }
 
-    if (formData.usageLimit && formData.usageLimit < 0) {
-      newErrors.usageLimit = 'Usage limit cannot be negative'
+    if (touchedFields.usageLimit && formData.usageLimit && formData.usageLimit < 1) {
+      newErrors.usageLimit = 'Usage limit Must be greater than 0'
+    }
+
+    if (touchedFields.applicableServices && formData.applicableServices.length === 0) {
+      newErrors.applicableServices = 'Please select at least one service'
     }
 
     setErrors(newErrors)
@@ -122,7 +271,23 @@ export default function CreateCampaignPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm()) {
+    // Mark all fields as touched khi submit
+    setTouchedFields({
+      name: true,
+      description: true,
+      startDate: true,
+      endDate: true,
+      discountValue: true,
+      minimumOrderValue: true,
+      maximumDiscount: true,
+      usageLimit: true,
+      applicableServices: true
+    });
+
+    // Validate lại form sau khi mark all fields
+    const isValid = validateForm();
+    
+    if (!isValid) {
       toast.error("Validation Error", {
         description: "Please check the form for errors",
       })
@@ -143,16 +308,15 @@ export default function CreateCampaignPage() {
           description: "Campaign created successfully!",
         })
 
-      // Redirect after a short delay to show the success message
       setTimeout(() => {
         router.push('/admin/campaigns')
       }, 1500)
       
-    } catch (error) {
-      console.error('Failed to create campaign:', error)
+    } catch (error: any) {
+      console.error('Failed to create campaign:', error.message ?? error)
       
       toast.error("Error", {
-        description: "Failed to create campaign. Please try again.",
+        description: error.message ?? "Failed to create campaign. Please try again.",
       })
     } finally {
       setLoading(false)
@@ -164,11 +328,9 @@ export default function CreateCampaignPage() {
       case 'percentage':
         return <Percent className="h-4 w-4" />
       case 'fixed':
-        return <DollarSign className="h-4 w-4" />
-      case 'free_service':
-        return <Gift className="h-4 w-4" />
+        return <Banknote className="h-4 w-4" />
       default:
-        return <DollarSign className="h-4 w-4" />
+        return <Banknote className="h-4 w-4" />
     }
   }
 
@@ -206,6 +368,7 @@ export default function CreateCampaignPage() {
                   id="name"
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
+                  onBlur={() => markFieldAsTouched('name')}
                   placeholder="e.g., Summer Sale 2024"
                   className={errors.name ? 'border-red-500' : ''}
                 />
@@ -222,9 +385,7 @@ export default function CreateCampaignPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="discount">Discount Campaign</SelectItem>
-                    <SelectItem value="seasonal">Seasonal Offer</SelectItem>
-                    <SelectItem value="loyalty">Loyalty Bonus</SelectItem>
+                    <SelectItem value="discount">Discount Campaign</SelectItem>                  
                   </SelectContent>
                 </Select>
               </div>
@@ -236,6 +397,7 @@ export default function CreateCampaignPage() {
                 id="description"
                 value={formData.description}
                 onChange={(e) => handleInputChange('description', e.target.value)}
+                onBlur={() => markFieldAsTouched('description')}
                 placeholder="Describe your campaign and what customers can expect..."
                 rows={3}
                 className={errors.description ? 'border-red-500' : ''}
@@ -266,33 +428,29 @@ export default function CreateCampaignPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="percentage">Percentage (%)</SelectItem>
-                    <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
-                    <SelectItem value="free_service">Free Service</SelectItem>
+                    <SelectItem value="fixed">Fixed Amount (₫)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              {formData.discountType !== 'free_service' && (
-                <div className="space-y-2">
-                  <Label htmlFor="discountValue">Discount Value *</Label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                      {getDiscountIcon()}
-                    </div>
-                    <Input
-                      id="discountValue"
-                      type="number"
-                      value={formData.discountValue}
-                      onChange={(e) => handleInputChange('discountValue', parseFloat(e.target.value) || 0)}
-                      placeholder={formData.discountType === 'percentage' ? '10' : '25.00'}
-                      className={`pl-10 ${errors.discountValue ? 'border-red-500' : ''}`}
-                      min="0"
-                      step={formData.discountType === 'percentage' ? '1' : '0.01'}
-                    />
+              <div className="space-y-2">
+                <Label htmlFor="discountValue">Discount Value *</Label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                    {getDiscountIcon()}
                   </div>
-                  {errors.discountValue && <p className="text-sm text-red-500">{errors.discountValue}</p>}
+                  <Input
+                    id="discountValue"
+                    type="text"
+                    value={displayValues.discountValue}
+                    onChange={handleDiscountValueChange}
+                    onBlur={handleDiscountValueBlur}
+                    placeholder={formData.discountType === 'percentage' ? '10' : '10.000'}
+                    className={`pl-10 ${errors.discountValue ? 'border-red-500' : ''}`}
+                  />
                 </div>
-              )}
+                {errors.discountValue && <p className="text-sm text-red-500">{errors.discountValue}</p>}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -304,13 +462,12 @@ export default function CreateCampaignPage() {
                   </div>
                   <Input
                     id="minimumOrderValue"
-                    type="number"
-                    value={formData.minimumOrderValue}
-                    onChange={(e) => handleInputChange('minimumOrderValue', parseFloat(e.target.value) || 0)}
-                    placeholder="0.00"
+                    type="text"
+                    value={displayValues.minimumOrderValue}
+                    onChange={handleMinimumOrderValueChange}
+                    onBlur={handleMinimumOrderValueBlur}
+                    placeholder="0"
                     className={`pl-10 ${errors.minimumOrderValue ? 'border-red-500' : ''}`}
-                    min="0"
-                    step="0.01"
                   />
                 </div>
                 {errors.minimumOrderValue && <p className="text-sm text-red-500">{errors.minimumOrderValue}</p>}
@@ -324,22 +481,24 @@ export default function CreateCampaignPage() {
                   <Label htmlFor="maximumDiscount">Maximum Discount</Label>
                   <div className="relative">
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                      <DollarSign className="h-4 w-4" />
+                      <Banknote className="h-4 w-4" />
                     </div>
                     <Input
                       id="maximumDiscount"
-                      type="number"
-                      value={formData.maximumDiscount}
-                      onChange={(e) => handleInputChange('maximumDiscount', parseFloat(e.target.value) || 0)}
-                      placeholder="100.00"
+                      type="text"
+                      value={displayValues.maximumDiscount}
+                      onChange={handleMaximumDiscountChange}
+                      onBlur={(e) => {
+                        handleMaximumDiscountBlur();
+                        
+                      }}
+                      placeholder="100.000"
                       className={`pl-10 ${errors.maximumDiscount ? 'border-red-500' : ''}`}
-                      min="0"
-                      step="0.01"
                     />
                   </div>
                   {errors.maximumDiscount && <p className="text-sm text-red-500">{errors.maximumDiscount}</p>}
                   <p className="text-xs text-muted-foreground">
-                    Maximum dollar amount for percentage discounts
+                    Maximum amount for percentage discounts
                   </p>
                 </div>
               )}
@@ -352,13 +511,14 @@ export default function CreateCampaignPage() {
                 type="number"
                 value={formData.usageLimit}
                 onChange={(e) => handleInputChange('usageLimit', parseInt(e.target.value) || 0)}
+                onBlur={() => markFieldAsTouched('usageLimit')}
                 placeholder="1000"
                 className={errors.usageLimit ? 'border-red-500' : ''}
-                min="0"
+                min="1"
               />
               {errors.usageLimit && <p className="text-sm text-red-500">{errors.usageLimit}</p>}
               <p className="text-xs text-muted-foreground">
-                Leave empty for unlimited usage
+                {/* Leave empty for unlimited usage */}
               </p>
             </div>
           </CardContent>
@@ -385,6 +545,7 @@ export default function CreateCampaignPage() {
                     type="date"
                     value={formData.startDate}
                     onChange={(e) => handleInputChange('startDate', e.target.value)}
+                    onBlur={() => markFieldAsTouched('startDate')}
                     className={`pl-10 ${errors.startDate ? 'border-red-500' : ''}`}
                     min={new Date().toISOString().split('T')[0]}
                   />
@@ -403,6 +564,7 @@ export default function CreateCampaignPage() {
                     type="date"
                     value={formData.endDate}
                     onChange={(e) => handleInputChange('endDate', e.target.value)}
+                    onBlur={() => markFieldAsTouched('endDate')}
                     className={`pl-10 ${errors.endDate ? 'border-red-500' : ''}`}
                     min={formData.startDate || new Date().toISOString().split('T')[0]}
                   />
@@ -422,17 +584,41 @@ export default function CreateCampaignPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <FilterSection
+              selectedParentCategory={selectedParentCategory}
+              onParentCategoryChange={setSelectedParentCategory}
+              searchTerm={searchTerm}
+              onSearchTermChange={setSearchTerm}
+              isActiveFilter={isActiveFilter}
+              onActiveFilterChange={setIsActiveFilter}
+              parentCategories={parentCategories}
+            />
+            
             {servicesLoading ? (
               <div className="text-center py-4">Loading services...</div>
             ) : (
-              <div className="max-h-96 overflow-y-auto">
+              <div className="max-h-200 overflow-y-auto">
                 <ServiceCategoryList
                   categories={serviceCategories}
                   selectedServices={formData.applicableServices}
                   onServiceToggle={handleServiceToggle}
+                  
                 />
               </div>
             )}
+
+            <div className="mt-6 border-t pt-4">
+              {errors.applicableServices && (
+                <p className="text-sm text-red-500 mt-2">{errors.applicableServices}</p>
+              )}
+              <SelectedServicesSummary
+                selectedServices={formData.applicableServices}
+                serviceCategories={serviceCategories}
+                onServiceToggle={handleServiceToggle}
+                onClearAll={() => handleInputChange('applicableServices', [])}
+                formatCurrency={formatVietnameseCurrency}
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -443,7 +629,10 @@ export default function CreateCampaignPage() {
               Cancel
             </Button>
           </Link>
-          <Button type="submit" disabled={loading}>
+          <Button 
+            type="submit" 
+            disabled={loading || Object.keys(errors).length > 0}
+          >
             <Save className="mr-2 h-4 w-4" />
             {loading ? 'Creating...' : 'Create Campaign'}
           </Button>

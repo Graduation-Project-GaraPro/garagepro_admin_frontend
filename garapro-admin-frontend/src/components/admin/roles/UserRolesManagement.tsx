@@ -221,7 +221,7 @@ const fetchRolesWithUserCounts = useCallback(async () => {
   const handleEditSubmit = async (roleData: any) => {
     try {
       setOperationLoading(true)
-      
+      console.log(roleData);
       const promise = roleService.updateRole({
         ...roleData,
         id: selectedRole?.id
@@ -346,7 +346,7 @@ const fetchRolesWithUserCounts = useCallback(async () => {
             onEdit={handleEditRole}
             onView={handleViewDetails}
             onDelete={handleDeleteRole}
-            onDuplicate={handleDuplicateRole}
+            
           />
         </CardContent>
       </Card>

@@ -1,3 +1,4 @@
+import { VoucherUsageDto } from './campaign-service';
 // services/campaign-service.ts
 export interface PromotionalCampaign {
   id: string;
@@ -16,6 +17,7 @@ export interface PromotionalCampaign {
   createdAt: string;
   updatedAt: string;
   services: Service[];
+  voucherUsages: VoucherUsageDto;
 }
 
 export interface Service {
@@ -31,8 +33,6 @@ export interface Service {
 
 export enum CampaignType {
   Discount = 0,
-  Seasonal = 1,
-  Loyalty = 2
 }
 
 export enum DiscountType {
@@ -90,6 +90,28 @@ export interface UpdateCampaignRequest {
   maximumDiscount?: number;
   usageLimit?: number;
   serviceIds?: string[];
+
+}
+export interface VoucherUsageDto {
+  id: string;
+  customerId: string;
+  campaignId: string;
+  repairOrderId: string;
+  usedAt?: string | null;
+  customer?: CustomerDto;
+  repairOrder?: RepairOrderDto;
+}
+
+export interface CustomerDto {
+  customerId: string;
+  fullName: string;
+  email?: string;
+  phoneNumber?: string;
+}
+
+export interface RepairOrderDto {
+  repairOrderId: string;
+ 
 }
 
 export interface ServiceCategory {
@@ -152,9 +174,8 @@ class CampaignService {
 
   // Map enum values to strings for display
   private campaignTypeMap = {
-    [CampaignType.Discount]: 'discount',
-    [CampaignType.Seasonal]: 'seasonal', 
-    [CampaignType.Loyalty]: 'loyalty'
+    [CampaignType.Discount]: 'discount'
+    
   };
 
   private discountTypeMap = {
@@ -163,21 +184,20 @@ class CampaignService {
     [DiscountType.FreeService]: 'free_service'
   };
 
- private async getAuthToken(): Promise<string> {
-  try {
-    const token = await authService.getValidToken();
-    console.log('🔑 Current token:', token ? '✅ Available' : '❌ Missing');
-    return token;
-  } catch (error) {
-    console.log('🔑 Token error:', error.message);
-    throw new Error('Authentication required');
+ private getAuthToken(): string | null {
+    return authService.getToken(); // CHỈ DÙNG GETTOKEN
   }
-}
 
 private async authenticatedFetch(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
   try {
     const token = await this.getAuthToken();
     
+     if (!token) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+      throw new Error('Authentication required');
+    }
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
@@ -214,7 +234,20 @@ private async authenticatedFetch(url: string, options: RequestInit = {}, retryCo
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage =
+          (errorData.message
+            ? errorData.message + (errorData.detail ? " " + errorData.detail : "")
+            : errorData.error) || errorMessage;
+          console.log(errorData )
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        
+        throw new Error(errorMessage);
     }
 
     return response;
@@ -240,9 +273,8 @@ private async authenticatedFetch(url: string, options: RequestInit = {}, retryCo
     
     if (params.type && params.type !== 'all') {
       const typeMap: { [key: string]: number } = {
-        'discount': CampaignType.Discount,
-        'seasonal': CampaignType.Seasonal,
-        'loyalty': CampaignType.Loyalty
+        'discount': CampaignType.Discount
+        
       };
       queryParams.append('type', typeMap[params.type]?.toString() || params.type);
     }
@@ -274,7 +306,7 @@ private async authenticatedFetch(url: string, options: RequestInit = {}, retryCo
     const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}`);
 
     const campaign = await response.json();
-    
+    console.log("get",campaign)
     return {
       ...campaign,
       type: this.campaignTypeMap[campaign.type as CampaignType] || 'discount',
@@ -313,25 +345,50 @@ private async authenticatedFetch(url: string, options: RequestInit = {}, retryCo
     return response.json();
   }
 
+  async getParentCategories(): Promise<ServiceCategory[]> {
+    const response = await this.authenticatedFetch(`${this.baseURL}/ServiceCategories/parentsForFilter`);
+    return response.json();
+  }
+
+  async getServicesByFilter(params: {
+    parentServiceCategoryId?: string;
+    searchTerm?: string;
+    isActive?: boolean;
+  }): Promise<ServiceCategory[]> { // Đổi từ Service[] sang ServiceCategory[]
+    const queryParams = new URLSearchParams();
+    if (params.parentServiceCategoryId) queryParams.append('parentServiceCategoryId', params.parentServiceCategoryId);
+    if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
+    if (params.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
+    
+    const response = await this.authenticatedFetch(`${this.baseURL}/ServiceCategories/filter?${queryParams}`);
+    console.log(`${this.baseURL}/ServiceCategories/filter?${queryParams}`);
+
+    return response.json();
+  }
+
+
   // Helper method to get all services from categories and subcategories
   getAllServicesFromCategories(categories: ServiceCategory[]): Service[] {
-    const allServices: Service[] = [];
+  const allServices: Service[] = [];
 
-    const extractServices = (category: ServiceCategory) => {
-      // Add services from current category
-      if (category.services && category.services.length > 0) {
-        allServices.push(...category.services);
-      }
+  const extractServices = (category: ServiceCategory) => {
+    // Add services from current category
+    if (category.services && category.services.length > 0) {
+      allServices.push(...category.services.map(service => ({
+        ...service,
+       
+      })));
+    }
 
-      // Recursively extract services from child categories
-      if (category.childCategories && category.childCategories.length > 0) {
-        category.childCategories.forEach(extractServices);
-      }
-    };
+    // Recursively extract services from child categories
+    if (category.childCategories && category.childCategories.length > 0) {
+      category.childCategories.forEach(extractServices);
+    }
+  };
 
-    categories.forEach(extractServices);
-    return allServices;
-  }
+  categories.forEach(extractServices);
+  return allServices;
+}
 
   async updateCampaign(id: string, campaignData: UpdateCampaignRequest): Promise<PromotionalCampaign> {
     // Transform data for API
@@ -426,9 +483,8 @@ private async authenticatedFetch(url: string, options: RequestInit = {}, retryCo
     if (params.search) queryParams.append('search', params.search);
     if (params.type && params.type !== 'all') {
       const typeMap: { [key: string]: number } = {
-        'discount': CampaignType.Discount,
-        'seasonal': CampaignType.Seasonal,
-        'loyalty': CampaignType.Loyalty
+        'discount': CampaignType.Discount
+        
       };
       queryParams.append('type', typeMap[params.type]?.toString() || params.type);
     }
@@ -439,23 +495,22 @@ private async authenticatedFetch(url: string, options: RequestInit = {}, retryCo
   }
 
   // Helper methods for type conversion
-  private getNumericType(typeString: string): number {
-    const typeMap: { [key: string]: number } = {
-      'discount': CampaignType.Discount,
-      'seasonal': CampaignType.Seasonal,
-      'loyalty': CampaignType.Loyalty
-    };
-    return typeMap[typeString] || CampaignType.Discount;
-  }
+private getNumericType(typeString: string): number {
+  const typeMap: { [key: string]: number } = {
+    'discount': CampaignType.Discount
+    // Xóa 'seasonal' và 'loyalty'
+  };
+  return typeMap[typeString] || CampaignType.Discount;
+}
 
-  private getNumericDiscountType(discountTypeString: string): number {
-    const discountTypeMap: { [key: string]: number } = {
-      'percentage': DiscountType.Percentage,
-      'fixed': DiscountType.Fixed,
-      'free_service': DiscountType.FreeService
-    };
-    return discountTypeMap[discountTypeString] || DiscountType.Percentage;
-  }
+private getNumericDiscountType(discountTypeString: string): number {
+  const discountTypeMap: { [key: string]: number } = {
+    'percentage': DiscountType.Percentage,
+    'fixed': DiscountType.Fixed
+    // Xóa 'free_service'
+  };
+  return discountTypeMap[discountTypeString] || DiscountType.Percentage;
+}
 
   async getCampaignAnalytics(campaignId: string): Promise<CampaignAnalytics> {
     const response = await this.authenticatedFetch(`${this.baseURL}/${campaignId}/analytics`);

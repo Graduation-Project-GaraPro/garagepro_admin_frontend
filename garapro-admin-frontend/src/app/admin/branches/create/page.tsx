@@ -47,7 +47,17 @@ export default function CreateBranchPage() {
   const [shouldValidate, setShouldValidate] = useState(false)
   const [formData, setFormData] = useState<CreateBranchRequest>(INITIAL_FORM_DATA)
   
-  const { managers, technicians,managersWithoutBranch,techniciansWithoutBranch,  services,categories, loading: dataLoading, error: dataError } = useBranchData()
+  const { 
+  managers, 
+  technicians, 
+  managersWithoutBranch, 
+  techniciansWithoutBranch, 
+  categories, 
+  parentCategories, // Thêm parentCategories
+  loading: dataLoading, 
+  error: dataError 
+} = useBranchData()
+
   const errors = useFormValidation(formData, shouldValidate)
 
   // Memoize loading state to prevent unnecessary renders
@@ -137,6 +147,7 @@ export default function CreateBranchPage() {
   }, [shouldValidate])
 
   // Improved form submission with better error handling
+ // Improved form submission with better error handling
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -147,10 +158,17 @@ export default function CreateBranchPage() {
     
     // Validate form
     const formErrors = validateForm(formData)
-    const validationErrors = Object.keys(formErrors)
     
-    if (validationErrors.length > 0) {
-      toast.error(`Please fix the following errors: ${validationErrors.join(', ')}`)
+    // Check if there are any errors
+    if (Object.keys(formErrors).length > 0) {
+      // Focus on first error field
+      const firstErrorField = Object.keys(formErrors)[0]
+      const element = document.querySelector(`[name="${firstErrorField}"]`)
+      if (element) {
+        (element as HTMLElement).focus()
+      }
+      
+      toast.error('Please fix the validation errors before submitting')
       return
     }
 
@@ -264,7 +282,8 @@ export default function CreateBranchPage() {
         <ServicesSection
           formData={formData}
           errors={errors}
-          categories={categories}  // Thay services bằng categories
+          categories={categories}
+          parentCategories={parentCategories} // Truyền parentCategories
           onServiceToggle={handleServiceToggle}
           onServiceRemove={handleServiceRemove}
         />
@@ -283,9 +302,10 @@ export default function CreateBranchPage() {
         <OperatingHoursSection
           operatingHours={formData.operatingHours}
           onOperatingHoursChange={handleOperatingHoursChange}
+           error={errors.operatingHours}
         />
 
-        <div className="flex justify-end gap-4">
+       <div className="flex justify-end gap-4">
           <Link href="/admin/branches">
             <Button variant="outline" type="button" disabled={isLoading}>
               Cancel
@@ -293,7 +313,7 @@ export default function CreateBranchPage() {
           </Link>
           <Button 
             type="submit" 
-            disabled={isLoading}
+            disabled={isLoading || Object.keys(validateForm(formData)).length > 0}
             data-testid="submit-button"
           >
             {isSubmitting ? (

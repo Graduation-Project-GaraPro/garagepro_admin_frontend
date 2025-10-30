@@ -3,6 +3,7 @@
 
 import { ServiceCategory } from '@/services/campaign-service';
 import { ServiceCategoryItem } from './service-category-item';
+import { ClipboardList } from 'lucide-react'
 
 interface ServiceCategoryListProps {
   categories: ServiceCategory[];
@@ -13,7 +14,7 @@ interface ServiceCategoryListProps {
 export function ServiceCategoryList({ 
   categories, 
   selectedServices, 
-  onServiceToggle 
+  onServiceToggle,
 }: ServiceCategoryListProps) {
   if (categories.length === 0) {
     return (

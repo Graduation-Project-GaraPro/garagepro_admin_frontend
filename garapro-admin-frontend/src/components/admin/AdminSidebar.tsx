@@ -40,7 +40,9 @@ const menuItems = [
     href: '/admin/policies',
     icon: FileCheck,
     submenu: [
-      { title: 'Security Policies', href: '/admin/policies/security' }
+      { title: 'Security Policies', href: '/admin/policies/security' },
+      { title: 'History change', href: '/admin/policies/history' }
+
     ]
   },
   {
@@ -59,8 +61,7 @@ const menuItems = [
     href: '/admin/logs',
     icon: FileText,
     submenu: [
-      { title: 'All Logs', href: '/admin/logs' },
-      { title: 'Log Analytics', href: '/admin/logs/analytics' }
+      { title: 'All Logs', href: '/admin/logs' }     
       
     ]
   },
@@ -69,9 +70,8 @@ const menuItems = [
     href: '/admin/campaigns',
     icon: Megaphone,
     submenu: [
-      { title: 'All Campaigns', href: '/admin/campaigns' },
-      { title: 'Create Campaign', href: '/admin/campaigns/create' }
-     
+      { title: 'All Campaigns', href: '/admin/campaigns' }
+           
     ]
   },
   {
@@ -79,8 +79,7 @@ const menuItems = [
     href: '/admin/branches',
     icon: MapPin,
     submenu: [
-      { title: 'All Branches', href: '/admin/branches' },
-      { title: 'Create Branch', href: '/admin/branches/create' }
+      { title: 'All Branches', href: '/admin/branches' }   
      
     ]
   },
@@ -89,8 +88,7 @@ const menuItems = [
     href: '/admin/services',
     icon: Wrench,
     submenu: [
-      { title: 'All Services', href: '/admin/services' },
-      { title: 'Create Service', href: '/admin/services/create' }    
+      { title: 'All Services', href: '/admin/services' }  
     ]
   }
 ]

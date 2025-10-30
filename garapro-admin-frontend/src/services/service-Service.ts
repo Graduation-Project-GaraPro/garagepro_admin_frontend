@@ -27,6 +27,7 @@ export interface ServiceType {
   name: string;
   description: string;
   isActive: boolean;
+  parentServiceCategoryId:string
 }
 
 export interface Branch {
@@ -163,15 +164,21 @@ interface ServiceFilterParams {
   pageSize: number;
 }
 
-const getAuthToken = (): string | null => {
+const getAuthToken =  (): string | null => {
   return authService.getToken();
+  // return await authService.getValidToken();
 };
 
 // Helper function for making authenticated requests
 const authenticatedFetch = async (url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> => {
   try {
     const token = getAuthToken();
-    
+     if (!token) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+        throw new Error('Authentication required');
+      }
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -205,7 +212,7 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}, retryC
   } catch (error) {
     if (error instanceof Error && error.message.includes('Authentication required')) {
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        window.location.href = '/';
       }
     }
     throw error;
@@ -350,7 +357,8 @@ export const serviceService = {
           id: item.serviceCategory?.serviceCategoryId || '',
           name: item.serviceCategory?.categoryName || 'Uncategorized',
           description: item.serviceCategory?.description || '',
-          isActive: item.serviceCategory?.isActive || false
+          isActive: item.serviceCategory?.isActive || false,
+          parentServiceCategoryId: item.serviceCategory.parentServiceCategoryId|| ''
         },
         branchIds: item.branches?.map((branch) => branch.branchId) || [],
         branches: item.branches?.map(branch => ({
@@ -419,6 +427,16 @@ export const serviceService = {
     }
   },
 
+  async getParentCategories(): Promise<any[]> {
+    try {
+      const response = await authenticatedFetch(`${API_BASE_URL}/ServiceCategories/parents`);
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching parent categories:', error);
+      throw error;
+    }
+  },
   // Get all branches
   async getBranches(): Promise<Branch[]> {
     try {

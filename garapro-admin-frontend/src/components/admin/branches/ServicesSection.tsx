@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { X, ChevronDown, ChevronRight, Search, Filter } from 'lucide-react'
+import { X, ChevronDown, ChevronRight, Search, Filter,AlertCircle } from 'lucide-react'
 import { CreateBranchRequest, ServiceCategory } from '@/services/branch-service'
 import { Badge } from '@/components/ui/badge'
 
@@ -12,6 +12,7 @@ interface ServicesSectionProps {
   formData: CreateBranchRequest
   errors: Record<string, string>
   categories: ServiceCategory[]
+  parentCategories: ServiceCategory[] // Thêm prop này
   onServiceToggle: (serviceId: string, selected: boolean) => void
   onServiceRemove: (serviceId: string) => void
 }
@@ -20,14 +21,15 @@ export const ServicesSection = ({
   formData, 
   errors, 
   categories, 
-  onServiceToggle, 
+  parentCategories,
+  onServiceToggle,
   onServiceRemove 
 }: ServicesSectionProps) => {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [searchTerm, setSearchTerm] = useState('')
-  const [priceFilter, setPriceFilter] = useState<'all' | 'low' | 'medium' | 'high'>('all')
+  
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
-
+  const [parentCategoryFilter, setParentCategoryFilter] = useState<string>('all')
   const selectedServiceIds = useMemo(() => 
     new Set(formData.serviceIds), 
     [formData.serviceIds]
@@ -46,7 +48,7 @@ export const ServicesSection = ({
   }
 
   // Filter services based on search and filters
-  const filteredCategories = useMemo(() => {
+ const filteredCategories = useMemo(() => {
     return categories
       .filter(category => category.isActive)
       .map(category => ({
@@ -64,21 +66,17 @@ export const ServicesSection = ({
             (statusFilter === 'inactive' && !service.isActive)
           
           // Price filter
-          let matchesPrice = true
-          if (priceFilter === 'low') {
-            matchesPrice = service.price <= 500000
-          } else if (priceFilter === 'medium') {
-            matchesPrice = service.price > 500000 && service.price <= 2000000
-          } else if (priceFilter === 'high') {
-            matchesPrice = service.price > 2000000
-          }
+         
           
-          return matchesSearch && matchesStatus && matchesPrice
+          // Parent category filter
+          const matchesParentCategory = parentCategoryFilter === 'all' || 
+            category.parentServiceCategoryId === parentCategoryFilter
+          
+           return matchesSearch && matchesStatus && matchesParentCategory
         })
       }))
       .filter(category => category.services.length > 0)
-  }, [categories, searchTerm, statusFilter, priceFilter])
-
+  }, [categories, searchTerm, statusFilter, parentCategoryFilter])
   // Auto-expand categories that have matching services when searching
   useState(() => {
     if (searchTerm) {
@@ -121,8 +119,8 @@ export const ServicesSection = ({
 
   const clearFilters = () => {
     setSearchTerm('')
-    setPriceFilter('all')
     setStatusFilter('all')
+    setParentCategoryFilter('all') // Reset parent category filter
   }
 
   // Statistics
@@ -130,7 +128,7 @@ export const ServicesSection = ({
   const filteredServicesCount = filteredCategories.flatMap(cat => cat.services).length
   const selectedCount = selectedServices.length
 
-  const hasActiveFilters = searchTerm || priceFilter !== 'all' || statusFilter !== 'all'
+  const hasActiveFilters = searchTerm || statusFilter !== 'all' || parentCategoryFilter !== 'all'
 
   return (
     <Card>
@@ -183,23 +181,7 @@ export const ServicesSection = ({
 
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Label htmlFor="price-filter" className="text-sm whitespace-nowrap">
-                Price:
-              </Label>
-              <select
-                id="price-filter"
-                value={priceFilter}
-                onChange={(e) => setPriceFilter(e.target.value as any)}
-                className="border rounded px-2 py-1 text-sm"
-              >
-                <option value="all">All Prices</option>
-                <option value="low">Low (&lt; 500K)</option>
-                <option value="medium">Medium (500K - 2M)</option>
-                <option value="high">High (&gt; 2M)</option>
-              </select>
-            </div>
+            
 
             <div className="flex items-center gap-2">
               <Label htmlFor="status-filter" className="text-sm whitespace-nowrap">
@@ -216,7 +198,24 @@ export const ServicesSection = ({
                 <option value="inactive">Inactive Only</option>
               </select>
             </div>
-
+            <div className="flex items-center gap-2">
+              <Label htmlFor="parent-category-filter" className="text-sm whitespace-nowrap">
+                Category:
+              </Label>
+              <select
+                id="parent-category-filter"
+                value={parentCategoryFilter}
+                onChange={(e) => setParentCategoryFilter(e.target.value)}
+                className="border rounded px-2 py-1 text-sm min-w-[150px]"
+              >
+                <option value="all">All Categories</option>
+                {parentCategories.map(parentCategory => (
+                  <option key={parentCategory.serviceCategoryId} value={parentCategory.serviceCategoryId}>
+                    {parentCategory.categoryName}
+                  </option>
+                ))}
+              </select>
+            </div>
             {hasActiveFilters && (
               <Button
                 type="button"
@@ -398,7 +397,13 @@ export const ServicesSection = ({
           </div>
         )}
         
-        {errors.serviceIds && <p className="text-sm text-red-500">{errors.serviceIds}</p>}
+        {errors.serviceIds && (
+          <div className="flex items-center gap-2 p-3 mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+            <AlertCircle className="h-4 w-4" />
+            <span>{errors.serviceIds}</span>
+          </div>
+        )}
+       
       </CardContent>
     </Card>
   )

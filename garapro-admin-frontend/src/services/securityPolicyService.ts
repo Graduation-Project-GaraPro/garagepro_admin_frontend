@@ -9,7 +9,6 @@ export interface SecurityPolicy {
   sessionTimeout: number;
   maxLoginAttempts: number;
   accountLockoutTime: number;
-  mfaRequired: boolean;
   passwordExpiryDays: number;
   enableBruteForceProtection: boolean;
   updatedAt: string;
@@ -20,32 +19,71 @@ class SecurityPolicyService {
   private policy: SecurityPolicy | null = null;
   private readonly apiUrl = "https://localhost:7113/api/SecurityPolicy";
 
-  private async getAuthHeaders(): Promise<HeadersInit> {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-
-    try {
-      const token = await authService.getValidToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-    } catch (error) {
-      console.log('No authentication token available for security policy request');
+  private async makeAuthenticatedRequest(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
+  const token = authService.getToken();
+  if (!token) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
     }
-
-    return headers;
+    throw new Error('Authentication required');
   }
+  if (!token) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
+    throw new Error('Authentication required');
+  }
+
+  // Tạo headers với token
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+    'Authorization': `Bearer ${token}`
+  };
+
+  const fetchOptions = {
+    ...options,
+    headers,
+    credentials: 'include' as RequestCredentials
+  };
+
+  let response = await fetch(url, fetchOptions);
+
+  // Nếu token hết hạn, thử refresh token và gửi lại request
+  if (response.status === 401 && retryCount === 0) {
+    try {
+      const newToken = await authService.handleTokenRefresh();
+      
+      // Cập nhật header với token mới
+      const retryHeaders = {
+        ...headers,
+        'Authorization': `Bearer ${newToken}`
+      };
+
+      const retryOptions = {
+        ...options,
+        headers: retryHeaders,
+        credentials: 'include' as RequestCredentials
+      };
+
+      response = await fetch(url, retryOptions);
+    } catch (refreshError) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+      throw refreshError;
+    }
+  }
+
+  return response;
+}
 
   async loadPolicy(): Promise<SecurityPolicy> {
     try {
       console.log('Loading policy from:', `${this.apiUrl}/current`);
       
-      const headers = await this.getAuthHeaders();
-      
-      const response = await fetch(`${this.apiUrl}/current`, {
+      const response = await this.makeAuthenticatedRequest(`${this.apiUrl}/current`, {
         method: 'GET',
-        headers,
       });
 
       console.log('Response status:', response.status);
@@ -83,27 +121,23 @@ class SecurityPolicyService {
   async updatePolicy(newPolicy: Partial<SecurityPolicy>): Promise<{ message: string; updatedPolicy: SecurityPolicy }> {
     try {
       console.log("Updating policy with:", newPolicy);
-  
-      const headers = await this.getAuthHeaders();
-  
-      const response = await fetch(this.apiUrl, {
+
+      const response = await this.makeAuthenticatedRequest(this.apiUrl, {
         method: "PUT",
-        headers,
         body: JSON.stringify(newPolicy),
-        mode: "cors",
       });
-  
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to update security policy: ${response.status} - ${errorText}`);
       }
-  
+
       const result = await response.json();
-  
+
       if (!result.updatedPolicy) {
         throw new Error("Response does not contain updatedPolicy");
       }
-  
+
       // Clear cache after update
       this.clearCache();
       

@@ -21,7 +21,7 @@ export default function CampaignsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -84,13 +84,15 @@ export default function CampaignsPage() {
       toast.promise(promise, {
         loading: `${currentStatus ? 'Deactivating' : 'Activating'} campaign...`,
         success: `Campaign ${currentStatus ? 'deactivated' : 'activated'} successfully`,
-        error: `Failed to ${currentStatus ? 'deactivate' : 'activate'} campaign`
+       
       })
 
       await promise
       loadCampaigns(pagination.page, pagination.limit)
     } catch (error) {
-      console.error('Failed to toggle campaign status:', error)
+      toast.error('Failed to delete campaign', {
+        description: error.message || "Please try again later"
+      })
     }
   }
 
@@ -115,32 +117,43 @@ export default function CampaignsPage() {
       toast.success(`Activated ${selectedIds.length} campaign${selectedIds.length > 1 ? 's' : ''}`)
       setSelectedIds([])
       loadCampaigns(pagination.page, pagination.limit)
-    } catch (e) {
-      toast.error("Failed to activate selected campaigns.")
+    } catch (e: any) {
+      console.error('Bulk activate failed:', e)
+      toast.error("Failed to activate selected campaigns", {
+        description: e.message || "Please try again later"
+      })
     }
-  }
+}
 
-  const bulkDeactivate = async () => {
+    const bulkDeactivate = async () => {
     if (selectedIds.length === 0) return
     try {
       await campaignService.bulkDeactivateCampaigns(selectedIds)
       toast.success(`Deactivated ${selectedIds.length} campaign${selectedIds.length > 1 ? 's' : ''}`)
       setSelectedIds([])
       loadCampaigns(pagination.page, pagination.limit)
-    } catch (e) {
-      toast.error("Failed to deactivate selected campaigns.")
+    } catch (e: any) {
+      console.error('Bulk deactivate failed:', e)
+      toast.error("Failed to deactivate selected campaigns", {
+        description: e.message || "Please try again later"
+      })
     }
   }
 
-  const bulkDelete = async () => {
+    const bulkDelete = async () => {
     if (selectedIds.length === 0) return
+    
     try {
       await campaignService.bulkDeleteCampaigns(selectedIds)
       toast.success(`Deleted ${selectedIds.length} campaign${selectedIds.length > 1 ? 's' : ''}`)
       setSelectedIds([])
+      setConfirmBulkDelete(false)
       loadCampaigns(pagination.page, pagination.limit)
-    } catch (e) {
-      toast.error("Failed to delete selected campaigns.")
+    } catch (e: any) {
+      console.error('Bulk delete failed:', e)
+      toast.error("Failed to delete selected campaigns", {
+        description: e.message || "Please try again later"
+      })
     }
   }
 
@@ -318,10 +331,16 @@ export default function CampaignsPage() {
         <div className="flex items-center gap-2">
           {selectedIds.length > 0 && (
             <>
-              <Button variant="outline" onClick={bulkActivate}><Play className="mr-1 h-4 w-4" /> Activate ({selectedIds.length})</Button>
-              <Button variant="outline" onClick={bulkDeactivate}><Pause className="mr-1 h-4 w-4" /> Deactivate ({selectedIds.length})</Button>
-              <Button variant="destructive" onClick={bulkDelete}>Delete ({selectedIds.length})</Button>
-              <div className="w-px h-6 bg-gray-200 mx-1" />
+              <Button variant="outline" onClick={bulkActivate}>
+                <Play className="mr-1 h-4 w-4" /> Activate ({selectedIds.length})
+              </Button>
+              <Button variant="outline" onClick={bulkDeactivate}>
+                <Pause className="mr-1 h-4 w-4" /> Deactivate ({selectedIds.length})
+              </Button>
+              <Button variant="destructive" onClick={() => setConfirmBulkDelete(true)}>
+                Delete ({selectedIds.length})
+              </Button>
+                <div className="w-px h-6 bg-gray-200 mx-1" />
             </>
           )}
           <Button variant="outline" onClick={() => handleExport('csv')} disabled={isExporting}>
@@ -362,8 +381,7 @@ export default function CampaignsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="discount">Discount</SelectItem>
-                  <SelectItem value="seasonal">Seasonal</SelectItem>
-                  <SelectItem value="loyalty">Loyalty</SelectItem>
+                  
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -508,6 +526,29 @@ export default function CampaignsPage() {
         </CardContent>
       </Card>
 
+
+
+
+          {/* Bulk Delete Confirmation Modal */}
+          {confirmBulkDelete && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+                <h3 className="text-lg font-semibold mb-2">Delete Campaigns</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Are you sure you want to delete {selectedIds.length} campaign{selectedIds.length > 1 ? 's' : ''}? This action cannot be undone.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setConfirmBulkDelete(false)}>
+                    Cancel
+                  </Button>
+                  <Button variant="destructive" onClick={bulkDelete}>
+                    Delete {selectedIds.length}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
       {/* Confirm Delete Modal */}
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -517,20 +558,23 @@ export default function CampaignsPage() {
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
               <Button
-                variant="destructive"
-                onClick={async () => {
-                  try {
-                    await campaignService.deleteCampaign(confirmDeleteId)
-                    setConfirmDeleteId(null)
-                    toast.success('Campaign deleted successfully')
-                    loadCampaigns(pagination.page, pagination.limit)
-                  } catch (error) {
-                    toast.error('Failed to delete campaign')
-                  }
-                }}
-              >
-                Delete
-              </Button>
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      await campaignService.deleteCampaign(confirmDeleteId)
+                      setConfirmDeleteId(null)
+                      toast.success('Campaign deleted successfully')
+                      loadCampaigns(pagination.page, pagination.limit)
+                    } catch (error: any) {
+                      console.error('Delete failed:', error)
+                      toast.error('Failed to delete campaign', {
+                        description: error.message || "Please try again later"
+                      })
+                    }
+                  }}
+                >
+                  Delete
+                </Button>
             </div>
           </div>
         </div>

@@ -3,7 +3,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { authService } from "@/services/authService";
 
 export interface User {
@@ -18,8 +18,6 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
-  hasRole: (role: string) => boolean;
-  hasAnyRole: (roles: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     checkAuth();
@@ -35,24 +34,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      // Kiểm tra cả token và user data
       if (authService.isAuthenticated()) {
-        // Có token, nhưng cần kiểm tra user data
         const userData = await getCurrentUser();
         if (userData) {
           setUser(userData);
+          console.log("✅ Auth check: User authenticated", userData.email);
+
+          // Nếu đang ở trang chủ (login) và đã login -> redirect đến admin
+          // NHƯNG chỉ redirect nếu middleware chưa làm (tránh loop)
+          if (pathname === "/" && !isRedirecting) {
+            console.log("🔄 Auth context: Redirecting to /admin");
+            setTimeout(() => router.push("/admin"), 100); // Small delay để tránh conflict với middleware
+          }
         } else {
-          // Token không hợp lệ, clear auth
+          console.log("❌ Auth check: Token invalid");
           await authService.logout();
         }
+      } else {
+        console.log("🔐 Auth check: No token found");
       }
     } catch (error) {
       console.error("Auth check failed:", error);
-      await authService.logout();
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Biến để tránh redirect loop
+  let isRedirecting = false;
 
   const getCurrentUser = async (): Promise<User | null> => {
     try {
@@ -81,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (loginData: any) => {
     try {
+      console.log("🔐 Starting login process...");
       const authData = await authService.phoneLogin(loginData);
       const userData = {
         userId: authData.userId,
@@ -89,29 +99,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       setUser(userData);
 
-      // Verify token is actually stored
-      console.log("Token after login:", authService.getToken());
+      console.log("✅ Login successful, redirecting to /admin");
+      // Redirect sau khi login thành công
+      isRedirecting = true;
+      router.push("/admin");
     } catch (error) {
+      console.error("❌ Login failed:", error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
+      console.log("🚪 Starting logout process...");
       await authService.logout();
       setUser(null);
-      router.push("/login");
+
+      console.log("✅ Logout successful, redirecting to /");
+      isRedirecting = true;
+      router.push("/");
     } catch (error) {
       console.error("Logout failed:", error);
     }
-  };
-
-  const hasRole = (role: string): boolean => {
-    return user?.roles.includes(role) || false;
-  };
-
-  const hasAnyRole = (roles: string[]): boolean => {
-    return user?.roles.some((role) => roles.includes(role)) || false;
   };
 
   const value: AuthContextType = {
@@ -120,8 +129,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     isLoading,
     isAuthenticated: !!user,
-    hasRole,
-    hasAnyRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

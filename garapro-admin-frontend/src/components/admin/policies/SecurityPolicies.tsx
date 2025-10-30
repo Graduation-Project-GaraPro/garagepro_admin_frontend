@@ -72,7 +72,7 @@ export default function SecurityPolicies() {
       sessionTimeout: 30,
       maxLoginAttempts: 5,
       accountLockoutTime: 15,
-      mfaRequired: false,
+      // mfaRequired: false,
       passwordExpiryDays: 90,
       enableBruteForceProtection: true,
       updatedAt: new Date().toISOString(),
@@ -171,9 +171,7 @@ export default function SecurityPolicies() {
               <Shield className="h-4 w-4" />
               Authentication
             </TabsTrigger>
-            <TabsTrigger value="advanced">
-              Advanced
-            </TabsTrigger>
+            
           </TabsList>
 
           <TabsContent value="password">
@@ -362,7 +360,7 @@ export default function SecurityPolicies() {
                 
                 <Separator />
                 
-                <div className="flex items-center justify-between">
+                {/* <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="mfaRequired" className="flex items-center gap-2">
                       {policy.mfaRequired ? (
@@ -376,6 +374,7 @@ export default function SecurityPolicies() {
                       <p className="text-sm text-muted-foreground mr-2">
                         Require MFA for all users
                       </p>
+
                       <Badge variant={policy.mfaRequired ? "default" : "outline"}>
                         {policy.mfaRequired ? "Enabled" : "Disabled"}
                       </Badge>
@@ -387,7 +386,7 @@ export default function SecurityPolicies() {
                     onCheckedChange={(checked) => handlePolicyChange({ mfaRequired: checked })}
                   />
                 </div>
-                
+                 */}
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="enableBruteForceProtection" className="flex items-center gap-2">
@@ -412,49 +411,7 @@ export default function SecurityPolicies() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="advanced">
-            <Card>
-              <CardHeader>
-                <CardTitle>Advanced Security Settings</CardTitle>
-                <CardDescription>
-                  Configure advanced security policies
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Alert variant="default" className="bg-purple-50 border-purple-200 mb-6">
-                  <Shield className="h-4 w-4" />
-                  <AlertTitle>Advanced Features</AlertTitle>
-                  <AlertDescription>
-                    These settings are for advanced security configurations. Modify with caution.
-                  </AlertDescription>
-                </Alert>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="passwordHistory">Password History</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Remember previous passwords to prevent reuse
-                      </p>
-                    </div>
-                    <Badge variant="outline">Coming Soon</Badge>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="ipWhitelisting">IP Whitelisting</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Restrict access to specific IP addresses
-                      </p>
-                    </div>
-                    <Badge variant="outline">Coming Soon</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          
         </Tabs>
 
         <div className="mt-6 flex justify-end gap-2">

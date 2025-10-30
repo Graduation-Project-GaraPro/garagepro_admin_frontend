@@ -104,6 +104,7 @@ export interface Staff {
 }
 
 export interface ServiceCategory {
+  parentServiceCategoryId:string
   serviceCategoryId: string
   categoryName: string
   description: string
@@ -154,15 +155,8 @@ export interface Ward {
 class BranchService {
   private baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
 
- private async getAuthToken(): Promise<string> {
-    try {
-      const token = await authService.getValidToken();
-      console.log('🔑 Current token:', token ? '✅ Available' : '❌ Missing');
-      return token;
-    } catch (error) {
-      console.log('🔑 Token error:', error.message);
-      throw new Error('Authentication required');
-    }
+   private getAuthToken(): string | null {
+    return authService.getToken(); // CHỈ DÙNG GETTOKEN
   }
 
   private async request<T>(url: string, options: RequestInit = {}, retryCount = 0): Promise<T> {
@@ -170,7 +164,12 @@ class BranchService {
     
     try {
       const token = await this.getAuthToken();
-      
+       if (!token) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+        throw new Error('Authentication required');
+      }
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
@@ -307,8 +306,27 @@ class BranchService {
     });
   }
 
-  async getServiceCategories(): Promise<ServiceCategory[]> {
-    const url = `${this.baseURL}/ServiceCategories`;
+  // async getServiceCategories(): Promise<ServiceCategory[]> {
+  //   const url = `${this.baseURL}/ServiceCategories`;
+  //   return this.request<ServiceCategory[]>(url);
+  // }
+  async getServiceCategories(
+  parentServiceCategoryId?: string,
+  searchTerm?: string,
+  isActive?: boolean
+  ): Promise<ServiceCategory[]> {
+    const params = new URLSearchParams();
+
+    if (parentServiceCategoryId) params.append("parentServiceCategoryId", parentServiceCategoryId);
+    if (searchTerm) params.append("searchTerm", searchTerm);
+    if (isActive !== undefined) params.append("isActive", String(isActive));
+
+    const url = `${this.baseURL}/ServiceCategories/filter?${params.toString()}`;
+    return this.request<ServiceCategory[]>(url);
+  }
+
+   async getParentServiceCategoriesForFilter(): Promise<ServiceCategory[]> {
+    const url = `${this.baseURL}/ServiceCategories/parentsForFilter`;
     return this.request<ServiceCategory[]>(url);
   }
 

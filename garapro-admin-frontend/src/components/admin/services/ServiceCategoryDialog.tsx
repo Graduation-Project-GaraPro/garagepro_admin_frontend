@@ -89,6 +89,9 @@ export default function ServiceCategoryDialog({ open, onOpenChange }: ServiceCat
   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   const [deleteConfirm, setDeleteConfirm] = useState<ServiceCategory | null>(null);
+  const [isLoadingParents, setIsLoadingParents] = useState(false);
+
+  const [availableParentCategories, setAvailableParentCategories] = useState<ServiceCategory[]>([]);
   // Form states
   const [formData, setFormData] = useState({
     categoryName: '',
@@ -103,23 +106,88 @@ export default function ServiceCategoryDialog({ open, onOpenChange }: ServiceCat
     }
   }, [open]);
 
-  useEffect(() => {
-    if (editingCategory) {
-      setFormData({
-        categoryName: editingCategory.categoryName,
-        parentServiceCategoryId: editingCategory.parentServiceCategoryId || 'no-parent',
-        description: editingCategory.description,
-        isActive: editingCategory.isActive,
-      });
-    } else {
-      setFormData({
-        categoryName: '',
-        parentServiceCategoryId: 'no-parent',
-        description: '',
-        isActive: true,
-      });
+// effect cho Edit 
+ useEffect(() => {
+  if (editingCategory) {
+    // Reset form với loading state trước
+    setFormData({
+      categoryName: editingCategory.categoryName,
+      parentServiceCategoryId: 'loading', // Set tạm thành loading
+      description: editingCategory.description,
+      isActive: editingCategory.isActive,
+    });
+    
+    // Load available parent categories, sau khi load xong sẽ set giá trị đúng
+    loadAvailableParentCategories(editingCategory.serviceCategoryId);
+  } else {
+    setFormData({
+      categoryName: '',
+      parentServiceCategoryId: 'no-parent',
+      description: '',
+      isActive: true,
+    });
+  }
+}, [editingCategory]);
+
+
+
+
+
+
+  // Thêm useEffect này để load available parent categories khi editingCategory thay đổi
+useEffect(() => {
+  if (open && editingCategory) {
+    loadAvailableParentCategories(editingCategory.serviceCategoryId);
+  } else if (open) {
+    loadAvailableParentCategories(null);
+  }
+}, [editingCategory, open]);
+
+// Update parentServiceCategoryId khi availableParentCategories thay đổi
+useEffect(() => {
+  if (editingCategory && availableParentCategories.length > 0 && !isLoadingParents) {
+    // Tìm parent category hiện tại của editingCategory trong availableParentCategories
+    const currentParentId = editingCategory.parentServiceCategoryId;
+    const parentExists = availableParentCategories.some(
+      cat => cat.serviceCategoryId === currentParentId
+    );
+    
+    // Nếu parent tồn tại trong danh sách available thì chọn, không thì chọn "no-parent"
+    const newParentValue = currentParentId && parentExists ? currentParentId : 'no-parent';
+    
+    setFormData(prev => ({
+      ...prev,
+      parentServiceCategoryId: newParentValue
+    }));
+  }
+}, [availableParentCategories, editingCategory, isLoadingParents]);
+
+// Thêm hàm loadAvailableParentCategories
+const loadAvailableParentCategories = async (currentCategoryId: string | null) => {
+  try {
+    setIsLoadingParents(true);
+    const url = currentCategoryId 
+      ? `${API_BASE_URL}/ServiceCategories/parentValid?serviceCategoryId=${currentCategoryId}`
+      : `${API_BASE_URL}/ServiceCategories/parentValid`;
+    console.log(url);
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load parent categories: ${response.statusText}`);
     }
-  }, [editingCategory]);
+    const data: ServiceCategory[] = await response.json();
+    console.log(data)
+
+    setAvailableParentCategories(data);
+  } catch (error) {
+    console.error('Error loading parent categories:', error);
+    // Fallback to empty array
+    setAvailableParentCategories([]);
+  } finally {
+    setIsLoadingParents(false);
+  }
+};
+
 
   const loadCategories = async () => {
     try {
@@ -183,6 +251,13 @@ export default function ServiceCategoryDialog({ open, onOpenChange }: ServiceCat
       });
       return;
     }
+      // Thêm validate description
+    if (!formData.description.trim() || formData.description.trim().length < 10) {
+      toast.error('Validation Error', {
+        description: 'Description is required and must be at least 10 characters.'
+      });
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -212,7 +287,9 @@ export default function ServiceCategoryDialog({ open, onOpenChange }: ServiceCat
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to update category: ${response.statusText}`);
+          const errorData = await response.json().catch(() => ({})); 
+          console.error('Update failed:', errorData);
+          throw new Error(errorData.detail || errorData.message || response.statusText || 'Unknown error');
         }
 
         toast.success('Category updated successfully');
@@ -227,7 +304,9 @@ export default function ServiceCategoryDialog({ open, onOpenChange }: ServiceCat
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to create category: ${response.statusText}`);
+          const errorData = await response.json().catch(() => ({})); 
+          console.error('Create failed:', errorData);
+          throw new Error(errorData.detail || errorData.message || response.statusText || 'Unknown error');
         }
 
         toast.success('Category created successfully');
@@ -267,7 +346,9 @@ export default function ServiceCategoryDialog({ open, onOpenChange }: ServiceCat
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to delete category: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({})); // tránh lỗi nếu body không phải JSON
+      console.error('Delete failed:', errorData);
+      throw new Error(errorData.detail || errorData.message || response.statusText || 'Unknown error');
     }
 
     toast.success('Category deleted successfully');
@@ -282,19 +363,24 @@ export default function ServiceCategoryDialog({ open, onOpenChange }: ServiceCat
   }
 };
 
+
   const handleEdit = (category: ServiceCategory) => {
-    setEditingCategory(category);
-  };
+  setEditingCategory(category);
+  // Load available parent categories for editing category
+  loadAvailableParentCategories(category.serviceCategoryId);
+};
 
   const handleCreateNew = () => {
-    setEditingCategory(null);
-    setFormData({
-      categoryName: '',
-      parentServiceCategoryId: 'no-parent',
-      description: '',
-      isActive: true,
-    });
-  };
+  setEditingCategory(null);
+  setFormData({
+    categoryName: '',
+    parentServiceCategoryId: 'no-parent',
+    description: '',
+    isActive: true,
+  });
+  // Load available parent categories for new category
+  loadAvailableParentCategories(null);
+};
 
   const getAllCategories = (categories: ServiceCategory[]): ServiceCategory[] => {
     let all: ServiceCategory[] = [];
@@ -364,22 +450,30 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
         <div className="w-24 p-4">
           <div className="flex space-x-1">
             <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleEdit(category)}
-              className="h-8 w-8"
-            >
-              <Pencil className="h-3 w-3" />
-            </Button>
-            <Button
-              variant="destructive"
-              size="icon"
-              onClick={() => handleDelete(category)}
-              disabled={category.services && category.services.length > 0}
-              className="h-8 w-8"
-            >
-              <Trash2 className="h-3 w-3" />
-            </Button>
+      variant="outline"
+      size="icon"
+      onClick={() => handleEdit(category)}
+      className="h-8 w-8"
+    >
+      <Pencil className="h-3 w-3" />
+              </Button>
+              {/* Chỉ hiển thị nút xóa nếu category không có con và không có services */}
+              {(!category.children || category.children.length === 0) && 
+              (!category.services || category.services.length === 0) && (
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  onClick={() => handleDelete(category)}
+                  className="h-8 w-8"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+              {/* Nếu có con hoặc có services thì hiển thị placeholder để giữ layout */}
+              {((category.children && category.children.length > 0) || 
+                (category.services && category.services.length > 0)) && (
+                <div className="w-8 h-8" /> // Placeholder để giữ layout
+              )}
           </div>
         </div>
       </div>
@@ -397,9 +491,9 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
 
 
   const allCategories = getAllCategories(categories);
-  const availableParentCategories = allCategories.filter(
-    cat => !editingCategory || cat.serviceCategoryId !== editingCategory.serviceCategoryId
-  );
+
+
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -440,52 +534,107 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="categoryName" className="text-sm font-medium">
-                  Category Name *
-                </Label>
-                <Input
-                  id="categoryName"
-                  value={formData.categoryName}
-                  onChange={(e) => setFormData(prev => ({ ...prev, categoryName: e.target.value }))}
-                  placeholder="Enter category name"
-                  className="h-9"
-                  required
-                />
-              </div>
+                  <Label htmlFor="categoryName" className="text-sm font-medium">
+                    Category Name *
+                    <span className="text-muted-foreground text-xs font-normal ml-1">
+                      (at least 3 characters)
+                    </span>
+                  </Label>
+                  <Input
+                    id="categoryName"
+                    value={formData.categoryName}
+                    onChange={(e) => setFormData(prev => ({ ...prev, categoryName: e.target.value }))}
+                    placeholder="Enter category name (minimum 3 characters)"
+                    className={`h-9 ${
+                      formData.categoryName.length > 0 && formData.categoryName.length < 3
+                        ? 'border-destructive focus-visible:ring-destructive'
+                        : formData.categoryName.length >= 3
+                        ? 'border-green-500 focus-visible:ring-green-500'
+                        : ''
+                    }`}
+                    required
+                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>
+                      {formData.categoryName.length < 3 ? (
+                        <span className="text-destructive">
+                          {3 - formData.categoryName.length} more characters required
+                        </span>
+                      ) : (
+                        <span className="text-green-600">
+                          ✓ Minimum length satisfied
+                        </span>
+                      )}
+                    </span>
+                    <span>{formData.categoryName.length}/3</span>
+                  </div>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="parentCategory" className="text-sm font-medium">
-                  Parent Category
-                </Label>
-                <Select
-                  value={formData.parentServiceCategoryId}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, parentServiceCategoryId: value }))}
-                >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select parent category (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no-parent">No parent (Root category)</SelectItem>
-                    {availableParentCategories.map(category => (
-                      <SelectItem key={category.serviceCategoryId} value={category.serviceCategoryId}>
-                        {category.categoryName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Sửa phần Select parent category thành: */}
+                  <div className="space-y-2">
+                    <Label htmlFor="parentCategory" className="text-sm font-medium">
+                      Parent Category
+                      {isLoadingParents && (
+                        <Loader2 className="h-3 w-3 animate-spin inline ml-2" />
+                      )}
+                    </Label>
+                    <Select
+                      value={formData.parentServiceCategoryId}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, parentServiceCategoryId: value }))}
+                      disabled={isLoadingParents}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue 
+                          placeholder={
+                            isLoadingParents 
+                              ? "Loading parent categories..." 
+                              : "Select parent category (optional)"
+                          } 
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no-parent">No parent (Root category)</SelectItem>
+                        {availableParentCategories.map(category => (
+                          <SelectItem key={category.serviceCategoryId} value={category.serviceCategoryId}>
+                            {category.categoryName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isLoadingParents && (
+                      <p className="text-xs text-muted-foreground">Loading available parent categories...</p>
+                    )}
+                  </div>
 
               <div className="space-y-2">
                 <Label htmlFor="description" className="text-sm font-medium">
-                  Description
+                  Description *
+                  <span className="text-muted-foreground text-xs font-normal ml-1">
+                    (at least 10 characters)
+                  </span>
                 </Label>
-                <Input
+                <Textarea
                   id="description"
                   value={formData.description}
                   onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter category description"
-                  className="h-9"
+                  placeholder="Enter category description (minimum 10 characters)"
+                  className="min-h-[80px] resize-vertical"
+                  required
                 />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>
+                    {formData.description.length < 10 ? (
+                      <span className="text-destructive">
+                        {10 - formData.description.length} more characters required
+                      </span>
+                    ) : (
+                      <span className="text-green-600">
+                        ✓ Minimum length satisfied
+                      </span>
+                    )}
+                  </span>
+                  <span>{formData.description.length}/10</span>
+                </div>
               </div>
 
               <div className="flex items-center justify-between pt-2">
@@ -502,10 +651,10 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
                 
                 <Button 
                   type="submit" 
-                  disabled={isSubmitting} 
+                  disabled={isSubmitting || isLoadingParents} 
                   className="h-9 min-w-[140px]"
                 >
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {(isSubmitting || isLoadingParents) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {editingCategory ? 'Update Category' : 'Create Category'}
                 </Button>
               </div>
