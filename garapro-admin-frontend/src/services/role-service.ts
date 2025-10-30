@@ -1,3 +1,6 @@
+
+import { authService } from "@/services/authService"
+
 // types/role.ts
 export interface Permission {
   id: string
@@ -29,7 +32,6 @@ export interface CreateRoleRequest {
   name: string
   description: string
   permissionIds: string[]
-  isDefault: boolean
   grantedBy: string
   GrantedUserId: string | null
 }
@@ -39,7 +41,7 @@ export interface UpdateRoleRequest {
   newName: string
   description: string
   permissionIds: string[]
-  isDefault: boolean
+  
   grantedBy: string
   GrantedUserId: string | null
 }
@@ -57,84 +59,85 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7113/
 
 class RoleService {
   private getAuthToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('authToken')
-    }
-    return null
+  return authService.getToken();
+}
+
+private getCurrentUserId(): string | null {
+  return authService.getCurrentUserId();
+}
+
+private getCurrentUserEmail(): string | null {
+  return authService.getCurrentUserEmail();
+}
+
+private async fetchAPI<T>(endpoint: string, options: RequestInit = {}, retryCount = 0): Promise<T> {
+  const token = this.getAuthToken()
+  const url = `${API_BASE_URL}${endpoint}`
+
+  const defaultHeaders: HeadersInit = {
+    "Content-Type": "application/json",
+  }
+  
+  console.log(token);
+  
+  const headers: HeadersInit = {
+    ...defaultHeaders,
+    ...(options.headers as Record<string, string> || {}),
   }
 
-  private getCurrentUserId(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('userId')
-    }
-    return null
-  }
-  private getCurrentUserEmail(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('userEmail')
-    }
-    return null
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`
   }
 
-  private async fetchAPI<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const token = this.getAuthToken()
-    const url = `${API_BASE_URL}${endpoint}`
-  
-    const defaultHeaders: HeadersInit = {
-      "Content-Type": "application/json",
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  })
+
+  // Token expired - try to refresh and retry
+  if (response.status === 401 && retryCount === 0) {
+    try {
+      await authService.handleTokenRefresh();
+      return this.fetchAPI<T>(endpoint, options, retryCount + 1);
+    } catch (refreshError) {
+      throw new Error('Session expired. Please login again.');
     }
-    console.log(token);
-    const headers: HeadersInit = {
-      ...defaultHeaders,
-      ...(options.headers as Record<string, string> || {}),
-    }
-  
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`
-    }
-  
-    const response = await fetch(url, {
-      ...options,
-      headers, // ensure our merged headers are used
-    })
-  
-    // Handle no content
-    if (response.status === 204) {
-      return null as T
-    }
-  
-    // Handle non-OK responses
-    if (!response.ok) {
-      let errorMessage: string
-  
-      try {
-        const errorData = await response.json()
-        errorMessage = errorData.message || JSON.stringify(errorData)
-      } catch {
-        errorMessage = await response.text()
-      }
-  
-      // Optionally handle 401 (unauthorized) automatically
-      if (response.status === 401) {
-        // this.logout() or trigger refresh token here
-      }
-  
-      throw new Error(`API error ${response.status}: ${errorMessage}`)
-    }
-  
-    // Detect content-type
-    const contentType = response.headers.get("content-type")
-  
-    if (contentType && contentType.includes("application/json")) {
-      return response.json() as Promise<T>
-    }
-  
-    // fallback: return text
-    return (await response.text()) as unknown as T
   }
+
+  // Handle no content
+  if (response.status === 204) {
+    return null as T
+  }
+
+  // Handle non-OK responses
+  if (!response.ok) {
+    let errorMessage: string
+
+    try {
+      const errorData = await response.json()
+      errorMessage = errorData.message || JSON.stringify(errorData)
+    } catch {
+      errorMessage = await response.text()
+    }
+
+    throw new Error(`API error ${response.status}: ${errorMessage}`)
+  }
+
+  // Detect content-type
+  const contentType = response.headers.get("content-type")
+
+  if (contentType && contentType.includes("application/json")) {
+    return response.json() as Promise<T>
+  }
+
+  // fallback: return text
+  return (await response.text()) as unknown as T
+}
 
   // Get all roles
   async getRoles(): Promise<Role[]> {
+    const roles = await this.fetchAPI<Role[]>('/Roles');
+    console.log(roles);
     return this.fetchAPI<Role[]>('/Roles')
   }
 
@@ -182,7 +185,7 @@ class RoleService {
       newName: roleData.newName,
       description: roleData.description,
       permissionIds: roleData.permissionIds,
-      isDefault: roleData.isDefault,
+      
       grantedBy,
       GrantedUserId
     }

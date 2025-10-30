@@ -1,6 +1,7 @@
+// components/create-campaign-page.tsx
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Calendar, DollarSign, Percent, Gift } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,13 +10,17 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { toast } from 'sonner'
 
-import { campaignService, CreateCampaignRequest } from '@/services/campaign-service'
+import { campaignService, CreateCampaignRequest, ServiceCategory } from '@/services/campaign-service'
+import { ServiceCategoryList } from '@/components/admin/campaigns/service-category-list'
 import Link from 'next/link'
 
 export default function CreateCampaignPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([])
+  const [servicesLoading, setServicesLoading] = useState(true)
   const [formData, setFormData] = useState<CreateCampaignRequest>({
     name: '',
     description: '',
@@ -32,11 +37,38 @@ export default function CreateCampaignPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  useEffect(() => {
+    loadServiceCategories()
+  }, [])
+
+  const loadServiceCategories = async () => {
+    try {
+      setServicesLoading(true)
+      const categories = await campaignService.getServiceCategories()
+      setServiceCategories(categories)
+    } catch (error) {
+      console.error('Failed to load service categories:', error)
+     toast("Error", {
+      description: "Failed to load services. Please try again.",
+})
+    } finally {
+      setServicesLoading(false)
+    }
+  }
+
   const handleInputChange = (field: keyof CreateCampaignRequest, value: string | number | boolean | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
+    }
+  }
+
+  const handleServiceToggle = (serviceId: string, checked: boolean) => {
+    if (checked) {
+      handleInputChange('applicableServices', [...formData.applicableServices, serviceId])
+    } else {
+      handleInputChange('applicableServices', formData.applicableServices.filter(id => id !== serviceId))
     }
   }
 
@@ -91,16 +123,37 @@ export default function CreateCampaignPage() {
     e.preventDefault()
     
     if (!validateForm()) {
+      toast.error("Validation Error", {
+        description: "Please check the form for errors",
+      })
       return
     }
 
     try {
       setLoading(true)
+      
+      toast("Creating Campaign", {
+        description: "Please wait while we create your campaign...",
+      })
+
+      console.log('Form data:', formData)
       await campaignService.createCampaign(formData)
-      router.push('/admin/campaigns')
+      
+       toast.success("Success", {
+          description: "Campaign created successfully!",
+        })
+
+      // Redirect after a short delay to show the success message
+      setTimeout(() => {
+        router.push('/admin/campaigns')
+      }, 1500)
+      
     } catch (error) {
       console.error('Failed to create campaign:', error)
-      setErrors({ submit: 'Failed to create campaign. Please try again.' })
+      
+      toast.error("Error", {
+        description: "Failed to create campaign. Please try again.",
+      })
     } finally {
       setLoading(false)
     }
@@ -369,38 +422,24 @@ export default function CreateCampaignPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <Label>Select Services</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {[
-                  'Oil Change', 'Brake Service', 'Tire Rotation', 'Engine Tune-up',
-                  'AC Service', 'Battery Replacement', 'Wheel Alignment', 'Transmission Service'
-                ].map((service) => (
-                  <label key={service} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.applicableServices.includes(service)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          handleInputChange('applicableServices', [...formData.applicableServices, service])
-                        } else {
-                          handleInputChange('applicableServices', formData.applicableServices.filter(s => s !== service))
-                        }
-                      }}
-                      className="rounded"
-                    />
-                    <span className="text-sm">{service}</span>
-                  </label>
-                ))}
+            {servicesLoading ? (
+              <div className="text-center py-4">Loading services...</div>
+            ) : (
+              <div className="max-h-96 overflow-y-auto">
+                <ServiceCategoryList
+                  categories={serviceCategories}
+                  selectedServices={formData.applicableServices}
+                  onServiceToggle={handleServiceToggle}
+                />
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Submit */}
         <div className="flex justify-end gap-4">
           <Link href="/admin/campaigns">
-            <Button variant="outline" type="button">
+            <Button variant="outline" type="button" disabled={loading}>
               Cancel
             </Button>
           </Link>
@@ -409,12 +448,6 @@ export default function CreateCampaignPage() {
             {loading ? 'Creating...' : 'Create Campaign'}
           </Button>
         </div>
-
-        {errors.submit && (
-          <div className="text-center text-red-500">
-            {errors.submit}
-          </div>
-        )}
       </form>
     </div>
   )

@@ -1,14 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Edit, Trash2, Eye, BarChart3, Download } from 'lucide-react'
+import { Plus, Search, Edit, Trash2, Eye, BarChart3, Download, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-
+import { toast } from 'sonner'
 import { campaignService, PromotionalCampaign } from '@/services/campaign-service'
 import Link from 'next/link'
 
@@ -17,44 +17,78 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true)
   const [isExporting, setIsExporting] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    totalCount: 0,
+    totalPages: 0
+  })
 
-  const loadCampaigns = useCallback(async () => {
+  const loadCampaigns = useCallback(async (page: number = pagination.page, limit: number = pagination.limit) => {
     try {
       setLoading(true)
       const response = await campaignService.getCampaigns({
         search: searchTerm || undefined,
         type: typeFilter === 'all' ? undefined : typeFilter,
         isActive: statusFilter === 'all' ? undefined : statusFilter === 'active' ? true : false,
+        page: page,
+        limit: limit
       })
       setCampaigns(response.campaigns)
+      setPagination(prev => ({
+        ...prev,
+        page: response.pagination.page,
+        limit: response.pagination.limit,
+        totalCount: response.pagination.totalCount,
+        totalPages: response.pagination.totalPages
+      }))
     } catch (error) {
       console.error('Failed to load campaigns:', error)
+      toast.error('Failed to load campaigns')
     } finally {
       setLoading(false)
     }
   }, [searchTerm, typeFilter, statusFilter])
 
   useEffect(() => {
-    loadCampaigns()
+    loadCampaigns(1, pagination.limit) // Reset to page 1 when filters change
   }, [loadCampaigns])
 
   const handleSearch = () => {
-    loadCampaigns()
+    loadCampaigns(1, pagination.limit) // Reset to page 1 when searching
+  }
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      loadCampaigns(newPage, pagination.limit)
+    }
+  }
+
+  const handleLimitChange = (newLimit: number) => {
+    setPagination(prev => ({ ...prev, limit: newLimit }))
+    loadCampaigns(1, newLimit) // Reset to page 1 when changing limit
   }
 
   const handleStatusToggle = async (campaignId: string, currentStatus: boolean) => {
     try {
-      if (currentStatus) {
-        await campaignService.deactivateCampaign(campaignId)
-      } else {
-        await campaignService.activateCampaign(campaignId)
-      }
-      loadCampaigns()
+      const promise = currentStatus 
+        ? campaignService.deactivateCampaign(campaignId)
+        : campaignService.activateCampaign(campaignId)
+      
+      toast.promise(promise, {
+        loading: `${currentStatus ? 'Deactivating' : 'Activating'} campaign...`,
+        success: `Campaign ${currentStatus ? 'deactivated' : 'activated'} successfully`,
+        error: `Failed to ${currentStatus ? 'deactivate' : 'activate'} campaign`
+      })
+
+      await promise
+      loadCampaigns(pagination.page, pagination.limit)
     } catch (error) {
       console.error('Failed to toggle campaign status:', error)
     }
@@ -78,11 +112,11 @@ export default function CampaignsPage() {
     if (selectedIds.length === 0) return
     try {
       await campaignService.bulkActivateCampaigns(selectedIds)
-      setBanner({ type: 'success', message: 'Selected campaigns activated.' })
+      toast.success(`Activated ${selectedIds.length} campaign${selectedIds.length > 1 ? 's' : ''}`)
       setSelectedIds([])
-      loadCampaigns()
+      loadCampaigns(pagination.page, pagination.limit)
     } catch (e) {
-      setBanner({ type: 'error', message: 'Failed to activate selected campaigns.' })
+      toast.error("Failed to activate selected campaigns.")
     }
   }
 
@@ -90,11 +124,11 @@ export default function CampaignsPage() {
     if (selectedIds.length === 0) return
     try {
       await campaignService.bulkDeactivateCampaigns(selectedIds)
-      setBanner({ type: 'success', message: 'Selected campaigns deactivated.' })
+      toast.success(`Deactivated ${selectedIds.length} campaign${selectedIds.length > 1 ? 's' : ''}`)
       setSelectedIds([])
-      loadCampaigns()
+      loadCampaigns(pagination.page, pagination.limit)
     } catch (e) {
-      setBanner({ type: 'error', message: 'Failed to deactivate selected campaigns.' })
+      toast.error("Failed to deactivate selected campaigns.")
     }
   }
 
@@ -102,11 +136,11 @@ export default function CampaignsPage() {
     if (selectedIds.length === 0) return
     try {
       await campaignService.bulkDeleteCampaigns(selectedIds)
-      setBanner({ type: 'success', message: 'Selected campaigns deleted.' })
+      toast.success(`Deleted ${selectedIds.length} campaign${selectedIds.length > 1 ? 's' : ''}`)
       setSelectedIds([])
-      loadCampaigns()
+      loadCampaigns(pagination.page, pagination.limit)
     } catch (e) {
-      setBanner({ type: 'error', message: 'Failed to delete selected campaigns.' })
+      toast.error("Failed to delete selected campaigns.")
     }
   }
 
@@ -136,11 +170,12 @@ export default function CampaignsPage() {
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount)
-  }
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+  }).format(amount)
+}
+
 
   const handleExport = async (format: 'csv' | 'excel') => {
     try {
@@ -158,13 +193,117 @@ export default function CampaignsPage() {
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-      setBanner({ type: 'success', message: 'Export started successfully.' })
+      toast.success('Export completed successfully')
     } catch (error) {
       console.error('Export failed', error)
-      setBanner({ type: 'error', message: 'Failed to export campaigns.' })
+      toast.error('Failed to export campaigns')
     } finally {
       setIsExporting(false)
     }
+  }
+
+  // Pagination controls component
+  const PaginationControls = () => {
+    const { page, totalPages, totalCount, limit } = pagination
+    const startItem = (page - 1) * limit + 1
+    const endItem = Math.min(page * limit, totalCount)
+
+    if (totalCount === 0) return null
+
+    return (
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
+        <div className="flex items-center gap-4">
+          {/* Items per page selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">Show:</span>
+            <Select
+              value={limit.toString()}
+              onValueChange={(value) => handleLimitChange(parseInt(value))}
+            >
+              <SelectTrigger className="w-20 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="15">15</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">per page</span>
+          </div>
+
+          {/* Showing X to Y of Z items */}
+          <div className="text-sm text-muted-foreground whitespace-nowrap">
+            Showing {startItem} to {endItem} of {totalCount} campaigns
+          </div>
+        </div>
+
+        {/* Page navigation */}
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page <= 1}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          {/* Page numbers */}
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum
+            if (totalPages <= 5) {
+              pageNum = i + 1
+            } else if (page <= 3) {
+              pageNum = i + 1
+            } else if (page >= totalPages - 2) {
+              pageNum = totalPages - 4 + i
+            } else {
+              pageNum = page - 2 + i
+            }
+
+            return (
+              <Button
+                key={pageNum}
+                variant={page === pageNum ? "default" : "outline"}
+                size="sm"
+                onClick={() => handlePageChange(pageNum)}
+                className="h-8 w-8 p-0 text-xs"
+              >
+                {pageNum}
+              </Button>
+            )
+          })}
+
+          {totalPages > 5 && page < totalPages - 2 && (
+            <span className="text-sm text-muted-foreground px-1">...</span>
+          )}
+
+          {totalPages > 5 && page < totalPages - 2 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(totalPages)}
+              className="h-8 w-8 p-0 text-xs"
+            >
+              {totalPages}
+            </Button>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page >= totalPages}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -179,8 +318,8 @@ export default function CampaignsPage() {
         <div className="flex items-center gap-2">
           {selectedIds.length > 0 && (
             <>
-              <Button variant="outline" onClick={bulkActivate}>Activate ({selectedIds.length})</Button>
-              <Button variant="outline" onClick={bulkDeactivate}>Deactivate ({selectedIds.length})</Button>
+              <Button variant="outline" onClick={bulkActivate}><Play className="mr-1 h-4 w-4" /> Activate ({selectedIds.length})</Button>
+              <Button variant="outline" onClick={bulkDeactivate}><Pause className="mr-1 h-4 w-4" /> Deactivate ({selectedIds.length})</Button>
               <Button variant="destructive" onClick={bulkDelete}>Delete ({selectedIds.length})</Button>
               <div className="w-px h-6 bg-gray-200 mx-1" />
             </>
@@ -200,19 +339,13 @@ export default function CampaignsPage() {
         </div>
       </div>
 
-      {banner && (
-        <div className={`${banner.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'} border rounded p-3`}> 
-          {banner.message}
-        </div>
-      )}
-
       {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <Input
                 placeholder="Search campaigns..."
@@ -221,31 +354,33 @@ export default function CampaignsPage() {
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="discount">Discount</SelectItem>
-                <SelectItem value="seasonal">Seasonal</SelectItem>
-                <SelectItem value="loyalty">Loyalty</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={handleSearch}>
-              <Search className="mr-2 h-4 w-4" />
-              Search
-            </Button>
+            <div className="flex gap-4">
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-32 sm:w-48">
+                  <SelectValue placeholder="All Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="discount">Discount</SelectItem>
+                  <SelectItem value="seasonal">Seasonal</SelectItem>
+                  <SelectItem value="loyalty">Loyalty</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-32 sm:w-48">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={handleSearch}>
+                <Search className="mr-2 h-4 w-4" />
+                Search
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -261,97 +396,114 @@ export default function CampaignsPage() {
         <CardContent>
           {loading ? (
             <div className="text-center py-8">Loading campaigns...</div>
+          ) : campaigns.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No campaigns found. {searchTerm || typeFilter !== 'all' || statusFilter !== 'all' ? 'Try adjusting your filters.' : 'Create your first campaign to get started.'}
+            </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    <input type="checkbox" onChange={toggleSelectAll} checked={campaigns.length > 0 && campaigns.every(c => selectedIds.includes(c.id))} />
-                  </TableHead>
-                  <TableHead>Campaign Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Discount</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Usage</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {campaigns.map((campaign) => (
-                  <TableRow key={campaign.id}>
-                    <TableCell>
-                      <input type="checkbox" checked={selectedIds.includes(campaign.id)} onChange={() => toggleSelect(campaign.id)} />
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{campaign.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {campaign.description}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getTypeBadge(campaign.type)}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">
-                        {campaign.discountType === 'percentage' && `${campaign.discountValue}%`}
-                        {campaign.discountType === 'fixed' && formatCurrency(campaign.discountValue)}
-                        {campaign.discountType === 'free_service' && 'Free Service'}
-                      </div>
-                      {campaign.minimumOrderValue && (
-                        <div className="text-sm text-muted-foreground">
-                          Min: {formatCurrency(campaign.minimumOrderValue)}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>{formatDate(campaign.startDate)}</div>
-                        <div className="text-muted-foreground">to {formatDate(campaign.endDate)}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getStatusBadge(campaign.isActive)}</TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        <div>{campaign.usedCount}</div>
-                        {campaign.usageLimit && (
-                          <div className="text-muted-foreground">/ {campaign.usageLimit}</div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Link href={`/admin/campaigns/${campaign.id}`}>
-                          <Button variant="ghost" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Link href={`/admin/campaigns/${campaign.id}/edit`}>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Link href={`/admin/campaigns/${campaign.id}/analytics`}>
-                          <Button variant="ghost" size="sm">
-                            <BarChart3 className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleStatusToggle(campaign.id, campaign.isActive)}
-                        >
-                          {campaign.isActive ? 'Deactivate' : 'Activate'}
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(campaign.id)} className="text-red-600 hover:text-red-700">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      <input 
+                        type="checkbox" 
+                        onChange={toggleSelectAll} 
+                        checked={campaigns.length > 0 && campaigns.every(c => selectedIds.includes(c.id))} 
+                      />
+                    </TableHead>
+                    <TableHead>Campaign Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Discount</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Usage</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {campaigns.map((campaign) => (
+                    <TableRow key={campaign.id}>
+                      <TableCell>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedIds.includes(campaign.id)} 
+                          onChange={() => toggleSelect(campaign.id)} 
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{campaign.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {campaign.description}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getTypeBadge(campaign.type)}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">
+                          {campaign.discountType === 'percentage' && `${campaign.discountValue}%`}
+                          {campaign.discountType === 'fixed' && formatCurrency(campaign.discountValue)}
+                          {campaign.discountType === 'free_service' && 'Free Service'}
+                        </div>
+                        {campaign.minimumOrderValue && (
+                          <div className="text-sm text-muted-foreground">
+                            Min: {formatCurrency(campaign.minimumOrderValue)}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>{formatDate(campaign.startDate)}</div>
+                          <div className="text-muted-foreground">to {formatDate(campaign.endDate)}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(campaign.isActive)}</TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <div>{campaign.usedCount}</div>
+                          {campaign.usageLimit && campaign.usageLimit !== 2147483647 && (
+                            <div className="text-muted-foreground">/ {campaign.usageLimit}</div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Link href={`/admin/campaigns/${campaign.id}`}>
+                            <Button variant="ghost" size="sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Link href={`/admin/campaigns/${campaign.id}/edit`}>
+                            <Button variant="ghost" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Link href={`/admin/campaigns/${campaign.id}/analytics`}>
+                            <Button variant="ghost" size="sm">
+                              <BarChart3 className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleStatusToggle(campaign.id, campaign.isActive)}
+                          >
+                            {campaign.isActive ? 'Deactivate' : 'Activate'}
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(campaign.id)} className="text-red-600 hover:text-red-700">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {/* Pagination Controls */}
+              <PaginationControls />
+            </>
           )}
         </CardContent>
       </Card>
@@ -370,10 +522,10 @@ export default function CampaignsPage() {
                   try {
                     await campaignService.deleteCampaign(confirmDeleteId)
                     setConfirmDeleteId(null)
-                    setBanner({ type: 'success', message: 'Campaign deleted.' })
-                    loadCampaigns()
+                    toast.success('Campaign deleted successfully')
+                    loadCampaigns(pagination.page, pagination.limit)
                   } catch (error) {
-                    setBanner({ type: 'error', message: 'Failed to delete campaign.' })
+                    toast.error('Failed to delete campaign')
                   }
                 }}
               >

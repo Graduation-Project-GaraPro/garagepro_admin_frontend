@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, MapPin, Phone, Mail, Clock, Users, Building2, Calendar } from 'lucide-react'
+import { ArrowLeft, MapPin, Phone, Mail, Clock, Users, Building2, Calendar ,Edit, Trash2} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -79,6 +79,17 @@ export default function BranchDetailPage() {
   const getOpenDaysCount = () => {
     return branch?.operatingHours.filter(hours => hours.isOpen).length || 0
   }
+  const handleDelete = async () => {
+      if (!branch) return
+      if (confirm('Are you sure you want to delete this campaign? This action cannot be undone.')) {
+        try {
+          await branchService.deleteBranch(branch.branchId)
+          window.location.href = '/admin/branches'
+        } catch (e) {
+          toast.error('Failed to delete branch ')
+        }
+      }
+    }
 
   // Get services grouped by category
   const getServicesByCategory = () => {
@@ -141,17 +152,31 @@ export default function BranchDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/admin/branches">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Branches
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{branch.branchName}</h1>
-          <p className="text-muted-foreground">Branch details and operations</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+                <Link href="/admin/branches">
+                  <Button variant="ghost" size="sm">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Branches
+                  </Button>
+                </Link>
+                <div>
+                  <h1 className="text-3xl font-bold tracking-tight">{branch.branchName}</h1>
+                  <p className="text-muted-foreground">Branch details and operations</p>
+                </div>
         </div>
+        
+        <div className="flex gap-2">
+            <Link href={`/admin/branches/${branch.branchId}/edit`}>
+              <Button variant="outline" size="sm">
+                <Edit className="h-4 w-4 mr-2" /> Edit
+              </Button>
+            </Link>
+            <Button variant="destructive" size="sm" onClick={handleDelete}>
+              <Trash2 className="h-4 w-4 mr-2" /> Delete
+            </Button>
+        </div>
+        
       </div>
 
       {/* Overview Cards */}

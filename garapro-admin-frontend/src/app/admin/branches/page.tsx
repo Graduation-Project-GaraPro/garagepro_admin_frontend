@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, MapPin, Phone, Mail, Users, Clock, Building2, Edit, Trash2, Eye, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { Plus, Search, MapPin, Phone, Mail, Users, Clock, Building2, Edit, Trash2, Eye, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight , Play, Pause} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -140,7 +140,7 @@ export default function BranchesPage() {
   const bulkActivate = async () => {
     if (selectedIds.length === 0) return
     try {
-      await branchService.bulkActivateBranches(selectedIds)
+      await branchService.bulkActivateBranchesApi(selectedIds)
       toast.success('Selected branches activated')
       setSelectedIds([])
       loadBranches()
@@ -152,7 +152,7 @@ export default function BranchesPage() {
   const bulkDeactivate = async () => {
     if (selectedIds.length === 0) return
     try {
-      await branchService.bulkDeactivateBranches(selectedIds)
+      await branchService.bulkDeactivateBranchesApi(selectedIds)
       toast.success('Selected branches deactivated')
       setSelectedIds([])
       loadBranches()
@@ -161,10 +161,11 @@ export default function BranchesPage() {
     }
   }
 
+  
   const bulkDelete = async () => {
     if (selectedIds.length === 0) return
     try {
-      await branchService.bulkDeleteBranches(selectedIds)
+      await branchService.bulkDeleteBranchesApi(selectedIds)
       toast.success('Selected branches deleted')
       setSelectedIds([])
       loadBranches()
@@ -238,8 +239,8 @@ export default function BranchesPage() {
         <div className="flex items-center gap-2">
           {selectedIds.length > 0 && (
             <>
-              <Button variant="outline" onClick={bulkActivate}>Activate ({selectedIds.length})</Button>
-              <Button variant="outline" onClick={bulkDeactivate}>Deactivate ({selectedIds.length})</Button>
+              <Button variant="outline" onClick={bulkActivate}><Play className="mr-1 h-4 w-4" /> Activate ({selectedIds.length})</Button>
+              <Button variant="outline" onClick={bulkDeactivate}><Pause className="mr-1 h-4 w-4" /> Deactivate ({selectedIds.length})</Button>
               <Button variant="destructive" onClick={bulkDelete}>Delete ({selectedIds.length})</Button>
               <div className="w-px h-6 bg-gray-200 mx-1" />
             </>

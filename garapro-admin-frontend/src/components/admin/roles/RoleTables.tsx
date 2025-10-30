@@ -27,7 +27,7 @@ export interface RoleTableProps {
   onEdit: (role: Role) => void
   onView: (role: Role) => void
   onDelete: (role: Role) => void
-  onDuplicate: (role: Role) => void
+  
 }
 
 // Export component với export named
@@ -37,13 +37,13 @@ export const RoleTable = ({
   onEdit, 
   onView, 
   onDelete, 
-  onDuplicate 
+  
 }: RoleTableProps) => {
   
   const handleEdit = useCallback((role: Role) => onEdit(role), [onEdit])
   const handleView = useCallback((role: Role) => onView(role), [onView])
   const handleDelete = useCallback((role: Role) => onDelete(role), [onDelete])
-  const handleDuplicate = useCallback((role: Role) => onDuplicate(role), [onDuplicate])
+  
 
   // Hàm helper để lấy tất cả permissions từ các categories
   const getAllPermissions = (role: Role) => {
@@ -135,10 +135,7 @@ export const RoleTable = ({
                   <Edit className="mr-2 h-4 w-4" />
                   Edit Role
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDuplicate(role)}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Duplicate
-                </DropdownMenuItem>
+               
                 <DropdownMenuSeparator />
                 {!role.isDefault && (
                   <DropdownMenuItem 
@@ -155,7 +152,7 @@ export const RoleTable = ({
         </TableRow>
       )
     })
-  , [roles, handleEdit, handleView, handleDelete, handleDuplicate])
+  , [roles, handleEdit, handleView, handleDelete])
 
   return (
     <div className="w-full overflow-x-auto">

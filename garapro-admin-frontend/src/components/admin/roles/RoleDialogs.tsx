@@ -105,8 +105,8 @@ export const RoleDialogs = ({
   const [createForm, setCreateForm] = useState({
     name: '',
     description: '',
-    permissionIds: [] as string[],
-    isDefault: false
+    permissionIds: [] as string[]
+    
   })
   const [shouldValidateCreate, setShouldValidateCreate] = useState(false)
 
@@ -115,8 +115,8 @@ export const RoleDialogs = ({
     roleId: '',
     name: '',
     description: '',
-    permissionIds: [] as string[],
-    isDefault: false
+    permissionIds: [] as string[]
+    
   })
   const [shouldValidateEdit, setShouldValidateEdit] = useState(false)
 
@@ -283,7 +283,7 @@ export const RoleDialogs = ({
               </div>
 
               {/* THÊM isDefault field */}
-              <div className="flex items-center space-x-2">
+              {/* <div className="flex items-center space-x-2">
                 <Switch
                   id="create-is-default"
                   checked={createForm.isDefault}
@@ -294,7 +294,7 @@ export const RoleDialogs = ({
                 <Label htmlFor="create-is-default" className="text-sm cursor-pointer">
                   Set as default role for new users
                 </Label>
-              </div>
+              </div> */}
 
               <div>
                 <Label>Permissions *</Label>
@@ -378,7 +378,7 @@ export const RoleDialogs = ({
                 </div>
 
                 {/* THÊM isDefault field */}
-                <div className="flex items-center space-x-2">
+                {/* <div className="flex items-center space-x-2">
                   <Switch
                     id="edit-is-default"
                     checked={editForm.isDefault}
@@ -393,7 +393,7 @@ export const RoleDialogs = ({
                       <span className="text-xs text-gray-500 ml-1">(Cannot change default role)</span>
                     )}
                   </Label>
-                </div>
+                </div> */}
 
                 <div>
                   <Label>Permissions *</Label>

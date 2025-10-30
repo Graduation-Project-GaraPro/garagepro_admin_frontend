@@ -75,6 +75,7 @@ export default function ServiceForm({ service }: ServiceFormProps) {
     basePrice: service?.basePrice || 0,
     estimatedDuration: service?.estimatedDuration || 30,
     isActive: service?.isActive ?? true,
+    isAdvanced: service?.isAdvanced ?? true,
     branchIds: service?.branchIds || [],
     partIds: service?.partIds || []
   });
@@ -92,6 +93,7 @@ export default function ServiceForm({ service }: ServiceFormProps) {
         basePrice: service.basePrice || 0,
         estimatedDuration: service.estimatedDuration || 30,
         isActive: service.isActive ?? true,
+        isAdvanced: service?.isAdvanced ?? true,
         branchIds: service.branchIds || [],
         partIds: service.partIds || []
       });
@@ -402,7 +404,7 @@ export default function ServiceForm({ service }: ServiceFormProps) {
                   checked={formData.isActive}
                   onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
                   className="data-[state=checked]:bg-primary"
-                />
+                />               
                 <Label htmlFor="isActive" className="cursor-pointer flex-1">
                   <div className="font-medium">Active Service</div>
                   <div className="text-sm text-muted-foreground">
@@ -416,6 +418,27 @@ export default function ServiceForm({ service }: ServiceFormProps) {
                   {formData.isActive ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
+
+
+               <div className="flex items-center space-x-2 p-4 border rounded-lg bg-muted/50">
+                  <Switch
+                    id="isAdvanced"
+                    checked={formData.isAdvanced}
+                    onCheckedChange={(checked) => setFormData({ ...formData, isAdvanced: checked })}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                  <Label htmlFor="isAdvanced" className="cursor-pointer flex-1">
+                    <div className="font-medium">Advanced Service</div>
+                    <div className="text-sm text-muted-foreground">
+                      {formData.isAdvanced
+                        ? 'This is an advanced-level service available to users.'
+                        : 'This is a basic service available to users.'}
+                    </div>
+                  </Label>
+                  <Badge variant={formData.isAdvanced ? "default" : "secondary"}>
+                    {formData.isAdvanced ? 'Advanced' : 'Basic'}
+                  </Badge>
+                </div>
             </CardContent>
           </Card>
 

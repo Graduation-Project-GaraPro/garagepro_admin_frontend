@@ -1,4 +1,6 @@
 // services/securityPolicyService.ts
+import { authService } from './authService';
+
 export interface SecurityPolicy {
   minPasswordLength: number;
   requireSpecialChar: boolean;
@@ -18,15 +20,32 @@ class SecurityPolicyService {
   private policy: SecurityPolicy | null = null;
   private readonly apiUrl = "https://localhost:7113/api/SecurityPolicy";
 
+  private async getAuthHeaders(): Promise<HeadersInit> {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    try {
+      const token = await authService.getValidToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.log('No authentication token available for security policy request');
+    }
+
+    return headers;
+  }
+
   async loadPolicy(): Promise<SecurityPolicy> {
     try {
       console.log('Loading policy from:', `${this.apiUrl}/current`);
       
+      const headers = await this.getAuthHeaders();
+      
       const response = await fetch(`${this.apiUrl}/current`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
+        headers,
       });
 
       console.log('Response status:', response.status);
@@ -65,11 +84,11 @@ class SecurityPolicyService {
     try {
       console.log("Updating policy with:", newPolicy);
   
+      const headers = await this.getAuthHeaders();
+  
       const response = await fetch(this.apiUrl, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(newPolicy),
         mode: "cors",
       });
@@ -85,7 +104,9 @@ class SecurityPolicyService {
         throw new Error("Response does not contain updatedPolicy");
       }
   
-      // this.policy = result.updatedPolicy;
+      // Clear cache after update
+      this.clearCache();
+      
       return {
         message: result.message,
         updatedPolicy: result.updatedPolicy,

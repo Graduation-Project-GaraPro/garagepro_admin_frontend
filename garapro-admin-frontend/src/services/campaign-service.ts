@@ -1,477 +1,557 @@
-import { apiClient } from './api-client'
-
+// services/campaign-service.ts
 export interface PromotionalCampaign {
-  id: string
-  name: string
-  description: string
-  type: 'discount' | 'seasonal' | 'loyalty'
-  discountType: 'percentage' | 'fixed' | 'free_service'
-  discountValue: number
-  startDate: string
-  endDate: string
-  isActive: boolean
-  applicableServices: string[]
-  minimumOrderValue?: number
-  maximumDiscount?: number
-  usageLimit?: number
-  usedCount: number
-  createdAt: string
-  updatedAt: string
+  id: string;
+  name: string;
+  description: string;
+  type: CampaignType;
+  discountType: DiscountType;
+  discountValue: number;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  minimumOrderValue?: number;
+  maximumDiscount?: number;
+  usageLimit?: number;
+  usedCount: number;
+  createdAt: string;
+  updatedAt: string;
+  services: Service[];
 }
 
+export interface Service {
+  serviceId: string;
+  serviceCategoryId: string;
+  serviceName: string;
+  description: string;
+  price: number;
+  estimatedDuration: number;
+  isActive: boolean;
+  isAdvanced: boolean;
+}
+
+export enum CampaignType {
+  Discount = 0,
+  Seasonal = 1,
+  Loyalty = 2
+}
+
+export enum DiscountType {
+  Percentage = 0,
+  Fixed = 1,
+  FreeService = 2
+}
+
+export interface GetCampaignsParams {
+  search?: string;
+  type?: string;
+  isActive?: boolean;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface CampaignsResponse {
+  campaigns: PromotionalCampaign[];
+  
+  pagination: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+  };
+}
+
+// services/campaign-service.ts
 export interface CreateCampaignRequest {
-  name: string
-  description: string
-  type: 'discount' | 'seasonal' | 'loyalty'
-  discountType: 'percentage' | 'fixed' | 'free_service'
-  discountValue: number
-  startDate: string
-  endDate: string
-  applicableServices: string[]
-  minimumOrderValue?: number
-  maximumDiscount?: number
-  usageLimit?: number
+  name: string;
+  description: string;
+  type: string;
+  discountType: string;
+  discountValue: number;
+  startDate: string;
+  endDate: string;
+  applicableServices: string[];
+  minimumOrderValue?: number;
+  maximumDiscount?: number;
+  usageLimit?: number;
+}
+export interface UpdateCampaignRequest {
+  id?: string;
+  name?: string;
+  description?: string;
+  type?: string;
+  discountType?: string;
+  discountValue?: number;
+  startDate?: string;
+  endDate?: string;
+  isActive?: boolean;
+  minimumOrderValue?: number;
+  maximumDiscount?: number;
+  usageLimit?: number;
+  serviceIds?: string[];
 }
 
-export interface UpdateCampaignRequest extends Partial<CreateCampaignRequest> {
-  isActive?: boolean
+export interface ServiceCategory {
+  serviceCategoryId: string;
+  categoryName: string;
+  serviceTypeId: string;
+  parentServiceCategoryId: string | null;
+  description: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+  services: Service[];
+  childCategories?: ServiceCategory[] | null;
 }
 
-export interface CampaignFilters {
-    type?: string
-    isActive?: boolean
-  dateRange?: {
-    start: string
-    end: string
-  }
-    search?: string
-  page?: number
-  limit?: number
+export interface Service {
+  serviceId: string;
+  serviceCategoryId: string;
+  serviceName: string;
+  description: string;
+  price: number;
+  estimatedDuration: number;
+  isActive: boolean;
+  isAdvanced: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+  serviceCategory: ServiceCategory;
+  branches: any[];
+  parts: any[];
+}
+export interface CampaignAnalytics {
+  totalUsage: number;
+  revenueGenerated: number;
+  averageOrderValue: number;
+  topCustomers: Array<{
+    customerId: string;
+    customerName: string;
+    usageCount: number;
+    totalSpent: number;
+  }>;
+  usageByDate: Array<{
+    date: string;
+    usageCount: number;
+    revenue: number;
+  }>;
+  servicePerformance: Array<{
+    serviceId: string;
+    serviceName: string;
+    usageCount: number;
+    revenue: number;
+  }>;
+  conversionRate: number;
+  redemptionRate: number;
 }
 
-export interface CampaignResponse {
-  campaigns: PromotionalCampaign[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
-}
+import { authService } from "@/services/authService"
 
 class CampaignService {
-  private baseUrl = '/api/campaigns'
-  private storageKey = 'mock.campaigns'
-  private initialized = false
+   private baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
 
-  private initializeFallbackData(): void {
-    if (this.initialized) return
-    
-    try {
-      const existing = typeof window !== 'undefined' ? window.localStorage.getItem(this.storageKey) : null
-      if (!existing) {
-        // Initialize with fallback data
-        const fallbackData = this.getFallbackCampaigns()
-        this.writeCache(fallbackData.campaigns)
-        console.log('Initialized campaign fallback data')
-      }
-      this.initialized = true
-    } catch (error) {
-      console.error('Failed to initialize fallback data:', error)
-    }
+  // Map enum values to strings for display
+  private campaignTypeMap = {
+    [CampaignType.Discount]: 'discount',
+    [CampaignType.Seasonal]: 'seasonal', 
+    [CampaignType.Loyalty]: 'loyalty'
+  };
+
+  private discountTypeMap = {
+    [DiscountType.Percentage]: 'percentage',
+    [DiscountType.Fixed]: 'fixed',
+    [DiscountType.FreeService]: 'free_service'
+  };
+
+ private async getAuthToken(): Promise<string> {
+  try {
+    const token = await authService.getValidToken();
+    console.log('🔑 Current token:', token ? '✅ Available' : '❌ Missing');
+    return token;
+  } catch (error) {
+    console.log('🔑 Token error:', error.message);
+    throw new Error('Authentication required');
   }
+}
 
-  private readCache(): PromotionalCampaign[] {
-    this.initializeFallbackData()
+private async authenticatedFetch(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
+  try {
+    const token = await this.getAuthToken();
     
-    try {
-      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(this.storageKey) : null
-      if (raw) {
-        const parsed = JSON.parse(raw)
-        return Array.isArray(parsed) ? parsed : []
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...options.headers,
+    };
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    console.log('📡 Response status:', response.status);
+
+    // Token expired - try to refresh and retry
+    if (response.status === 401 && retryCount === 0) {
+      console.log('🔄 Token expired, attempting refresh...');
+      try {
+        await authService.handleTokenRefresh();
+        return this.authenticatedFetch(url, options, retryCount + 1);
+      } catch (refreshError) {
+        console.log('❌ Token refresh failed');
+        throw new Error('Session expired. Please login again.');
       }
-    } catch (error) {
-      console.error('Failed to read cache:', error)
     }
-    
-    return this.getFallbackCampaigns().campaigns
-  }
 
-  private writeCache(campaigns: PromotionalCampaign[]): void {
-    try {
+    // Access denied
+    if (response.status === 403) {
+      console.log('🚫 Access denied');
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(this.storageKey, JSON.stringify(campaigns))
+        window.location.href = '/access-denied';
       }
-    } catch (error) {
-      console.error('Failed to write cache:', error)
+      throw new Error('Access denied: You do not have permission to access this resource.');
     }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+    }
+
+    return response;
+  } catch (error) {
+    console.log('💥 Request failed:', error);
+    if (error instanceof Error && error.message.includes('Authentication required')) {
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+    }
+    throw error;
   }
+}
 
-  async getCampaigns(filters?: CampaignFilters): Promise<CampaignResponse> {
-    try {
-      const params: Record<string, unknown> = {}
-      if (filters?.type) params.type = filters.type
-      if (filters?.isActive !== undefined) params.isActive = filters.isActive
-      if (filters?.search) params.search = filters.search
-      if (filters?.page) params.page = filters.page
-      if (filters?.limit) params.limit = filters.limit
-      if (filters?.dateRange) {
-        params.startDate = filters.dateRange.start
-        params.endDate = filters.dateRange.end
-      }
-
-      const response = await apiClient.get<CampaignResponse>(this.baseUrl, params)
-      return response.data
-    } catch (error) {
-      console.log('API failed, using fallback data for campaigns')
-      
-      // Use fallback data
-      const campaigns = this.readCache()
-      let result = [...campaigns]
-      
-      // Apply filters
-      if (filters?.type) {
-        result = result.filter(c => c.type === filters.type)
-      }
-      if (filters?.isActive !== undefined) {
-        result = result.filter(c => c.isActive === filters.isActive)
-      }
-      if (filters?.search) {
-        const query = filters.search.toLowerCase()
-        result = result.filter(c => 
-          c.name.toLowerCase().includes(query) || 
-          c.description.toLowerCase().includes(query)
-        )
-      }
-      if (filters?.dateRange) {
-        const start = new Date(filters.dateRange.start).getTime()
-        const end = new Date(filters.dateRange.end).getTime()
-        result = result.filter(c => {
-          const campaignStart = new Date(c.startDate).getTime()
-          const campaignEnd = new Date(c.endDate).getTime()
-          return campaignEnd >= start && campaignStart <= end
-        })
-      }
-      
-      // Apply pagination
-      const page = filters?.page ?? 1
-      const limit = filters?.limit ?? 10
-      const total = result.length
-      const totalPages = Math.max(1, Math.ceil(total / limit))
-      const startIndex = (page - 1) * limit
-      const pageItems = result.slice(startIndex, startIndex + limit)
-      
-      return { 
-        campaigns: pageItems, 
-        total, 
-        page, 
-        limit, 
-        totalPages 
-      }
+  async getCampaigns(params: GetCampaignsParams = {}): Promise<CampaignsResponse> {
+    const queryParams = new URLSearchParams();
+    
+    // Add pagination params with defaults
+    queryParams.append('page', (params.page || 1).toString());
+    queryParams.append('limit', (params.limit || 10).toString());
+    
+    if (params.search) queryParams.append('search', params.search);
+    
+    if (params.type && params.type !== 'all') {
+      const typeMap: { [key: string]: number } = {
+        'discount': CampaignType.Discount,
+        'seasonal': CampaignType.Seasonal,
+        'loyalty': CampaignType.Loyalty
+      };
+      queryParams.append('type', typeMap[params.type]?.toString() || params.type);
     }
+    
+    if (params.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
+    if (params.startDate) queryParams.append('startDate', params.startDate);
+    if (params.endDate) queryParams.append('endDate', params.endDate);
+
+    const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/paged?${queryParams}`);
+
+    const data = await response.json();
+    
+    // Transform the data to match the frontend expectations
+    const transformedCampaigns = data.data.map((campaign: any) => ({
+      ...campaign,
+      // Convert numeric type to string for frontend display
+      type: this.campaignTypeMap[campaign.type as CampaignType] || 'discount',
+      // Convert numeric discountType to string for frontend display  
+      discountType: this.discountTypeMap[campaign.discountType as DiscountType] || 'percentage'
+    }));
+
+    return {
+      campaigns: transformedCampaigns,
+      pagination: data.pagination
+    };
   }
 
   async getCampaignById(id: string): Promise<PromotionalCampaign> {
-    try {
-      const response = await apiClient.get<PromotionalCampaign>(`${this.baseUrl}/${id}`)
-      return response.data
-    } catch (error) {
-      console.log(`API failed for campaign ${id}, using fallback data`)
-      
-      // Try to get from cache/fallback data
-      const campaigns = this.readCache()
-      const campaign = campaigns.find(c => c.id === id)
-      
-      if (campaign) {
-        console.log(`Found campaign ${id} in fallback data:`, campaign)
-        return campaign
-      }
-      
-      console.error(`Campaign ${id} not found in fallback data`)
-      throw new Error(`Campaign with ID ${id} not found`)
-    }
+    const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}`);
+
+    const campaign = await response.json();
+    
+    return {
+      ...campaign,
+      type: this.campaignTypeMap[campaign.type as CampaignType] || 'discount',
+      discountType: this.discountTypeMap[campaign.discountType as DiscountType] || 'percentage'
+    };
   }
 
-  async createCampaign(campaign: CreateCampaignRequest): Promise<PromotionalCampaign> {
-    try {
-      const response = await apiClient.post<PromotionalCampaign>(this.baseUrl, campaign)
-      return response.data
-    } catch (error) {
-      console.log('API failed for create campaign, using fallback')
-      
-      // Create campaign in local storage
-      const campaigns = this.readCache()
-      const nowIso = new Date().toISOString()
-      const newCampaign: PromotionalCampaign = {
-        id: `campaign_${Date.now()}`,
-        usedCount: 0,
-        createdAt: nowIso,
-        updatedAt: nowIso,
-        isActive: true,
-        minimumOrderValue: 0,
-        maximumDiscount: 0,
-        usageLimit: 0,
-        ...campaign,
-      }
-      
-      campaigns.unshift(newCampaign)
-      this.writeCache(campaigns)
-      console.log('Created campaign in fallback data:', newCampaign)
-      
-      return newCampaign
-    }
+  async createCampaign(campaignData: CreateCampaignRequest): Promise<PromotionalCampaign> {
+    // Transform data for API
+    const payload = {
+      name: campaignData.name,
+      description: campaignData.description,
+      type: this.getNumericType(campaignData.type),
+      discountType: this.getNumericDiscountType(campaignData.discountType),
+      discountValue: campaignData.discountValue,
+      startDate: new Date(campaignData.startDate).toISOString(),
+      endDate: new Date(campaignData.endDate).toISOString(),
+      isActive: true, // Default to active when creating
+      minimumOrderValue: campaignData.minimumOrderValue || 0,
+      maximumDiscount: campaignData.maximumDiscount || 0,
+      usageLimit: campaignData.usageLimit || 2147483647,
+      serviceIds: campaignData.applicableServices
+    };
+
+    console.log(payload);
+    const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+
+    return response.json();
   }
 
-  async updateCampaign(id: string, updates: UpdateCampaignRequest): Promise<PromotionalCampaign> {
-    try {
-      const response = await apiClient.put<PromotionalCampaign>(`${this.baseUrl}/${id}`, updates)
-      return response.data
-    } catch (error) {
-      console.log(`API failed for update campaign ${id}, using fallback`)
-      
-      // Update campaign in local storage
-      const campaigns = this.readCache()
-      const index = campaigns.findIndex(c => c.id === id)
-      
-      if (index === -1) {
-        throw new Error(`Campaign with ID ${id} not found`)
+  async getServiceCategories(): Promise<ServiceCategory[]> {
+    const response = await this.authenticatedFetch(`${this.baseURL}/ServiceCategories`);
+    return response.json();
+  }
+
+  // Helper method to get all services from categories and subcategories
+  getAllServicesFromCategories(categories: ServiceCategory[]): Service[] {
+    const allServices: Service[] = [];
+
+    const extractServices = (category: ServiceCategory) => {
+      // Add services from current category
+      if (category.services && category.services.length > 0) {
+        allServices.push(...category.services);
       }
-      
-      const existingCampaign = campaigns[index]
-      const updatedCampaign: PromotionalCampaign = {
-        ...existingCampaign,
-        ...updates,
-        updatedAt: new Date().toISOString(),
+
+      // Recursively extract services from child categories
+      if (category.childCategories && category.childCategories.length > 0) {
+        category.childCategories.forEach(extractServices);
       }
-      
-      campaigns[index] = updatedCampaign
-      this.writeCache(campaigns)
-      console.log('Updated campaign in fallback data:', updatedCampaign)
-      
-      return updatedCampaign
-    }
+    };
+
+    categories.forEach(extractServices);
+    return allServices;
+  }
+
+  async updateCampaign(id: string, campaignData: UpdateCampaignRequest): Promise<PromotionalCampaign> {
+    // Transform data for API
+    const payload: any = {
+      id: id,
+    };
+
+    // Only include fields that are provided in campaignData
+    if (campaignData.name !== undefined) payload.name = campaignData.name;
+    if (campaignData.description !== undefined) payload.description = campaignData.description;
+    if (campaignData.type !== undefined) payload.type = this.getNumericType(campaignData.type);
+    if (campaignData.discountType !== undefined) payload.discountType = this.getNumericDiscountType(campaignData.discountType);
+    if (campaignData.discountValue !== undefined) payload.discountValue = campaignData.discountValue;
+    if (campaignData.startDate !== undefined) payload.startDate = new Date(campaignData.startDate).toISOString();
+    if (campaignData.endDate !== undefined) payload.endDate = new Date(campaignData.endDate).toISOString();
+    if (campaignData.isActive !== undefined) payload.isActive = campaignData.isActive;
+    if (campaignData.minimumOrderValue !== undefined) payload.minimumOrderValue = campaignData.minimumOrderValue;
+    if (campaignData.maximumDiscount !== undefined) payload.maximumDiscount = campaignData.maximumDiscount;
+    if (campaignData.usageLimit !== undefined) payload.usageLimit = campaignData.usageLimit;
+    if (campaignData.serviceIds !== undefined) payload.serviceIds = campaignData.serviceIds;
+
+    console.log('Update payload:', payload);
+
+    const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+
+    const campaign = await response.json();
+    
+    // Transform the response back to frontend format
+    return {
+      ...campaign,
+      type: this.campaignTypeMap[campaign.type as CampaignType] || 'discount',
+      discountType: this.discountTypeMap[campaign.discountType as DiscountType] || 'percentage'
+    };
   }
 
   async deleteCampaign(id: string): Promise<void> {
-    try {
-      await apiClient.delete(`${this.baseUrl}/${id}`)
-    } catch (error) {
-      console.log(`API failed for delete campaign ${id}, using fallback`)
-      
-      // Remove campaign from local storage
-      const campaigns = this.readCache().filter(c => c.id !== id)
-      this.writeCache(campaigns)
-      console.log(`Deleted campaign ${id} from fallback data`)
-    }
+    await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}`, {
+      method: 'DELETE',
+    });
   }
 
   async activateCampaign(id: string): Promise<void> {
-    try {
-      await apiClient.patch(`${this.baseUrl}/${id}/activate`)
-    } catch (error) {
-      console.log(`API failed for activate campaign ${id}, using fallback`)
-      await this.updateCampaign(id, { isActive: true })
-    }
+    await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}/activate`, {
+      method: 'POST',
+    });
   }
 
   async deactivateCampaign(id: string): Promise<void> {
+    await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}/deactivate`, {
+      method: 'POST',
+    });
+  }
+
+  async bulkActivateCampaigns(ids: string[]): Promise<void> {
+    await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/bulk/activate`, {
+      method: 'POST',
+      body: JSON.stringify(ids),
+    });
+  }
+
+  async bulkDeactivateCampaigns(ids: string[]): Promise<void> {
+    await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/bulk/deactivate`, {
+      method: 'POST',
+      body: JSON.stringify(ids),
+    });
+  }
+
+  async bulkDeleteCampaigns(ids: string[]): Promise<void> {
+    if (!ids || ids.length === 0) {
+      throw new Error("No campaign IDs provided for bulk delete.");
+    }
+
     try {
-      await apiClient.patch(`${this.baseUrl}/${id}/deactivate`)
+      await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/range`, {
+        method: "DELETE",
+        body: JSON.stringify(ids),
+      });
+
+      console.log(`✅ Successfully deleted ${ids.length} campaigns`);
     } catch (error) {
-      console.log(`API failed for deactivate campaign ${id}, using fallback`)
-      await this.updateCampaign(id, { isActive: false })
+      console.error("❌ bulkDeleteCampaigns error:", error);
+      throw error;
     }
   }
 
-  async toggleCampaignStatus(id: string, isActive: boolean): Promise<void> {
-    if (isActive) {
-      return this.activateCampaign(id)
+  async exportCampaigns(params: GetCampaignsParams, format: 'csv' | 'excel'): Promise<Blob> {
+    const queryParams = new URLSearchParams();
+    
+    if (params.search) queryParams.append('search', params.search);
+    if (params.type && params.type !== 'all') {
+      const typeMap: { [key: string]: number } = {
+        'discount': CampaignType.Discount,
+        'seasonal': CampaignType.Seasonal,
+        'loyalty': CampaignType.Loyalty
+      };
+      queryParams.append('type', typeMap[params.type]?.toString() || params.type);
     }
-    return this.deactivateCampaign(id)
+    if (params.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
+
+    const response = await this.authenticatedFetch(`${this.baseURL}/export/${format}?${queryParams}`);
+    return response.blob();
   }
 
-  async getCampaignAnalytics(id: string): Promise<{
-    totalUsage: number
-    totalDiscount: number
-    averageOrderValue: number
-    conversionRate: number
-    topUsers: Array<{ userId: string; userName: string; usageCount: number; totalDiscount: number }>
-  }> {
-    try {
-      const response = await apiClient.get<{
-        totalUsage: number
-        totalDiscount: number
-        averageOrderValue: number
-        conversionRate: number
-        topUsers: Array<{ userId: string; userName: string; usageCount: number; totalDiscount: number }>
-      }>(`${this.baseUrl}/${id}/analytics`)
-      return response.data
-    } catch (error) {
-      console.log(`API failed for analytics ${id}, using fallback`)
-      return this.getFallbackAnalytics()
-    }
+  // Helper methods for type conversion
+  private getNumericType(typeString: string): number {
+    const typeMap: { [key: string]: number } = {
+      'discount': CampaignType.Discount,
+      'seasonal': CampaignType.Seasonal,
+      'loyalty': CampaignType.Loyalty
+    };
+    return typeMap[typeString] || CampaignType.Discount;
   }
 
-  async exportCampaigns(filters?: CampaignFilters, format: 'csv' | 'excel' = 'csv'): Promise<Blob> {
-    try {
-      const params: Record<string, unknown> = { format }
-      if (filters?.type) params.type = filters.type
-      if (filters?.isActive !== undefined) params.isActive = filters.isActive
-      if (filters?.search) params.search = filters.search
-      if (filters?.dateRange) {
-        params.startDate = filters.dateRange.start
-        params.endDate = filters.dateRange.end
-      }
-
-      const response = await apiClient.get<Blob>(`${this.baseUrl}/export`, params)
-      return response.data
-    } catch (error) {
-      console.error('Failed to export campaigns:', error)
-      throw new Error('Failed to export campaigns. Please try again.')
-    }
+  private getNumericDiscountType(discountTypeString: string): number {
+    const discountTypeMap: { [key: string]: number } = {
+      'percentage': DiscountType.Percentage,
+      'fixed': DiscountType.Fixed,
+      'free_service': DiscountType.FreeService
+    };
+    return discountTypeMap[discountTypeString] || DiscountType.Percentage;
   }
 
-  // Bulk operations
-  async bulkUpdateCampaigns(campaignIds: string[], updates: Partial<UpdateCampaignRequest>): Promise<void> {
-    try {
-      await apiClient.patch(`${this.baseUrl}/bulk-update`, { campaignIds, updates })
-    } catch (error) {
-      console.error('Failed to bulk update campaigns:', error)
-      throw new Error('Failed to bulk update campaigns. Please try again.')
-    }
-  }
-
-  async bulkDeleteCampaigns(campaignIds: string[]): Promise<void> {
-    try {
-      await apiClient.delete(`${this.baseUrl}/bulk-delete`, { body: { campaignIds } })
-    } catch (error) {
-      console.error('Failed to bulk delete campaigns:', error)
-      throw new Error('Failed to bulk delete campaigns. Please try again.')
-    }
-  }
-
-  async bulkActivateCampaigns(campaignIds: string[]): Promise<void> {
-    try {
-      await apiClient.patch(`${this.baseUrl}/bulk-activate`, { campaignIds })
-    } catch (error) {
-      console.error('Failed to bulk activate campaigns:', error)
-      throw new Error('Failed to bulk activate campaigns. Please try again.')
-    }
-  }
-
-  async bulkDeactivateCampaigns(campaignIds: string[]): Promise<void> {
-    try {
-      await apiClient.patch(`${this.baseUrl}/bulk-deactivate`, { campaignIds })
-    } catch (error) {
-      console.error('Failed to bulk deactivate campaigns:', error)
-      throw new Error('Failed to bulk deactivate campaigns. Please try again.')
-    }
-  }
-
-  // Search campaigns
-  async searchCampaigns(query: string, filters?: Omit<CampaignFilters, 'search'>): Promise<CampaignResponse> {
-    try {
-      const params: Record<string, unknown> = { search: query }
-      if (filters?.type) params.type = filters.type
-      if (filters?.isActive !== undefined) params.isActive = filters.isActive
-      if (filters?.dateRange) {
-        params.startDate = filters.dateRange.start
-        params.endDate = filters.dateRange.end
-      }
-      if (filters?.page) params.page = filters.page
-      if (filters?.limit) params.limit = filters.limit
-
-      const response = await apiClient.get<CampaignResponse>(`${this.baseUrl}/search`, params)
-      return response.data
-    } catch (error) {
-      console.error('Failed to search campaigns:', error)
-      throw new Error('Failed to search campaigns. Please try again.')
-    }
-  }
-
-  // Fallback data methods
-  private getFallbackCampaigns(): CampaignResponse {
+  async getCampaignAnalytics(campaignId: string): Promise<CampaignAnalytics> {
+    const response = await this.authenticatedFetch(`${this.baseURL}/${campaignId}/analytics`);
+    const analytics = await response.json();
+    
     return {
-      campaigns: [
+      totalUsage: analytics.totalUsage || 0,
+      revenueGenerated: analytics.revenueGenerated || 0,
+      averageOrderValue: analytics.averageOrderValue || 0,
+      topCustomers: analytics.topCustomers || [],
+      usageByDate: analytics.usageByDate || [],
+      servicePerformance: analytics.servicePerformance || [],
+      conversionRate: analytics.conversionRate || 0,
+      redemptionRate: analytics.redemptionRate || 0
+    };
+  }
+
+  async getCampaignAnalyticsMock(campaignId: string): Promise<CampaignAnalytics> {
+    // Giả lập dữ liệu analytics cho demo
+    const mockAnalytics: CampaignAnalytics = {
+      totalUsage: Math.floor(Math.random() * 500) + 100,
+      revenueGenerated: Math.floor(Math.random() * 50000) + 10000,
+      averageOrderValue: Math.floor(Math.random() * 200) + 50,
+      topCustomers: [
         {
-          id: '1',
-          name: 'Summer Service Discount',
-          description: 'Get 20% off on all summer services including oil change, AC service, and tire rotation',
-          type: 'seasonal',
-          discountType: 'percentage',
-          discountValue: 20,
-          startDate: '2024-06-01',
-          endDate: '2024-08-31',
-          isActive: true,
-          applicableServices: ['Oil Change', 'AC Service', 'Tire Rotation'],
-          minimumOrderValue: 100,
-          maximumDiscount: 200,
-          usageLimit: 1000,
-          usedCount: 156,
-          createdAt: '2024-05-01T00:00:00Z',
-          updatedAt: '2024-05-01T00:00:00Z'
+          customerId: 'cust-001',
+          customerName: 'John Smith',
+          usageCount: 15,
+          totalSpent: 2500
         },
         {
-          id: '2',
-          name: 'New Customer Welcome',
-          description: 'Free diagnostic service for new customers to welcome them to our service center',
-          type: 'loyalty',
-          discountType: 'free_service',
-          discountValue: 0,
-          startDate: '2024-01-01',
-          endDate: '2024-12-31',
-          isActive: true,
-          applicableServices: ['Engine Tune-up'],
-          minimumOrderValue: 0,
-          maximumDiscount: 0,
-          usageLimit: 500,
-          usedCount: 89,
-          createdAt: '2024-01-01T00:00:00Z',
-          updatedAt: '2024-01-01T00:00:00Z'
+          customerId: 'cust-002',
+          customerName: 'Sarah Johnson',
+          usageCount: 12,
+          totalSpent: 1800
         },
         {
-          id: '3',
-          name: 'Spring Maintenance Special',
-          description: 'Fixed $50 discount on comprehensive spring maintenance package',
-          type: 'discount',
-          discountType: 'fixed',
-          discountValue: 50,
-          startDate: '2024-03-01',
-          endDate: '2024-05-31',
-          isActive: false,
-          applicableServices: ['Oil Change', 'Brake Service', 'Battery Replacement'],
-          minimumOrderValue: 200,
-          maximumDiscount: 50,
-          usageLimit: 200,
-          usedCount: 45,
-          createdAt: '2024-02-15T00:00:00Z',
-          updatedAt: '2024-02-15T00:00:00Z'
+          customerId: 'cust-003',
+          customerName: 'Mike Davis',
+          usageCount: 8,
+          totalSpent: 1200
+        },
+        {
+          customerId: 'cust-004',
+          customerName: 'Emily Wilson',
+          usageCount: 6,
+          totalSpent: 900
+        },
+        {
+          customerId: 'cust-005',
+          customerName: 'David Brown',
+          usageCount: 5,
+          totalSpent: 750
         }
       ],
-      total: 3,
-      page: 1,
-      limit: 10,
-      totalPages: 1
-    }
-  }
+      usageByDate: Array.from({ length: 30 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - (29 - i));
+        return {
+          date: date.toISOString().split('T')[0],
+          usageCount: Math.floor(Math.random() * 10) + 1,
+          revenue: Math.floor(Math.random() * 500) + 100
+        };
+      }),
+      servicePerformance: [
+        {
+          serviceId: 'svc-001',
+          serviceName: 'Oil Change',
+          usageCount: 45,
+          revenue: 6750
+        },
+        {
+          serviceId: 'svc-002',
+          serviceName: 'Brake Service',
+          usageCount: 32,
+          revenue: 9600
+        },
+        {
+          serviceId: 'svc-003',
+          serviceName: 'Tire Rotation',
+          usageCount: 28,
+          revenue: 2240
+        },
+        {
+          serviceId: 'svc-004',
+          serviceName: 'AC Service',
+          usageCount: 15,
+          revenue: 3750
+        }
+      ],
+      conversionRate: 0.15,
+      redemptionRate: 0.08
+    };
 
-  private getFallbackAnalytics(): {
-    totalUsage: number
-    totalDiscount: number
-    averageOrderValue: number
-    conversionRate: number
-    topUsers: Array<{ userId: string; userName: string; usageCount: number; totalDiscount: number }>
-  } {
-    return {
-      totalUsage: 245,
-      totalDiscount: 12500,
-      averageOrderValue: 350,
-      conversionRate: 12.5,
-      topUsers: [
-        { userId: 'u1', userName: 'John Doe', usageCount: 5, totalDiscount: 250 },
-        { userId: 'u2', userName: 'Jane Smith', usageCount: 3, totalDiscount: 180 },
-        { userId: 'u3', userName: 'Mike Johnson', usageCount: 2, totalDiscount: 120 }
-      ]
-    }
+    return mockAnalytics;
   }
 }
 
-export const campaignService = new CampaignService()
+export const campaignService = new CampaignService();
