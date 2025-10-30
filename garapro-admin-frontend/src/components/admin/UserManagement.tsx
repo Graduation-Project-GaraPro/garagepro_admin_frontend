@@ -1,13 +1,14 @@
-'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
 
-import { useEffect, useState, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Label } from '@/components/ui/label'
-import { User, userService, UserFilters } from '@/services/user-service'
+import { useEffect, useState, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Label } from "@/components/ui/label";
+import { User, userService, UserFilters } from "@/services/user-service";
 import {
   Table,
   TableBody,
@@ -15,7 +16,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +24,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +32,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,10 +42,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { 
-  Search, 
-  MoreHorizontal, 
+} from "@/components/ui/alert-dialog";
+import {
+  Search,
+  MoreHorizontal,
   Mail,
   Ban,
   CheckCircle,
@@ -60,318 +61,332 @@ import {
   Download,
   RefreshCw,
   Loader2,
-  AlertTriangle
-} from 'lucide-react'
-import { toast } from 'sonner'
-import SendEmailDialog from '@/components/admin/users/SendEmailDialog'
-import ActivityDialog from '@/components/admin/users/ActivityDialog'
+  AlertTriangle,
+} from "lucide-react";
+import { toast } from "sonner";
+import SendEmailDialog from "@/components/admin/users/SendEmailDialog";
+import ActivityDialog from "@/components/admin/users/ActivityDialog";
 
 const getStatusBadge = (status: string) => {
   switch (status) {
-    case 'active':
-      return <Badge className="bg-green-100 text-green-800">Active</Badge>
-    case 'banned':
-      return <Badge variant="destructive">Banned</Badge>
-    case 'inactive':
-      return <Badge variant="secondary">Inactive</Badge>
-    case 'pending':
-      return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
+    case "active":
+      return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+    case "banned":
+      return <Badge variant="destructive">Banned</Badge>;
+    case "inactive":
+      return <Badge variant="secondary">Inactive</Badge>;
+    case "pending":
+      return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
     default:
-      return <Badge variant="secondary">{status}</Badge>
+      return <Badge variant="secondary">{status}</Badge>;
   }
-}
+};
 
 const getRoleBadge = (role: string) => {
   switch (role) {
-    case 'admin':
-      return <Badge className="bg-purple-100 text-purple-800">Admin</Badge>
-    case 'manager':
-      return <Badge className="bg-blue-100 text-blue-800">Manager</Badge>
-    case 'user':
-      return <Badge className="bg-gray-100 text-gray-800">User</Badge>
+    case "admin":
+      return <Badge className="bg-purple-100 text-purple-800">Admin</Badge>;
+    case "manager":
+      return <Badge className="bg-blue-100 text-blue-800">Manager</Badge>;
+    case "user":
+      return <Badge className="bg-gray-100 text-gray-800">User</Badge>;
     default:
-      return <Badge variant="secondary">{role}</Badge>
+      return <Badge variant="secondary">{role}</Badge>;
   }
-}
+};
 
 // Hàm cleanup portal triệt để
 const cleanupPortals = () => {
   // Xóa tất cả portal elements
-  const portals = document.querySelectorAll('[data-radix-portal]')
-  portals.forEach(portal => {
+  const portals = document.querySelectorAll("[data-radix-portal]");
+  portals.forEach((portal) => {
     if (portal.parentNode) {
-      portal.parentNode.removeChild(portal)
+      portal.parentNode.removeChild(portal);
     }
-  })
+  });
 
   // Reset body styles
-  document.body.style.pointerEvents = ''
-  document.body.style.overflow = ''
-  document.body.removeAttribute('data-radix-modal-open')
-  document.body.removeAttribute('data-radix-dialog-open')
-  
+  document.body.style.pointerEvents = "";
+  document.body.style.overflow = "";
+  document.body.removeAttribute("data-radix-modal-open");
+  document.body.removeAttribute("data-radix-dialog-open");
+
   // Xóa các overlay còn sót lại
-  const overlays = document.querySelectorAll('[data-radix-overlay]')
-  overlays.forEach(overlay => {
+  const overlays = document.querySelectorAll("[data-radix-overlay]");
+  overlays.forEach((overlay) => {
     if (overlay.parentNode) {
-      overlay.parentNode.removeChild(overlay)
+      overlay.parentNode.removeChild(overlay);
     }
-  })
-}
+  });
+};
 
 export function UserManagement() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [users, setUsers] = useState<User[]>([])
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [roleFilter, setRoleFilter] = useState('all')
-  const [verifiedFilter, setVerifiedFilter] = useState('all')
-  const [selectedUsers, setSelectedUsers] = useState<number[]>([])
-  const [isBulkActionDialogOpen, setIsBulkActionDialogOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [copiedField, setCopiedField] = useState<string | null>(null)
-  const [banDialogOpen, setBanDialogOpen] = useState(false)
-  const [unbanDialogOpen, setUnbanDialogOpen] = useState(false)
-  const [banReason, setBanReason] = useState('')
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false)
-  const [activityDialogOpen, setActivityDialogOpen] = useState(false)
-  const [exporting, setExporting] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalUsers, setTotalUsers] = useState(0)
-  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [users, setUsers] = useState<User[]>([]);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [verifiedFilter, setVerifiedFilter] = useState("all");
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
+  const [isBulkActionDialogOpen, setIsBulkActionDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [banDialogOpen, setBanDialogOpen] = useState(false);
+  const [unbanDialogOpen, setUnbanDialogOpen] = useState(false);
+  const [banReason, setBanReason] = useState("");
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [activityDialogOpen, setActivityDialogOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   // Cleanup triệt để khi component unmount
   useEffect(() => {
     return () => {
-      cleanupPortals()
-    }
-  }, [])
+      cleanupPortals();
+    };
+  }, []);
 
   const loadUsers = useCallback(async () => {
     try {
-      setIsLoading(true)
-      setError(null)
-      
+      setIsLoading(true);
+      setError(null);
+
       const filters: UserFilters = {
         page: currentPage,
         limit: 10,
+      };
+
+      if (searchTerm) filters.search = searchTerm;
+      if (statusFilter !== "all") filters.status = statusFilter;
+      if (roleFilter !== "all") filters.role = roleFilter;
+      if (verifiedFilter !== "all") {
+        if (verifiedFilter === "verified") filters.verified = true;
+        if (verifiedFilter === "unverified") filters.verified = false;
       }
 
-      if (searchTerm) filters.search = searchTerm
-      if (statusFilter !== 'all') filters.status = statusFilter
-      if (roleFilter !== 'all') filters.role = roleFilter
-      if (verifiedFilter !== 'all'){
-        if (verifiedFilter === "verified") filters.verified = true
-        if (verifiedFilter === "unverified") filters.verified = false
-      } 
+      const response = await userService.getUsers(filters);
 
-      const response = await userService.getUsers(filters)
-      
-      setUsers(response.users)
-      setTotalPages(response.totalPages)
-      setTotalUsers(response.total)
+      setUsers(response.users);
+      setTotalPages(response.totalPages);
+      setTotalUsers(response.total);
     } catch (error) {
-      console.error('Failed to load users:', error)
-      setError('Failed to load users. Please try again later.')
-      toast.error('Failed to load users. Please try again later.')
+      console.error("Failed to load users:", error);
+      setError("Failed to load users. Please try again later.");
+      toast.error("Failed to load users. Please try again later.");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [searchTerm, statusFilter, roleFilter, verifiedFilter, currentPage])
+  }, [searchTerm, statusFilter, roleFilter, verifiedFilter, currentPage]);
 
   useEffect(() => {
-    loadUsers()
-  }, [loadUsers])
+    loadUsers();
+  }, [loadUsers]);
 
   // Debounce search term
   useEffect(() => {
     const delayedSearch = setTimeout(() => {
       if (currentPage !== 1) {
-        setCurrentPage(1)
+        setCurrentPage(1);
       } else {
-        loadUsers()
+        loadUsers();
       }
-    }, 300)
+    }, 300);
 
-    return () => clearTimeout(delayedSearch)
-  }, [searchTerm, currentPage, loadUsers])
+    return () => clearTimeout(delayedSearch);
+  }, [searchTerm, currentPage, loadUsers]);
 
   const refreshUsers = async () => {
-    setIsRefreshing(true)
-    await loadUsers()
-    setIsRefreshing(false)
-    toast.success('Users refreshed successfully.')
-  }
+    setIsRefreshing(true);
+    await loadUsers();
+    setIsRefreshing(false);
+    toast.success("Users refreshed successfully.");
+  };
 
   const handleBanUser = async (user: User) => {
     if (!banReason.trim()) {
-      toast.error('Please provide a reason for banning this user.')
-      return
+      toast.error("Please provide a reason for banning this user.");
+      return;
     }
 
     try {
-      await userService.banUser(user.id, banReason)
-      setBanDialogOpen(false)
-      setBanReason('')
-      setSelectedUser(null)
-      await loadUsers()
-      toast.success(`${user.name} has been banned successfully.`)
+      await userService.banUser(user.id, banReason);
+      setBanDialogOpen(false);
+      setBanReason("");
+      setSelectedUser(null);
+      await loadUsers();
+      toast.success(`${user.name} has been banned successfully.`);
     } catch (error) {
-      toast.error('Failed to ban user. Please try again.')
+      toast.error("Failed to ban user. Please try again.");
     }
-  }
+  };
 
   const handleUnbanUser = async (user: User) => {
     try {
-      await userService.unbanUser(user.id)
-      setUnbanDialogOpen(false)
-      setSelectedUser(null)
-      await loadUsers()
-      toast.success(`${user.name} has been unbanned successfully.`)
+      await userService.unbanUser(user.id);
+      setUnbanDialogOpen(false);
+      setSelectedUser(null);
+      await loadUsers();
+      toast.success(`${user.name} has been unbanned successfully.`);
     } catch (error) {
-      toast.error('Failed to unban user. Please try again.')
+      toast.error("Failed to unban user. Please try again.");
     }
-  }
+  };
 
-  const handleChangeRole = async (user: User, newRole: 'user' | 'admin' | 'manager') => {
+  const handleChangeRole = async (
+    user: User,
+    newRole: "user" | "admin" | "manager"
+  ) => {
     try {
-      await userService.changeUserRole(user.id, newRole)
-      await loadUsers()
-      toast.success(`${user.name}'s role has been changed to ${newRole}.`)
+      await userService.changeUserRole(user.id, newRole);
+      await loadUsers();
+      toast.success(`${user.name}'s role has been changed to ${newRole}.`);
     } catch (error) {
-      toast.error('Failed to change user role. Please try again.')
+      toast.error("Failed to change user role. Please try again.");
     }
-  }
+  };
 
   const handleVerifyUser = async (user: User) => {
     try {
-      await userService.verifyUser(user.id)
-      await loadUsers()
-      toast.success(`${user.name} has been verified successfully.`)
+      await userService.verifyUser(user.id);
+      await loadUsers();
+      toast.success(`${user.name} has been verified successfully.`);
     } catch (error) {
-      toast.error('Failed to verify user. Please try again.')
+      toast.error("Failed to verify user. Please try again.");
     }
-  }
+  };
 
   const handleUserDetails = (user: User) => {
-    setSelectedUser(user)
-  }
+    setSelectedUser(user);
+  };
 
   const handleEditUser = (user: User) => {
-    setSelectedUser(user)
-  }
+    setSelectedUser(user);
+  };
 
   const handleSelectUser = (userId: number) => {
     if (selectedUsers.includes(userId)) {
-      setSelectedUsers(selectedUsers.filter(id => id !== userId))
+      setSelectedUsers(selectedUsers.filter((id) => id !== userId));
     } else {
-      setSelectedUsers([...selectedUsers, userId])
+      setSelectedUsers([...selectedUsers, userId]);
     }
-  }
+  };
 
   const handleSelectAll = () => {
     if (selectedUsers.length === users.length) {
-      setSelectedUsers([])
+      setSelectedUsers([]);
     } else {
-      setSelectedUsers(users.map(user => user.id))
+      setSelectedUsers(users.map((user) => user.id));
     }
-  }
+  };
 
   const handleBulkAction = async (action: string) => {
     try {
-      let actionLabel = ""
+      let actionLabel = "";
       switch (action) {
         case "ban":
-          actionLabel = "Ban"
-          await userService.bulkUpdateUsers(selectedUsers, { status: "banned" } as any)
-          break
+          actionLabel = "Ban";
+          await userService.bulkUpdateUsers(selectedUsers, {
+            status: "banned",
+          } as any);
+          break;
         case "unban":
-          actionLabel = "Unban"
-          await userService.bulkUpdateUsers(selectedUsers, { status: "active" } as any)
-          break
+          actionLabel = "Unban";
+          await userService.bulkUpdateUsers(selectedUsers, {
+            status: "active",
+          } as any);
+          break;
         case "delete":
-          actionLabel = "Delete"
-          await userService.bulkDeleteUsers(selectedUsers)
-          break
+          actionLabel = "Delete";
+          await userService.bulkDeleteUsers(selectedUsers);
+          break;
         case "export":
-          actionLabel = "Export"
+          actionLabel = "Export";
           const blob = await userService.exportUsers({
             search: searchTerm || undefined,
             role: roleFilter !== "all" ? roleFilter : undefined,
             status: statusFilter !== "all" ? statusFilter : undefined,
-          })
-          const url = window.URL.createObjectURL(blob)
-          const a = document.createElement("a")
-          a.href = url
-          a.download = "users.csv"
-          a.click()
-          window.URL.revokeObjectURL(url)
-          break
+          });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "users.csv";
+          a.click();
+          window.URL.revokeObjectURL(url);
+          break;
       }
-  
-      setIsBulkActionDialogOpen(false)
-      setSelectedUsers([])
+
+      setIsBulkActionDialogOpen(false);
+      setSelectedUsers([]);
       if (action !== "export") {
-        await loadUsers()
+        await loadUsers();
       }
-  
+
       toast.success(`${actionLabel} successful`, {
-        description: `Bulk ${actionLabel.toLowerCase()} completed for ${selectedUsers.length} user(s).`,
-      })
+        description: `Bulk ${actionLabel.toLowerCase()} completed for ${
+          selectedUsers.length
+        } user(s).`,
+      });
     } catch (error) {
       toast.error("Action failed", {
         description: `Could not complete bulk ${action}. Please try again.`,
-      })
+      });
     }
-  }
+  };
 
   const handleCopyToClipboard = async (text: string, fieldName: string) => {
     try {
-      await navigator.clipboard.writeText(text)
-      setCopiedField(fieldName)
-      setTimeout(() => setCopiedField(null), 2000)
-      toast.success(`${fieldName} copied to clipboard.`)
+      await navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      setTimeout(() => setCopiedField(null), 2000);
+      toast.success(`${fieldName} copied to clipboard.`);
     } catch (err) {
-      console.error('Failed to copy text: ', err)
-      toast.error('Failed to copy to clipboard.')
+      console.error("Failed to copy text: ", err);
+      toast.error("Failed to copy to clipboard.");
     }
-  }
+  };
 
-  const handleExportUser = async (user: User, format: "csv" | "excel" | "json" = "csv") => {
-    setExporting(true)
+  const handleExportUser = async (
+    user: User,
+    format: "csv" | "excel" | "json" = "csv"
+  ) => {
+    setExporting(true);
     try {
-      const blob = await userService.exportUser(user, format)
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `user_${user.id}.${format === "json" ? "json" : format === "excel" ? "xls" : "csv"}`
-      a.click()
-      URL.revokeObjectURL(url)
-      toast.success('User data exported successfully.')
+      const blob = await userService.exportUser(user, format);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `user_${user.id}.${
+        format === "json" ? "json" : format === "excel" ? "xls" : "csv"
+      }`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("User data exported successfully.");
     } catch (error) {
-      toast.error('Failed to export user data.')
+      toast.error("Failed to export user data.");
     } finally {
-      setExporting(false)
+      setExporting(false);
     }
-  }
+  };
 
   const getInitials = (name: string) => {
     return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
+      .split(" ")
+      .map((word) => word[0])
+      .join("")
       .toUpperCase()
-      .slice(0, 2)
-  }
+      .slice(0, 2);
+  };
 
   // Hàm đóng dialog với cleanup triệt để
   const handleDialogClose = () => {
-    setSelectedUser(null)
+    setSelectedUser(null);
     // Cleanup sau khi animation hoàn tất
-    setTimeout(cleanupPortals, 150)
-  }
+    setTimeout(cleanupPortals, 150);
+  };
 
   const renderUserDetails = (user: User) => {
     return (
@@ -380,15 +395,21 @@ export function UserManagement() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Avatar className="h-16 w-16">
-              <AvatarFallback className="text-lg">{getInitials(user.name)}</AvatarFallback>
+              <AvatarFallback className="text-lg">
+                {getInitials(user.name)}
+              </AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="text-xl font-semibold text-gray-900">{user.name}</h3>
+              <h3 className="text-xl font-semibold text-gray-900">
+                {user.name}
+              </h3>
               <p className="text-sm text-gray-500">{user.email}</p>
               <div className="flex items-center space-x-2 mt-1">
                 {getRoleBadge(user.role)}
                 {getStatusBadge(user.status)}
-                {user.verified && <Badge className="bg-blue-100 text-blue-800">Verified</Badge>}
+                {user.verified && (
+                  <Badge className="bg-blue-100 text-blue-800">Verified</Badge>
+                )}
               </div>
             </div>
           </div>
@@ -397,25 +418,25 @@ export function UserManagement() {
               <Edit className="h-4 w-4 mr-2" />
               Edit
             </Button> */}
-            {user.status === 'banned' ? (
-              <Button 
-                variant="outline" 
+            {user.status === "banned" ? (
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSelectedUser(user)
-                  setUnbanDialogOpen(true)
+                  setSelectedUser(user);
+                  setUnbanDialogOpen(true);
                 }}
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
                 Unban
               </Button>
             ) : (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSelectedUser(user)
-                  setBanDialogOpen(true)
+                  setSelectedUser(user);
+                  setBanDialogOpen(true);
                 }}
               >
                 <Ban className="h-4 w-4 mr-2" />
@@ -440,10 +461,10 @@ export function UserManagement() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleCopyToClipboard(user.email, 'email')}
+                    onClick={() => handleCopyToClipboard(user.email, "email")}
                     className="h-6 w-6 p-0"
                   >
-                    {copiedField === 'email' ? (
+                    {copiedField === "email" ? (
                       <Check className="h-3 w-3 text-green-600" />
                     ) : (
                       <Copy className="h-3 w-3 text-gray-400" />
@@ -451,7 +472,7 @@ export function UserManagement() {
                   </Button>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <Phone className="h-4 w-4 text-gray-400" />
@@ -462,10 +483,10 @@ export function UserManagement() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleCopyToClipboard(user.phone, 'phone')}
+                    onClick={() => handleCopyToClipboard(user.phone, "phone")}
                     className="h-6 w-6 p-0"
                   >
-                    {copiedField === 'phone' ? (
+                    {copiedField === "phone" ? (
                       <Check className="h-3 w-3 text-green-600" />
                     ) : (
                       <Copy className="h-3 w-3 text-gray-400" />
@@ -473,7 +494,7 @@ export function UserManagement() {
                   </Button>
                 </div>
               </div>
-              
+
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <MapPin className="h-4 w-4 text-gray-400" />
@@ -493,22 +514,26 @@ export function UserManagement() {
                   {new Date(user.joinedDate).toLocaleDateString()}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Last Login</span>
                 <span className="text-sm text-gray-900">
                   {new Date(user.lastLogin).toLocaleDateString()}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Total Orders</span>
-                <span className="text-sm text-gray-900">{user.totalOrders}</span>
+                <span className="text-sm text-gray-900">
+                  {user.totalOrders}
+                </span>
               </div>
-              
+
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Total Spent</span>
-                <span className="text-sm text-gray-900">${user.totalSpent.toFixed(2)}</span>
+                <span className="text-sm text-gray-900">
+                  ${user.totalSpent.toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
@@ -516,22 +541,35 @@ export function UserManagement() {
 
         {/* Action Buttons */}
         <div className="flex space-x-2 pt-4 border-t border-gray-200">
-          <Button variant="outline" size="sm" onClick={() => setEmailDialogOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setEmailDialogOpen(true)}
+          >
             <Mail className="h-4 w-4 mr-2" />
             Send Email
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setActivityDialogOpen(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setActivityDialogOpen(true)}
+          >
             <Activity className="h-4 w-4 mr-2" />
             View Activity
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleExportUser(user)} disabled={exporting}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleExportUser(user)}
+            disabled={exporting}
+          >
             <Download className="h-4 w-4 mr-2" />
             {exporting ? "Exporting..." : "Export Data"}
           </Button>
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -546,7 +584,9 @@ export function UserManagement() {
               onClick={refreshUsers}
               disabled={isRefreshing}
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
           </div>
@@ -570,8 +610,6 @@ export function UserManagement() {
               <option value="all">All Status</option>
               <option value="active">Active</option>
               <option value="banned">Banned</option>
-              <option value="inactive">Inactive</option>
-              <option value="pending">Pending</option>
             </select>
             <select
               value={roleFilter}
@@ -579,18 +617,9 @@ export function UserManagement() {
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Roles</option>
-              <option value="admin">Admin</option>
+              <option value="technician">Technician</option>
               <option value="manager">Manager</option>
-              <option value="user">User</option>
-            </select>
-            <select
-              value={verifiedFilter}
-              onChange={(e) => setVerifiedFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Verification</option>
-              <option value="verified">Verified</option>
-              <option value="unverified">Unverified</option>
+              <option value="customer">Customer</option>
             </select>
           </div>
         </CardContent>
@@ -614,7 +643,9 @@ export function UserManagement() {
           <div className="flex items-center justify-between">
             <CardTitle>
               Users ({totalUsers})
-              {isLoading && <Loader2 className="inline ml-2 h-4 w-4 animate-spin" />}
+              {isLoading && (
+                <Loader2 className="inline ml-2 h-4 w-4 animate-spin" />
+              )}
             </CardTitle>
             {selectedUsers.length > 0 && (
               <div className="flex items-center space-x-2">
@@ -639,7 +670,10 @@ export function UserManagement() {
                 <TableHead>
                   <input
                     type="checkbox"
-                    checked={selectedUsers.length === users.length && users.length > 0}
+                    checked={
+                      selectedUsers?.length === users?.length &&
+                      users?.length > 0
+                    }
                     onChange={handleSelectAll}
                     className="rounded border-gray-300"
                   />
@@ -654,7 +688,7 @@ export function UserManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
+              {users?.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <input
@@ -667,11 +701,17 @@ export function UserManagement() {
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                        <AvatarFallback>
+                          {getInitials(user.name)}
+                        </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium text-gray-900">{user.name}</div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
+                        <div className="font-medium text-gray-900">
+                          {user.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {user.email}
+                        </div>
                       </div>
                     </div>
                   </TableCell>
@@ -679,7 +719,9 @@ export function UserManagement() {
                   <TableCell>{getStatusBadge(user.status)}</TableCell>
                   <TableCell>
                     {user.verified ? (
-                      <Badge className="bg-green-100 text-green-800">Verified</Badge>
+                      <Badge className="bg-green-100 text-green-800">
+                        Verified
+                      </Badge>
                     ) : (
                       <Badge variant="secondary">Unverified</Badge>
                     )}
@@ -699,7 +741,9 @@ export function UserManagement() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleUserDetails(user)}>
+                        <DropdownMenuItem
+                          onClick={() => handleUserDetails(user)}
+                        >
                           <Eye className="mr-2 h-4 w-4" />
                           View Details
                         </DropdownMenuItem>
@@ -709,24 +753,30 @@ export function UserManagement() {
                         </DropdownMenuItem> */}
                         <DropdownMenuSeparator />
                         {!user.verified && (
-                          <DropdownMenuItem onClick={() => handleVerifyUser(user)}>
+                          <DropdownMenuItem
+                            onClick={() => handleVerifyUser(user)}
+                          >
                             <CheckCircle className="mr-2 h-4 w-4" />
                             Verify User
                           </DropdownMenuItem>
                         )}
-                        {user.status === 'banned' ? (
-                          <DropdownMenuItem onClick={() => {
-                            setSelectedUser(user)
-                            setUnbanDialogOpen(true)
-                          }}>
+                        {user.status === "inactive" ? (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setUnbanDialogOpen(true);
+                            }}
+                          >
                             <CheckCircle className="mr-2 h-4 w-4" />
                             Unban User
                           </DropdownMenuItem>
                         ) : (
-                          <DropdownMenuItem onClick={() => {
-                            setSelectedUser(user)
-                            setBanDialogOpen(true)
-                          }}>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setBanDialogOpen(true);
+                            }}
+                          >
                             <Ban className="mr-2 h-4 w-4" />
                             Ban User
                           </DropdownMenuItem>
@@ -770,7 +820,10 @@ export function UserManagement() {
 
       {/* User Details Dialog với cleanup triệt để */}
       {selectedUser && (
-        <Dialog open={true} onOpenChange={(open) => !open && handleDialogClose()}>
+        <Dialog
+          open={true}
+          onOpenChange={(open) => !open && handleDialogClose()}
+        >
           <DialogContent className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>User Details</DialogTitle>
@@ -778,11 +831,9 @@ export function UserManagement() {
                 Comprehensive information about the selected user
               </DialogDescription>
             </DialogHeader>
-            
-            <div className="py-4">
-              {renderUserDetails(selectedUser)}
-            </div>
-            
+
+            <div className="py-4">{renderUserDetails(selectedUser)}</div>
+
             <DialogFooter>
               <Button variant="outline" onClick={handleDialogClose}>
                 Close
@@ -802,7 +853,8 @@ export function UserManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Ban User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to ban {selectedUser?.name}? Please provide a reason for the ban.
+              Are you sure you want to ban {selectedUser?.name}? Please provide
+              a reason for the ban.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="my-4">
@@ -816,10 +868,12 @@ export function UserManagement() {
             />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setBanReason('')
-              setBanDialogOpen(false)
-            }}>
+            <AlertDialogCancel
+              onClick={() => {
+                setBanReason("");
+                setBanDialogOpen(false);
+              }}
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
@@ -838,7 +892,8 @@ export function UserManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Unban User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to unban {selectedUser?.name}? This will restore their account access.
+              Are you sure you want to unban {selectedUser?.name}? This will
+              restore their account access.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -855,20 +910,24 @@ export function UserManagement() {
       </AlertDialog>
 
       {/* Bulk Actions Dialog */}
-      <Dialog open={isBulkActionDialogOpen} onOpenChange={setIsBulkActionDialogOpen}>
+      <Dialog
+        open={isBulkActionDialogOpen}
+        onOpenChange={setIsBulkActionDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Bulk Actions</DialogTitle>
             <DialogDescription>
-              Select an action to perform on {selectedUsers.length} selected users
+              Select an action to perform on {selectedUsers.length} selected
+              users
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={() => handleBulkAction('ban')}
+              onClick={() => handleBulkAction("ban")}
             >
               <Ban className="mr-2 h-4 w-4" />
               Ban Selected Users
@@ -876,7 +935,7 @@ export function UserManagement() {
             <Button
               variant="outoutline"
               className="w-full justify-start"
-              onClick={() => handleBulkAction('unban')}
+              onClick={() => handleBulkAction("unban")}
             >
               <CheckCircle className="mr-2 h-4 w-4" />
               Unban Selected Users
@@ -884,7 +943,7 @@ export function UserManagement() {
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={() => handleBulkAction('delete')}
+              onClick={() => handleBulkAction("delete")}
             >
               <X className="mr-2 h-4 w-4" />
               Delete Selected Users
@@ -892,32 +951,35 @@ export function UserManagement() {
             <Button
               variant="outline"
               className="w-full justify-start"
-              onClick={() => handleBulkAction('export')}
+              onClick={() => handleBulkAction("export")}
             >
               <Download className="mr-2 h-4 w-4" />
               Export User Data
             </Button>
           </div>
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsBulkActionDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsBulkActionDialogOpen(false)}
+            >
               Cancel
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <SendEmailDialog 
-        open={emailDialogOpen} 
-        onOpenChange={setEmailDialogOpen} 
-        user={selectedUser} 
+      <SendEmailDialog
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+        user={selectedUser}
       />
-      
-      <ActivityDialog 
-        open={activityDialogOpen} 
-        onOpenChange={setActivityDialogOpen} 
-        user={selectedUser} 
+
+      <ActivityDialog
+        open={activityDialogOpen}
+        onOpenChange={setActivityDialogOpen}
+        user={selectedUser}
       />
     </div>
-  )
+  );
 }

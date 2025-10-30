@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,32 +38,28 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState("phone");
 
-  
-  
-
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-  
+
     if (!loginForm.phoneNumber.trim()) {
       newErrors.phoneNumber = "Please enter your phone number";
     } else if (!/^(0[3|5|7|8|9])+([0-9]{8})$/.test(loginForm.phoneNumber)) {
       newErrors.phoneNumber = "Invalid phone number format";
     }
-  
+
     if (!loginForm.password) {
       newErrors.password = "Please enter your password";
     } else if (loginForm.password.length < 6) {
       newErrors.password = "Password must be at least 6 characters";
     }
-  
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
 
   const handlePhoneLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -74,13 +76,13 @@ export default function LoginPage() {
 
       console.log("✅ Phone login success:", result);
 
-      localStorage.setItem("auth_token", result.token);
+      localStorage.setItem("authtoken", result.token);
       // Redirect to dashboard or home page
       window.location.href = "/admin";
     } catch (err) {
       console.error("❌ Phone login failed:", err);
-      setErrors({ 
-        general: err instanceof Error ? err.message : "Đăng nhập thất bại" 
+      setErrors({
+        general: err instanceof Error ? err.message : "Đăng nhập thất bại",
       });
     } finally {
       setIsLoading(false);
@@ -88,13 +90,13 @@ export default function LoginPage() {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setLoginForm(prev => ({ ...prev, [field]: value }));
+    setLoginForm((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
     if (errors.general) {
-      setErrors(prev => ({ ...prev, general: "" }));
+      setErrors((prev) => ({ ...prev, general: "" }));
     }
   };
 
@@ -109,25 +111,36 @@ export default function LoginPage() {
             Welcome back! Please sign in to continue
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {/* General error display */}
           {errors.general && (
             <div className="p-3 border border-red-200 bg-red-50 rounded-md">
-              <p className="text-sm text-red-700 text-center">{errors.general}</p>
+              <p className="text-sm text-red-700 text-center">
+                {errors.general}
+              </p>
             </div>
           )}
-  
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
             <TabsList className="grid w-full g">
-              <TabsTrigger className="w-full" value="phone">Phone Number</TabsTrigger>
+              <TabsTrigger className="w-full" value="phone">
+                Phone Number
+              </TabsTrigger>
             </TabsList>
-            
+
             {/* Phone number login tab */}
             <TabsContent value="phone" className="space-y-4">
               <form onSubmit={handlePhoneLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phoneNumber" className="text-sm font-medium text-gray-700">
+                  <Label
+                    htmlFor="phoneNumber"
+                    className="text-sm font-medium text-gray-700"
+                  >
                     Phone Number
                   </Label>
                   <div className="relative">
@@ -138,7 +151,9 @@ export default function LoginPage() {
                       placeholder="Enter your phone number"
                       className="pl-10"
                       value={loginForm.phoneNumber}
-                      onChange={(e) => handleInputChange("phoneNumber", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("phoneNumber", e.target.value)
+                      }
                       disabled={isLoading}
                     />
                   </div>
@@ -146,9 +161,12 @@ export default function LoginPage() {
                     <p className="text-sm text-red-600">{errors.phoneNumber}</p>
                   )}
                 </div>
-  
+
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  <Label
+                    htmlFor="password"
+                    className="text-sm font-medium text-gray-700"
+                  >
                     Password
                   </Label>
                   <div className="relative">
@@ -159,7 +177,9 @@ export default function LoginPage() {
                       placeholder="Enter your password"
                       className="pl-10 pr-10"
                       value={loginForm.password}
-                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("password", e.target.value)
+                      }
                       disabled={isLoading}
                     />
                     <Button
@@ -180,20 +200,19 @@ export default function LoginPage() {
                     <p className="text-sm text-red-600">{errors.password}</p>
                   )}
                 </div>
-  
+
                 <div className="flex justify-between items-center">
                   <Link href="/forgot-password">
-                    <Button variant="link" className="p-0 text-blue-600 hover:text-blue-800 text-sm">
+                    <Button
+                      variant="link"
+                      className="p-0 text-blue-600 hover:text-blue-800 text-sm"
+                    >
                       Forgot password?
                     </Button>
                   </Link>
                 </div>
-  
-                <Button 
-                  type="submit" 
-                  className="w-full" 
-                  disabled={isLoading}
-                >
+
+                <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -209,7 +228,7 @@ export default function LoginPage() {
               </form>
             </TabsContent>
           </Tabs>
-  
+
           {/* Separator for alternative login options */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -219,11 +238,11 @@ export default function LoginPage() {
               <span className="bg-white px-2 text-gray-500">Or continue with</span>
             </div> */}
           </div>
-  
+
           {/* Google Sign-In Button outside tabs */}
           <div className="space-y-3">
             {/* <div id="googleBtnMain" /> */}
-            
+
             {/* <div className="text-center">
               <p className="text-sm text-gray-600">
                 Don’t have an account?{" "}
@@ -235,7 +254,7 @@ export default function LoginPage() {
               </p>
             </div> */}
           </div>
-  
+
           {/* Additional links */}
           {/* <div className="text-center space-y-2">
             <Link href="/">
@@ -248,5 +267,4 @@ export default function LoginPage() {
       </Card>
     </div>
   );
-  
 }

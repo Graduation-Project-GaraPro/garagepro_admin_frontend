@@ -1,265 +1,233 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface ApiResponse<T> {
-  data: T
-  message?: string
-  status: number
-  success: boolean
+  data: T;
+  message?: string;
+  status: number;
+  success: boolean;
 }
 
 interface ApiError {
-  message: string
-  status: number
-  code?: string
-  details?: any
+  message: string;
+  status: number;
+  code?: string;
+  details?: any;
 }
 
 class ApiClient {
-  private baseUrl: string
-  private defaultHeaders: Record<string, string>
-  private retryAttempts: number
-  private retryDelay: number
-  private requestInterceptors: Array<(config: RequestInit) => RequestInit> = []
-  private responseInterceptors: Array<(response: Response) => Response> = []
+  private baseUrl: string;
+  private defaultHeaders: Record<string, string>;
+  private retryAttempts: number;
+  private retryDelay: number;
+  private isRefreshing = false;
+  private refreshPromise: Promise<void> | null = null;
 
   constructor(
-    baseUrl: string = process.env.NEXT_PUBLIC_API_URL || "/api",
+    baseUrl: string = process.env.NEXT_PUBLIC_API_URL ||
+      "https://localhost:7113/api",
     retryAttempts: number = 3,
     retryDelay: number = 1000
   ) {
-    this.baseUrl = baseUrl
-    this.retryAttempts = retryAttempts
-    this.retryDelay = retryDelay
+    this.baseUrl = baseUrl;
+    this.retryAttempts = retryAttempts;
+    this.retryDelay = retryDelay;
     this.defaultHeaders = {
       "Content-Type": "application/json",
-    }
+    };
   }
 
-  // Add request interceptor
-  addRequestInterceptor(interceptor: (config: RequestInit) => RequestInit) {
-    this.requestInterceptors.push(interceptor)
+  // 🧠 Lấy token từ localStorage (hoặc cookie)
+  private getAccessToken(): string | null {
+    return localStorage.getItem("authToken");
   }
 
-  // Add response interceptor
-  addResponseInterceptor(interceptor: (response: Response) => Response) {
-    this.responseInterceptors.push(interceptor)
+  // 🔑 Lưu token mới
+  private setAccessToken(token: string) {
+    localStorage.setItem("authToken", token);
   }
 
-  // Set authentication token
-  setAuthToken(token: string) {
-    this.defaultHeaders.Authorization = `Bearer ${token}`
-  }
-
-  // Clear authentication token
-  clearAuthToken() {
-    delete this.defaultHeaders.Authorization
+  // 🧹 Xóa token khi logout
+  private clearAccessToken() {
+    localStorage.removeItem("authToken");
   }
 
   private async delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async refreshAccessToken(): Promise<void> {
+    if (this.isRefreshing) {
+      // Nếu đang refresh, chờ kết quả cũ
+      return this.refreshPromise!;
+    }
+
+    this.isRefreshing = true;
+    this.refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${this.baseUrl}/auth/refresh-token`, {
+          method: "POST",
+          credentials: "include", // để gửi cookie refresh
+        });
+
+        if (!response.ok) throw new Error("Failed to refresh token");
+
+        const data = await response.json();
+        this.setAccessToken(data.accessToken);
+      } catch (error) {
+        this.clearAccessToken();
+        throw error;
+      } finally {
+        this.isRefreshing = false;
+        this.refreshPromise = null;
+      }
+    })();
+
+    return this.refreshPromise;
   }
 
   private async request<T>(
-    endpoint: string, 
-    options: RequestInit = {}, 
+    endpoint: string,
+    options: RequestInit = {},
     attempt: number = 1
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseUrl}${endpoint}`
+    const url = `${this.baseUrl}${endpoint}`;
 
-    // Apply request interceptors
-    let config: RequestInit = {
-      headers: {
-        ...this.defaultHeaders,
-        ...options.headers,
-      },
-      ...options,
+    // ✅ Thêm Bearer Token nếu có
+    const token = this.getAccessToken();
+    const headers: Record<string, string> = {
+      ...this.defaultHeaders,
+      ...(options.headers as Record<string, string>),
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
-    this.requestInterceptors.forEach(interceptor => {
-      config = interceptor(config)
-    })
+    const config: RequestInit = {
+      credentials: "include", // cần thiết để gửi cookie refresh
+      ...options,
+      headers,
+    };
 
     try {
-      const response = await fetch(url, config)
+      const response = await fetch(url, config);
 
-      // Apply response interceptors
-      let processedResponse = response
-      this.responseInterceptors.forEach(interceptor => {
-        processedResponse = interceptor(processedResponse)
-      })
+      if (response.status === 401 && token) {
+        // Có thể là token hết hạn → refresh
+        await this.refreshAccessToken();
 
-      if (!processedResponse.ok) {
-        const errorData = await this.parseErrorResponse(processedResponse)
-        throw new Error(errorData.message || `HTTP error! status: ${processedResponse.status}`)
+        // 🔁 Sau khi refresh xong → retry request 1 lần
+        const newToken = this.getAccessToken();
+        if (newToken) {
+          config.headers = {
+            ...headers,
+            Authorization: `Bearer ${newToken}`,
+          };
+          const retryResponse = await fetch(url, config);
+          if (!retryResponse.ok) {
+            const errData = await this.parseErrorResponse(retryResponse);
+            throw errData;
+          }
+          const retryData = await retryResponse.json();
+          return {
+            data: retryData,
+            status: retryResponse.status,
+            success: true,
+          };
+        }
       }
 
-      const data = await processedResponse.json()
-      
-      return {
-        data,
-        status: processedResponse.status,
-        success: true
+      if (!response.ok) {
+        const errorData = await this.parseErrorResponse(response);
+        throw errorData;
       }
+
+      const data = await response.json();
+      return { data, status: response.status, success: true };
     } catch (error) {
-      // Retry logic for network errors or 5xx responses
       if (attempt < this.retryAttempts && this.shouldRetry(error)) {
-        await this.delay(this.retryDelay * attempt)
-        return this.request<T>(endpoint, options, attempt + 1)
+        await this.delay(this.retryDelay * attempt);
+        return this.request<T>(endpoint, options, attempt + 1);
       }
-
-      throw this.formatError(error)
+      throw this.formatError(error);
     }
   }
 
   private shouldRetry(error: any): boolean {
-    // Retry on network errors or 5xx server errors
-    if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      return true
+    if (error.name === "TypeError" && error.message.includes("fetch")) {
+      return true;
     }
     if (error.status >= 500 && error.status < 600) {
-      return true
+      return true;
     }
-    return false
+    return false;
   }
 
   private async parseErrorResponse(response: Response): Promise<ApiError> {
     try {
-      const errorData = await response.json()
+      const errorData = await response.json();
       return {
-        message: errorData.message || 'An error occurred',
+        message: errorData.message || "An error occurred",
         status: response.status,
         code: errorData.code,
-        details: errorData.details
-      }
+        details: errorData.details,
+      };
     } catch {
       return {
         message: `HTTP ${response.status}: ${response.statusText}`,
-        status: response.status
-      }
+        status: response.status,
+      };
     }
   }
 
   private formatError(error: any): ApiError {
     if (error.status) {
       return {
-        message: error.message || 'API request failed',
+        message: error.message || "API request failed",
         status: error.status,
         code: error.code,
-        details: error.details
-      }
+        details: error.details,
+      };
     }
-
     return {
-      message: error.message || 'Network error occurred',
+      message: error.message || "Network error occurred",
       status: 0,
-      code: 'NETWORK_ERROR'
-    }
+      code: "NETWORK_ERROR",
+    };
   }
 
-  async get<T>(endpoint: string, params?: Record<string, unknown>): Promise<ApiResponse<T>> {
-    let url = endpoint
+  // 🧩 Các method tiện lợi
+  async get<T>(
+    endpoint: string,
+    params?: Record<string, unknown>
+  ): Promise<ApiResponse<T>> {
+    let url = endpoint;
     if (params) {
-      // Convert all values to string for URLSearchParams
-      const stringParams: Record<string, string> = {}
-      for (const key in params) {
-        if (Object.prototype.hasOwnProperty.call(params, key)) {
-          const value = params[key]
-          stringParams[key] = value !== undefined && value !== null ? String(value) : ""
-        }
+      const qs = new URLSearchParams();
+      for (const [key, val] of Object.entries(params)) {
+        qs.append(key, String(val));
       }
-      url = `${endpoint}?${new URLSearchParams(stringParams)}`
+      url += `?${qs.toString()}`;
     }
-    return this.request<T>(url, { method: "GET" })
+    return this.request<T>(url, { method: "GET" });
   }
 
   async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: "POST",
       body: data ? JSON.stringify(data) : undefined,
-    })
+    });
   }
 
   async put<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: "PUT",
       body: data ? JSON.stringify(data) : undefined,
-    })
-  }
-
-  async patch<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      method: "PATCH",
-      body: data ? JSON.stringify(data) : undefined,
-    })
+    });
   }
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: "DELETE" })
-  }
-
-  // Upload file with progress tracking
-  async uploadFile<T>(
-    endpoint: string, 
-    file: File, 
-    onProgress?: (progress: number) => void
-  ): Promise<ApiResponse<T>> {
-    const formData = new FormData()
-    formData.append('file', file)
-
-    return this.request<T>(endpoint, {
-      method: "POST",
-      body: formData,
-      headers: {
-        // Remove Content-Type to let browser set it with boundary
-        ...this.defaultHeaders,
-        'Content-Type': undefined as any,
-      },
-    })
-  }
-
-  // Download file
-  async downloadFile(endpoint: string, filename?: string): Promise<void> {
-    try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`)
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename || 'download'
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (error) {
-      console.error("File download failed:", error)
-      throw error
-    }
+    return this.request<T>(endpoint, { method: "DELETE" });
   }
 }
 
-export const apiClient = new ApiClient()
-
-// Add default interceptors for common use cases
-apiClient.addRequestInterceptor((config) => {
-  // Add timestamp for cache busting
-  if (config.method === 'GET') {
-    const url = new URL(config.url as string, window.location.origin)
-    url.searchParams.set('_t', Date.now().toString())
-    config.url = url.toString()
-  }
-  return config
-})
-
-apiClient.addResponseInterceptor((response) => {
-  // Handle common response headers
-  if (response.headers.get('x-auth-token')) {
-    const token = response.headers.get('x-auth-token')
-    if (token) {
-      apiClient.setAuthToken(token)
-    }
-  }
-  return response
-})
+export const apiClient = new ApiClient();

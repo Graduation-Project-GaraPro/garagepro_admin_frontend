@@ -5,7 +5,15 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 export default function ServiceTrends({ data }) {
   if (!data?.serviceTrends) return null;
 
-  const serviceNames = [...new Set(data.serviceTrends.flatMap(item => 
+const formattedTrends = data.serviceTrends.map(item => ({
+  period: item.period,
+  ...item.services
+}));
+
+console.log(formattedTrends);
+
+
+  const serviceNames = [...new Set(formattedTrends.flatMap(item => 
     Object.keys(item).filter(key => key !== 'period')
   ))];
 
@@ -16,7 +24,7 @@ export default function ServiceTrends({ data }) {
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={data.serviceTrends}>
+          <LineChart data={formattedTrends}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="period" />
             <YAxis />

@@ -98,16 +98,16 @@ export default function FinancialReports() {
                 <ServiceTrends data={reportData} />
               </TabsContent>
               
-              <TabsContent value="technicians" className="mt-4">
+              {/* <TabsContent value="technicians" className="mt-4">
                 <TechnicianPerformance data={reportData} />
               </TabsContent>
               
               <TabsContent value="branches" className="mt-4">
                 <BranchComparison data={reportData} />
-              </TabsContent>
+              </TabsContent> */}
               
               <TabsContent value="orders" className="mt-4">
-                <RepairOrders data={reportData} />
+                <RepairOrders/>
               </TabsContent>
             </Tabs>
           </>

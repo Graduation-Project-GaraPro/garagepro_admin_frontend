@@ -2,14 +2,15 @@ export interface GoogleLoginDto {
   idToken: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7113/api';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5117/api";
 
 export interface AuthResponseDto {
-  token: string;      // access token JWT
-  expiresIn: number;  // số giây token sống
-  userId: string;     // Id của user
-  email: string;      // Email user
-  roles: string[];    // Roles user (Admin, Customer, ...)
+  token: string; // access token JWT
+  expiresIn: number; // số giây token sống
+  userId: string; // Id của user
+  email: string; // Email user
+  roles: string[]; // Roles user (Admin, Customer, ...)
 }
 
 export interface SendOtpDto {
@@ -65,14 +66,11 @@ class AuthService {
     message: string;
     userId: string;
   }> {
-    const response = await fetch(
-      `${API_BASE_URL}/auth/complete-registration`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      }
-    );
+    const response = await fetch(`${API_BASE_URL}/auth/complete-registration`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
 
     if (!response.ok) {
       const error = await response.json();
@@ -87,78 +85,84 @@ class AuthService {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(dto),
-    })
+    });
 
     if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Google login failed: ${errorText}`)
+      const errorText = await response.text();
+      throw new Error(`Google login failed: ${errorText}`);
     }
 
-    const authData = await response.json()
-    
+    const authData = await response.json();
+
     // Lưu token và user info vào localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('authToken', authData.token)
-      localStorage.setItem('userId', authData.userId)
-      localStorage.setItem('userEmail', authData.email)
-      localStorage.setItem('userRoles', JSON.stringify(authData.roles))
+    if (typeof window !== "undefined") {
+      localStorage.setItem("authToken", authData.token);
+      localStorage.setItem("userId", authData.userId);
+      localStorage.setItem("userEmail", authData.email);
+      localStorage.setItem("userRoles", JSON.stringify(authData.roles));
     }
 
-    return authData
+    return authData;
   }
 
-  async phoneLogin(data: { phoneNumber: string; password: string }): Promise<AuthResponseDto> {
+  async phoneLogin(data: {
+    phoneNumber: string;
+    password: string;
+  }): Promise<AuthResponseDto> {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-  
+
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || "Đăng nhập thất bại");
     }
-  
-    const authData = await response.json()
-    
+
+    const authData = await response.json();
+
     // Lưu token và user info vào localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('authToken', authData.token)
-      localStorage.setItem('userId', authData.userId)
-      localStorage.setItem('userEmail', authData.email)
-      localStorage.setItem('userRoles', JSON.stringify(authData.roles))
+    if (typeof window !== "undefined") {
+      localStorage.setItem("authToken", authData.token);
+      localStorage.setItem("userId", authData.userId);
+      localStorage.setItem("userEmail", authData.email);
+      localStorage.setItem("userRoles", JSON.stringify(authData.roles));
     }
 
-    return authData
+    return authData;
   }
 
   logout(): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken')
-      localStorage.removeItem('userId')
-      localStorage.removeItem('userEmail')
-      localStorage.removeItem('userRoles')
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("userEmail");
+      localStorage.removeItem("userRoles");
     }
   }
 
-  getCurrentUser(): { userId: string | null; email: string | null; roles: string[] } {
-    if (typeof window !== 'undefined') {
+  getCurrentUser(): {
+    userId: string | null;
+    email: string | null;
+    roles: string[];
+  } {
+    if (typeof window !== "undefined") {
       return {
-        userId: localStorage.getItem('userId'),
-        email: localStorage.getItem('userEmail'),
-        roles: JSON.parse(localStorage.getItem('userRoles') || '[]')
-      }
+        userId: localStorage.getItem("userId"),
+        email: localStorage.getItem("userEmail"),
+        roles: JSON.parse(localStorage.getItem("userRoles") || "[]"),
+      };
     }
-    return { userId: null, email: null, roles: [] }
+    return { userId: null, email: null, roles: [] };
   }
 
   isAuthenticated(): boolean {
-    if (typeof window !== 'undefined') {
-      return !!localStorage.getItem('authToken')
+    if (typeof window !== "undefined") {
+      return !!localStorage.getItem("authToken");
     }
-    return false
+    return false;
   }
-
 }
 
 export const authService = new AuthService();
