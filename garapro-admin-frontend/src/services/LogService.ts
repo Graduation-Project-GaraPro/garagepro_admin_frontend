@@ -90,6 +90,13 @@ export class LogService {
           throw new Error('Session expired. Please login again.');
         }
       }
+      if (response.status === 403) {
+        console.log(' Access denied');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/access-denied';
+        }
+        throw new Error('Access denied: You do not have permission to access this resource.');
+      }
 
       if (!response.ok) {
         const errorText = await response.text();

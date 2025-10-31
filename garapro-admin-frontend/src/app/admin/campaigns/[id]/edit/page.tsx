@@ -321,7 +321,7 @@ export default function EditCampaignPage() {
     }
   } else if (formData.discountType === 'fixed') {
     if (formData.discountValue < 1000) {
-      newErrors.discountValue = 'Fixed amount discount must be at least 1000 VND'
+      newErrors.discountValue = 'Fixed amount discount must be at least 1.000 VND'
     }
   }
 

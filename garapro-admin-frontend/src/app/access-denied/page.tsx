@@ -3,46 +3,63 @@
 
 import { useAuth } from '@/contexts/auth-context';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 export default function AccessDenied() {
   const { user, logout } = useAuth();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-md text-center">
-        <div className="text-red-500 text-6xl mb-4">🚫</div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-        <p className="text-gray-600 mb-6">
-          You don't have permission to access this page.
-        </p>
-        
-        {user && (
-          <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-            <p className="text-sm text-gray-600">
-              Logged in as: <strong>{user.email}</strong>
-            </p>
-            <p className="text-sm text-gray-600">
-              Roles: <strong>{user.roles.join(', ')}</strong>
-            </p>
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+            <span className="text-2xl"></span>
           </div>
-        )}
+          <CardTitle className="text-2xl">Access Denied</CardTitle>
+          <CardDescription>
+            You don't have permission to access this page.
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
+          {user && (
+            <div className="space-y-3 rounded-lg border p-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Logged in as</p>
+                <p className="text-sm text-muted-foreground">{user.email}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Roles</p>
+                <div className="flex flex-wrap gap-1">
+                  {user.roles.map((role, index) => (
+                    <Badge key={index} variant="secondary" className="text-xs">
+                      {role}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
-        <div className="flex flex-col space-y-3">
-          <Link 
-            href="/"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-          >
-            Go to Homepage
-          </Link>
-          
-          <button
-            onClick={() => logout()}
-            className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
-          >
-            Logout
-          </button>
-        </div>
-      </div>
+          <div className="flex flex-col gap-3">
+            {/* <Button asChild className="w-full">
+              <Link href="/">
+                Go to Homepage
+              </Link>
+            </Button> */}
+            
+            <Button 
+              variant="outline" 
+              onClick={() => logout()}
+              className="w-full"
+            >
+              Logout
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

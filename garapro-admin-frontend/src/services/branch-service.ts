@@ -197,7 +197,7 @@ class BranchService {
 
       // Access denied
       if (response.status === 403) {
-        console.log('🚫 Access denied');
+        console.log(' Access denied');
         if (typeof window !== 'undefined') {
           window.location.href = '/access-denied';
         }

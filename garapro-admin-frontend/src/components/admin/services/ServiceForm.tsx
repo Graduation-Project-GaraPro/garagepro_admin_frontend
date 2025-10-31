@@ -549,6 +549,16 @@ const loadData = async () => {
                       <p className="text-sm text-destructive">Please select a sub category</p>
                     )}
 
+                    {touchedFields.serviceType && selectedParentCategory && availableSubCategories.length === 0 && (
+                      <Alert variant="destructive" className="mt-2">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          This category cannot be selected because it has no sub-categories. Please choose a different main category that has available sub-categories.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
+
                   {/* Hiển thị giá trị đã chọn */}
                   {formData.serviceTypeId && (
                     <div className="mt-2 p-2 bg-muted/50 rounded-md text-sm">
@@ -939,7 +949,9 @@ const loadData = async () => {
               !isDescriptionValid ||
               // Thêm validation: nếu category cha có con thì phải chọn con
               (availableSubCategories.length > 0 && 
-              !availableSubCategories.some(subCat => subCat.serviceCategoryId === formData.serviceTypeId))
+              !availableSubCategories.some(subCat => subCat.serviceCategoryId === formData.serviceTypeId))||
+              (selectedParentCategory && availableSubCategories.length === 0) ||
+                  formData.basePrice < 1000
             }
             className="min-w-32"
           >

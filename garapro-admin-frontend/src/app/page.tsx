@@ -270,7 +270,7 @@ export default function LoginPage() {
 
           <Separator />
 
-          <div className="text-center space-y-3">
+          {/* <div className="text-center space-y-3">
             <div className="text-sm text-gray-600">
               Don&apos;t have an account?{" "}
               <Link href="/register">
@@ -294,7 +294,7 @@ export default function LoginPage() {
                 ← Back to homepage
               </Button>
             </Link>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>

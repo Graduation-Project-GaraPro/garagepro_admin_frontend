@@ -91,6 +91,16 @@ export default function ServiceCategoryDialog({ open, onOpenChange }: ServiceCat
   const [deleteConfirm, setDeleteConfirm] = useState<ServiceCategory | null>(null);
   const [isLoadingParents, setIsLoadingParents] = useState(false);
 
+  const [touchedFields, setTouchedFields] = useState({
+    categoryName: false,
+    description: false
+  });
+
+
+  const handleBlur = (field: keyof typeof touchedFields) => {
+    setTouchedFields(prev => ({ ...prev, [field]: true }));
+  };
+
   const [availableParentCategories, setAvailableParentCategories] = useState<ServiceCategory[]>([]);
   // Form states
   const [formData, setFormData] = useState({
@@ -109,15 +119,16 @@ export default function ServiceCategoryDialog({ open, onOpenChange }: ServiceCat
 // effect cho Edit 
  useEffect(() => {
   if (editingCategory) {
-    // Reset form với loading state trước
     setFormData({
       categoryName: editingCategory.categoryName,
-      parentServiceCategoryId: 'loading', // Set tạm thành loading
+      parentServiceCategoryId: 'loading',
       description: editingCategory.description,
       isActive: editingCategory.isActive,
     });
-    
-    // Load available parent categories, sau khi load xong sẽ set giá trị đúng
+    setTouchedFields({
+      categoryName: false,
+      description: false
+    });
     loadAvailableParentCategories(editingCategory.serviceCategoryId);
   } else {
     setFormData({
@@ -125,6 +136,10 @@ export default function ServiceCategoryDialog({ open, onOpenChange }: ServiceCat
       parentServiceCategoryId: 'no-parent',
       description: '',
       isActive: true,
+    });
+    setTouchedFields({
+      categoryName: false,
+      description: false
     });
   }
 }, [editingCategory]);
@@ -378,7 +393,10 @@ const loadAvailableParentCategories = async (currentCategoryId: string | null) =
     description: '',
     isActive: true,
   });
-  // Load available parent categories for new category
+  setTouchedFields({
+    categoryName: false,
+    description: false
+  });
   loadAvailableParentCategories(null);
 };
 
@@ -544,30 +562,33 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
                     id="categoryName"
                     value={formData.categoryName}
                     onChange={(e) => setFormData(prev => ({ ...prev, categoryName: e.target.value }))}
+                    onBlur={() => handleBlur('categoryName')}
                     placeholder="Enter category name (minimum 3 characters)"
                     className={`h-9 ${
-                      formData.categoryName.length > 0 && formData.categoryName.length < 3
+                      touchedFields.categoryName && formData.categoryName.length > 0 && formData.categoryName.length < 3
                         ? 'border-destructive focus-visible:ring-destructive'
-                        : formData.categoryName.length >= 3
+                        : touchedFields.categoryName && formData.categoryName.length >= 3
                         ? 'border-green-500 focus-visible:ring-green-500'
                         : ''
                     }`}
                     required
                   />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>
-                      {formData.categoryName.length < 3 ? (
-                        <span className="text-destructive">
-                          {3 - formData.categoryName.length} more characters required
-                        </span>
-                      ) : (
-                        <span className="text-green-600">
-                          ✓ Minimum length satisfied
-                        </span>
-                      )}
-                    </span>
-                    <span>{formData.categoryName.length}/3</span>
-                  </div>
+                  {touchedFields.categoryName && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>
+                        {formData.categoryName.length < 3 ? (
+                          <span className="text-destructive">
+                            {3 - formData.categoryName.length} more characters required
+                          </span>
+                        ) : (
+                          <span className="text-green-600">
+                            ✓ Minimum length satisfied
+                          </span>
+                        )}
+                      </span>
+                      <span>{formData.categoryName.length}/3</span>
+                    </div>
+                  )}
                 </div>
 
               {/* Sửa phần Select parent category thành: */}
@@ -607,35 +628,38 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
                   </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-sm font-medium">
-                  Description *
-                  <span className="text-muted-foreground text-xs font-normal ml-1">
-                    (at least 10 characters)
-                  </span>
-                </Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter category description (minimum 10 characters)"
-                  className="min-h-[80px] resize-vertical"
-                  required
-                />
-                <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>
-                    {formData.description.length < 10 ? (
-                      <span className="text-destructive">
-                        {10 - formData.description.length} more characters required
+                  <Label htmlFor="description" className="text-sm font-medium">
+                    Description *
+                    <span className="text-muted-foreground text-xs font-normal ml-1">
+                      (at least 10 characters)
+                    </span>
+                  </Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    onBlur={() => handleBlur('description')}
+                    placeholder="Enter category description (minimum 10 characters)"
+                    className="min-h-[80px] resize-vertical"
+                    required
+                  />
+                  {touchedFields.description && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>
+                        {formData.description.length < 10 ? (
+                          <span className="text-destructive">
+                            {10 - formData.description.length} more characters required
+                          </span>
+                        ) : (
+                          <span className="text-green-600">
+                            ✓ Minimum length satisfied
+                          </span>
+                        )}
                       </span>
-                    ) : (
-                      <span className="text-green-600">
-                        ✓ Minimum length satisfied
-                      </span>
-                    )}
-                  </span>
-                  <span>{formData.description.length}/10</span>
+                      <span>{formData.description.length}/10</span>
+                    </div>
+                  )}
                 </div>
-              </div>
 
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center space-x-3">

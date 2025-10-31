@@ -240,8 +240,8 @@ export default function CreateCampaignPage() {
       newErrors.endDate = 'End date must be after start date'
     }
 
-    if (touchedFields.discountValue && formData.discountValue <= 0) {
-      newErrors.discountValue = 'Discount value must be greater than 0'
+    if (touchedFields.discountValue && formData.discountType === 'fixed'&& formData.discountValue < 1000) {
+      newErrors.discountValue = 'Discount value must be greater than 1.000đ'
     }
 
     if (touchedFields.discountValue && formData.discountType === 'percentage' && formData.discountValue > 100) {
