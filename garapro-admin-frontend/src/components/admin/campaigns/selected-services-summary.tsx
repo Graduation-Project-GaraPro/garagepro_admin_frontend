@@ -2,7 +2,7 @@
 
 import { CheckCircle2 } from 'lucide-react'
 import { ServiceCategory, Service } from '@/services/campaign-service'
-
+import React from 'react'
 interface SelectedServicesSummaryProps {
   selectedServices: string[]
   serviceCategories: ServiceCategory[]
@@ -11,7 +11,7 @@ interface SelectedServicesSummaryProps {
   formatCurrency: (price: number) => string
 }
 
-export function SelectedServicesSummary({ 
+ function SelectedServicesSummary({ 
   selectedServices,
   serviceCategories,
   onServiceToggle,
@@ -107,3 +107,4 @@ export function SelectedServicesSummary({
     </div>
   )
 }
+export default React.memo(SelectedServicesSummary)
