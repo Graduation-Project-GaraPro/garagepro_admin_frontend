@@ -58,7 +58,7 @@ export interface Part {
 export interface PartCategory {
   partCategoryId: string;
   categoryName: string;
-  parts: Part[];
+  parts?: Part[];
 }
 
 export interface PartService {
@@ -212,8 +212,9 @@ const authenticatedFetch = async (url: string, options: RequestInit = {}, retryC
     }
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      const errorText = await response.json();
+      console.log("error Test",errorText)
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText.detail || errorText.message }`);
     }
 
     return response;
