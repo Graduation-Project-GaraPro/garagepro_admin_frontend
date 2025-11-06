@@ -286,8 +286,8 @@ export default function BranchDetailPage() {
                 <div className="font-medium">Address</div>
                 <div className="text-sm text-muted-foreground">
                   {branch.street}<br />
-                  {branch.ward}, {branch.district}<br />
-                  {branch.city}
+                  {branch.comune}, {branch.province}<br />
+                  
                 </div>
               </div>
             </div>

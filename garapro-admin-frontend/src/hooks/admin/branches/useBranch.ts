@@ -17,21 +17,36 @@ export const useBranchData = () => {
         setLoading(true)
         setError(null)
 
-        const [
-          managersData, 
-          techniciansData, 
-          managersWithoutBranchData, 
-          techniciansWithoutBranchData, 
-          categoriesData,
-          parentCategoriesData
-        ] = await Promise.all([
-          branchService.getManagers(),
-          branchService.getTechnicians(),
-          branchService.getManagersWithoutBranch(),
-          branchService.getTechniciansWithoutBranch(),
-          branchService.getServiceCategories(),
-          branchService.getParentServiceCategoriesForFilter()
-        ])
+        // const [
+        //   managersData, 
+        //   techniciansData, 
+        //   managersWithoutBranchData, 
+        //   techniciansWithoutBranchData, 
+        //   categoriesData,
+        //   parentCategoriesData
+        // ] = await Promise.all([
+        //   branchService.getManagers(),
+        //   branchService.getTechnicians(),
+        //   branchService.getManagersWithoutBranch(),
+        //   branchService.getTechniciansWithoutBranch(),
+        //   branchService.getServiceCategories(),
+        //   branchService.getParentServiceCategoriesForFilter()
+        // ])
+
+      const managersData = await branchService.getManagers()
+      const techniciansData = await branchService.getTechnicians()
+      const managersWithoutBranchData = await branchService.getManagersWithoutBranch()
+      const techniciansWithoutBranchData = await branchService.getTechniciansWithoutBranch()
+      const categoriesData = await branchService.getServiceCategories()
+      const parentCategoriesData = await branchService.getParentServiceCategoriesForFilter()
+
+      setManagers(managersData)
+      setTechnicians(techniciansData)
+      setManagersWithoutBranch(managersWithoutBranchData)
+      setTechniciansWithoutBranch(techniciansWithoutBranchData)
+      setCategories(categoriesData)
+      setParentCategories(parentCategoriesData)
+
 
         setManagers(managersData)
         setTechnicians(techniciansData)
@@ -137,19 +152,21 @@ export const useLocationData = () => {
 export const useFormValidation = (formData: CreateBranchRequest, shouldValidate: boolean) => {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // Chỉ validate khi shouldValidate thay đổi, không validate khi formData thay đổi
   useEffect(() => {
     if (shouldValidate) {
       const newErrors = validateForm(formData)
       setErrors(newErrors)
     }
-  }, [formData, shouldValidate])
+  }, [shouldValidate]) // Chỉ phụ thuộc vào shouldValidate
 
   return errors
 }
 
 export const validateForm = (formData: CreateBranchRequest): Record<string, string> => {
   const errors: Record<string, string> = {}
-
+  console.log('va')
+  // Validate branchName
   if (!formData.branchName?.trim()) {
     errors.branchName = 'Branch name is required'
   } else {
@@ -161,73 +178,73 @@ export const validateForm = (formData: CreateBranchRequest): Record<string, stri
     }
   }
 
+  // Validate phoneNumber
   if (!formData.phoneNumber?.trim()) {
     errors.phoneNumber = 'Phone number is required'
+  } else {
+    const phoneNumber = formData.phoneNumber.trim()
+    const phoneRegex = /^(0|\+84)(\d{9,10})$/
+    if (!phoneRegex.test(phoneNumber)) {
+      errors.phoneNumber = 'Phone number is invalid'
+    }
   }
 
+  // Validate email
   if (!formData.email?.trim()) {
     errors.email = 'Email is required'
   } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
     errors.email = 'Email is invalid'
   }
 
+  // Validate street
   if (!formData.street?.trim()) {
-    errors.street = 'Street is required'
+    errors.street = 'Street address is required'
   }
 
-  if (!formData.ward?.trim()) {
-    errors.ward = 'Ward is required'
+  // Validate province
+  if (!formData.province?.trim()) {
+    errors.province = 'Province is required'
   }
 
-  if (!formData.district?.trim()) {
-    errors.district = 'District is required'
+  // Validate commune
+  if (!formData.comune?.trim()) {
+    errors.comune = 'Commune is required'
   }
 
-  if (!formData.city?.trim()) {
-    errors.city = 'City is required'
-  }
-
-  // Validate serviceIds - thêm validate cho services
+  // Validate serviceIds
   if (formData.serviceIds.length === 0) {
     errors.serviceIds = 'At least one service must be selected'
   }
 
-  // Validate staffIds - thêm validate cho staff
-  // if (formData.staffIds.length === 0) {
-  //   errors.staffIds = 'At least one staff member must be assigned'
-  // }
-
   // Validate operating hours
   const openDays = formData.operatingHours.filter(hour => hour.isOpen)
   const hasOpenDay = openDays.length > 0
-  console.log(hasOpenDay)
+  
   if (!hasOpenDay) {
     errors.operatingHours = 'At least one day must be open'
-  }
-
-  if (hasOpenDay) {
-    let hasTimeError = false
-    const timeErrors: string[] = []
-
-    formData.operatingHours.forEach(hour => {
+  } else {
+    // Check for time errors only on open days
+    let firstTimeError: string | null = null
+    
+    for (const hour of formData.operatingHours) {
       if (hour.isOpen) {
         if (!hour.openTime?.trim()) {
-          hasTimeError = true
-          timeErrors.push(`Open time is required for ${getDayName(hour.dayOfWeek)}`)
-        }
-        if (!hour.closeTime?.trim()) {
-          hasTimeError = true
-          timeErrors.push(`Close time is required for ${getDayName(hour.dayOfWeek)}`)
+          firstTimeError = `Open time is required for ${getDayName(hour.dayOfWeek)}`
+          break
+        } else if (!hour.closeTime?.trim()) {
+          firstTimeError = `Close time is required for ${getDayName(hour.dayOfWeek)}`
+          break
+        } else if (hour.openTime >= hour.closeTime) {
+          firstTimeError = `Close time must be after open time for ${getDayName(hour.dayOfWeek)}`
+          break
         }
       }
-    })
+    }
 
-    if (hasTimeError && timeErrors.length > 0) {
-      // Chỉ hiển thị lỗi đầu tiên để tránh quá nhiều thông báo
-      errors.operatingHours = timeErrors[0]
+    if (firstTimeError) {
+      errors.operatingHours = firstTimeError
     }
   }
-  
 
   return errors
 }
@@ -237,3 +254,4 @@ const getDayName = (dayOfWeek: number): string => {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   return days[dayOfWeek] || `Day ${dayOfWeek}`
 }
+

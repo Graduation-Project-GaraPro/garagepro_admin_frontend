@@ -242,7 +242,7 @@ export default function BranchesPage() {
   }
 
   // Get unique cities for filter
-  const uniqueCities = [...new Set(branches.map(branch => branch.city))].filter(Boolean)
+  const uniqueCities = [...new Set(branches.map(branch => branch.province))].filter(Boolean)
 
   // Calculate display range
   const startItem = (currentPage - 1) * pageSize + 1
@@ -351,7 +351,7 @@ export default function BranchesPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {new Set(branches.map(b => b.city)).size}
+                {new Set(branches.map(b => b.province)).size}
               </div>
               <p className="text-xs text-muted-foreground">
                 Unique locations
@@ -487,11 +487,9 @@ export default function BranchesPage() {
                             {branch.street}
                           </div>
                           <div className="text-muted-foreground ml-4">
-                            {branch.ward}, {branch.district}
+                            {branch.commune}, {branch.province}
                           </div>
-                          <div className="text-muted-foreground ml-4">
-                            {branch.city}
-                          </div>
+                         
                         </div>
                       </TableCell>
                       <TableCell>

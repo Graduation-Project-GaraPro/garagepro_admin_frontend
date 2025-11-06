@@ -1,134 +1,133 @@
 // components/admin/branches/ServicesSection.tsx
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, memo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { X, ChevronDown, ChevronRight, Search, Filter,AlertCircle } from 'lucide-react'
-import { CreateBranchRequest, ServiceCategory } from '@/services/branch-service'
+import { X, ChevronDown, ChevronRight, Search, AlertCircle } from 'lucide-react'
+import { ServiceCategory } from '@/services/branch-service'
 import { Badge } from '@/components/ui/badge'
 
-interface ServicesSectionProps {
-  formData: CreateBranchRequest
-  errors: Record<string, string>
+type ServicesSectionProps = {
+  /** Danh sách id dịch vụ đã chọn (từ parent) */
+  selectedServiceIds: string[]
+  /** Lỗi validation chỉ cho field này (không truyền nguyên errors object lớn) */
+  errors?: { serviceIds?: string }
   categories: ServiceCategory[]
-  parentCategories: ServiceCategory[] // Thêm prop này
+  parentCategories: ServiceCategory[]
   onServiceToggle: (serviceId: string, selected: boolean) => void
   onServiceRemove: (serviceId: string) => void
 }
 
-export const ServicesSection = ({ 
-  formData, 
-  errors, 
-  categories, 
+function ServicesSectionImpl({
+  selectedServiceIds,
+  errors = {},
+  categories,
   parentCategories,
   onServiceToggle,
-  onServiceRemove 
-}: ServicesSectionProps) => {
+  onServiceRemove,
+}: ServicesSectionProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [searchTerm, setSearchTerm] = useState('')
-  
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [parentCategoryFilter, setParentCategoryFilter] = useState<string>('all')
-  const selectedServiceIds = useMemo(() => 
-    new Set(formData.serviceIds), 
-    [formData.serviceIds]
-  )
 
+  /** Set tham chiếu ổn định từ mảng id đã chọn */
+  const selectedIdsSet = useMemo(() => new Set(selectedServiceIds), [selectedServiceIds])
+
+  /** Danh sách dịch vụ đã chọn (phục vụ khối Selected Services) */
   const selectedServices = useMemo(() => {
-    const allServices = categories.flatMap(category => category.services)
-    return allServices.filter(service => selectedServiceIds.has(service.serviceId))
-  }, [categories, selectedServiceIds])
+    if (selectedIdsSet.size === 0) return []
+    const all = categories.flatMap(c => c.services)
+    return all.filter(s => selectedIdsSet.has(s.serviceId))
+  }, [categories, selectedIdsSet])
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount)
-  }
+  /** Lọc categories theo search + filter, chỉ giữ category còn service sau lọc */
+  const filteredCategories = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase()
+    const isAllParent = parentCategoryFilter === 'all'
+    const isAllStatus = statusFilter === 'all'
 
-  // Filter services based on search and filters
- const filteredCategories = useMemo(() => {
     return categories
-      .filter(category => category.isActive)
-      .map(category => ({
-        ...category,
-        services: category.services.filter(service => {
-          // Search filter
-          const matchesSearch = searchTerm === '' || 
-            service.serviceName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            service.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            category.categoryName.toLowerCase().includes(searchTerm.toLowerCase())
-          
-          // Status filter
-          const matchesStatus = statusFilter === 'all' || 
+      .filter(category => category.isActive) // chỉ hiển thị category active
+      .map(category => {
+        const services = category.services.filter(service => {
+          // search
+          const inSearch =
+            q === '' ||
+            service.serviceName.toLowerCase().includes(q) ||
+            service.description.toLowerCase().includes(q) ||
+            category.categoryName.toLowerCase().includes(q)
+
+          // status
+          const inStatus =
+            isAllStatus ||
             (statusFilter === 'active' && service.isActive) ||
             (statusFilter === 'inactive' && !service.isActive)
-          
-          // Price filter
-         
-          
-          // Parent category filter
-          const matchesParentCategory = parentCategoryFilter === 'all' || 
-            category.parentServiceCategoryId === parentCategoryFilter
-          
-           return matchesSearch && matchesStatus && matchesParentCategory
+
+          // parent category filter
+          const inParent =
+            isAllParent || category.parentServiceCategoryId === parentCategoryFilter
+
+          return inSearch && inStatus && inParent
         })
-      }))
+        return { ...category, services }
+      })
       .filter(category => category.services.length > 0)
   }, [categories, searchTerm, statusFilter, parentCategoryFilter])
-  // Auto-expand categories that have matching services when searching
-  useState(() => {
+
+  /** Auto-expand khi có searchTerm để lộ các category khớp */
+  useEffect(() => {
     if (searchTerm) {
-      const matchingCategoryIds = new Set(
-        filteredCategories.map(category => category.serviceCategoryId)
-      )
-      setExpandedCategories(matchingCategoryIds)
-    } else if (!searchTerm && expandedCategories.size > 0) {
-      // Collapse all when search is cleared (optional)
-      // setExpandedCategories(new Set())
+      const ids = new Set(filteredCategories.map(c => c.serviceCategoryId))
+      setExpandedCategories(ids)
     }
-  })
+    // khi clear search, không bắt buộc collapse (giữ trạng thái user)
+  }, [searchTerm, filteredCategories])
 
-  const toggleCategory = (categoryId: string) => {
+  const toggleCategory = useCallback((categoryId: string) => {
     setExpandedCategories(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(categoryId)) {
-        newSet.delete(categoryId)
-      } else {
-        newSet.add(categoryId)
-      }
-      return newSet
+      const next = new Set(prev)
+      next.has(categoryId) ? next.delete(categoryId) : next.add(categoryId)
+      return next
     })
-  }
+  }, [])
 
-  const getServicesInCategory = (category: ServiceCategory) => {
-    return category.services.filter(service => service.isActive)
-  }
+  const isCategoryExpanded = useCallback(
+    (categoryId: string) => expandedCategories.has(categoryId),
+    [expandedCategories]
+  )
 
-  const isCategoryExpanded = (categoryId: string) => expandedCategories.has(categoryId)
+  const expandAllCategories = useCallback(() => {
+    setExpandedCategories(new Set(categories.map(c => c.serviceCategoryId)))
+  }, [categories])
 
-  const expandAllCategories = () => {
-    const allCategoryIds = new Set(categories.map(cat => cat.serviceCategoryId))
-    setExpandedCategories(allCategoryIds)
-  }
-
-  const collapseAllCategories = () => {
+  const collapseAllCategories = useCallback(() => {
     setExpandedCategories(new Set())
-  }
+  }, [])
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     setSearchTerm('')
     setStatusFilter('all')
-    setParentCategoryFilter('all') // Reset parent category filter
-  }
+    setParentCategoryFilter('all')
+  }, [])
 
-  // Statistics
-  const totalServices = categories.flatMap(cat => cat.services).length
-  const filteredServicesCount = filteredCategories.flatMap(cat => cat.services).length
+  const formatCurrency = useCallback((amount: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
+  }, [])
+
+  // Stats
+  const totalServices = useMemo(
+    () => categories.flatMap(cat => cat.services).length,
+    [categories]
+  )
+  const filteredServicesCount = useMemo(
+    () => filteredCategories.flatMap(cat => cat.services).length,
+    [filteredCategories]
+  )
   const selectedCount = selectedServices.length
-
-  const hasActiveFilters = searchTerm || statusFilter !== 'all' || parentCategoryFilter !== 'all'
+  const hasActiveFilters =
+    searchTerm.length > 0 || statusFilter !== 'all' || parentCategoryFilter !== 'all'
 
   return (
     <Card>
@@ -143,11 +142,11 @@ export const ServicesSection = ({
           )}
         </CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-6">
-        {/* Search and Filters */}
+        {/* Search + Expand/Collapse */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search Input */}
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -157,23 +156,11 @@ export const ServicesSection = ({
                 className="pl-10"
               />
             </div>
-            
-            {/* Expand/Collapse Buttons */}
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={expandAllCategories}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={expandAllCategories}>
                 Expand All
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={collapseAllCategories}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={collapseAllCategories}>
                 Collapse All
               </Button>
             </div>
@@ -181,8 +168,6 @@ export const ServicesSection = ({
 
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            
-
             <div className="flex items-center gap-2">
               <Label htmlFor="status-filter" className="text-sm whitespace-nowrap">
                 Status:
@@ -198,6 +183,7 @@ export const ServicesSection = ({
                 <option value="inactive">Inactive Only</option>
               </select>
             </div>
+
             <div className="flex items-center gap-2">
               <Label htmlFor="parent-category-filter" className="text-sm whitespace-nowrap">
                 Category:
@@ -209,13 +195,14 @@ export const ServicesSection = ({
                 className="border rounded px-2 py-1 text-sm min-w-[150px]"
               >
                 <option value="all">All Categories</option>
-                {parentCategories.map(parentCategory => (
-                  <option key={parentCategory.serviceCategoryId} value={parentCategory.serviceCategoryId}>
-                    {parentCategory.categoryName}
+                {parentCategories.map(pc => (
+                  <option key={pc.serviceCategoryId} value={pc.serviceCategoryId}>
+                    {pc.categoryName}
                   </option>
                 ))}
               </select>
             </div>
+
             {hasActiveFilters && (
               <Button
                 type="button"
@@ -233,9 +220,7 @@ export const ServicesSection = ({
           {hasActiveFilters && (
             <div className="text-sm text-muted-foreground">
               Showing {filteredServicesCount} of {totalServices} services
-              {searchTerm && (
-                <span> matching &quot;{searchTerm}&quot;</span>
-              )}
+              {searchTerm && <span> matching &quot;{searchTerm}&quot;</span>}
             </div>
           )}
         </div>
@@ -243,43 +228,37 @@ export const ServicesSection = ({
         {/* Services by Category */}
         <div className="space-y-4">
           <Label>Available Services by Category</Label>
-          
+
           {filteredCategories.length > 0 ? (
-            filteredCategories.map((category) => {
-              const servicesInCategory = getServicesInCategory(category)
+            filteredCategories.map(category => {
               const isExpanded = isCategoryExpanded(category.serviceCategoryId)
-              const selectedCount = servicesInCategory.filter(
-                service => selectedServiceIds.has(service.serviceId)
-              ).length
+              const activeServicesInThisList = category.services.filter(s => s.isActive)
+              const selectedInThisCat = activeServicesInThisList.filter(s => selectedIdsSet.has(s.serviceId)).length
 
               return (
                 <div key={category.serviceCategoryId} className="border rounded-lg">
                   {/* Category Header */}
-                  <div 
+                  <div
                     className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
                     onClick={() => toggleCategory(category.serviceCategoryId)}
                   >
                     <div className="flex items-center gap-3">
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
+                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                       <div>
                         <div className="font-medium flex items-center gap-2">
                           {category.categoryName}
                           <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                            {selectedCount}/{servicesInCategory.length} selected
+                            {selectedInThisCat}/{activeServicesInThisList.length} selected
                           </span>
-                          {servicesInCategory.length !== category.services.length && (
+                          {activeServicesInThisList.length !== category.services.length && (
                             <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
                               Filtered
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          {category.description}
-                        </div>
+                        {category.description && (
+                          <div className="text-sm text-muted-foreground">{category.description}</div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -288,11 +267,11 @@ export const ServicesSection = ({
                   {isExpanded && (
                     <div className="border-t">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4">
-                        {servicesInCategory.map((service) => {
-                          const isSelected = selectedServiceIds.has(service.serviceId)
+                        {activeServicesInThisList.map(service => {
+                          const isSelected = selectedIdsSet.has(service.serviceId)
                           return (
-                            <label 
-                              key={service.serviceId} 
+                            <label
+                              key={service.serviceId}
                               className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 ${
                                 isSelected ? 'border-blue-500 bg-blue-50' : ''
                               }`}
@@ -318,7 +297,10 @@ export const ServicesSection = ({
                                     </span>
                                   )}
                                 </div>
-                                <div id={`service-${service.serviceId}-desc`} className="text-sm text-muted-foreground">
+                                <div
+                                  id={`service-${service.serviceId}-desc`}
+                                  className="text-sm text-muted-foreground"
+                                >
                                   {service.description}
                                 </div>
                                 <div className="text-sm font-medium mt-1">
@@ -343,13 +325,7 @@ export const ServicesSection = ({
               <div>No services found</div>
               <div className="text-sm">Try adjusting your search or filters</div>
               {hasActiveFilters && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="mt-2"
-                >
+                <Button type="button" variant="outline" size="sm" onClick={clearFilters} className="mt-2">
                   Clear Filters
                 </Button>
               )}
@@ -362,7 +338,7 @@ export const ServicesSection = ({
           <div className="space-y-2">
             <Label>Selected Services ({selectedServices.length})</Label>
             <div className="space-y-2">
-              {selectedServices.map((service) => (
+              {selectedServices.map(service => (
                 <div key={service.serviceId} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex-1">
                     <div className="font-medium">{service.serviceName}</div>
@@ -370,9 +346,11 @@ export const ServicesSection = ({
                       {service.description} • {formatCurrency(service.price)} • {service.estimatedDuration}h
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Category: {categories.find(cat => 
-                        cat.services.some(s => s.serviceId === service.serviceId)
-                      )?.categoryName}
+                      Category:{' '}
+                      {
+                        categories.find(cat => cat.services.some(s => s.serviceId === service.serviceId))
+                          ?.categoryName
+                      }
                     </div>
                   </div>
                   <Button
@@ -390,21 +368,30 @@ export const ServicesSection = ({
             </div>
           </div>
         )}
-        
+
         {categories.length === 0 && (
-          <div className="text-center py-4 text-muted-foreground">
-            No service categories available
-          </div>
+          <div className="text-center py-4 text-muted-foreground">No service categories available</div>
         )}
-        
+
         {errors.serviceIds && (
           <div className="flex items-center gap-2 p-3 mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
             <AlertCircle className="h-4 w-4" />
             <span>{errors.serviceIds}</span>
           </div>
         )}
-       
       </CardContent>
     </Card>
   )
 }
+
+/** Bọc memo + comparator để chỉ re-render khi props thực sự đổi */
+export const ServicesSection = memo(
+  ServicesSectionImpl,
+  (prev, next) =>
+    prev.selectedServiceIds === next.selectedServiceIds && // ref equality (giữ nguyên vì parent chỉ tạo mảng mới khi thực sự thay đổi)
+    prev.categories === next.categories &&
+    prev.parentCategories === next.parentCategories &&
+    prev.errors?.serviceIds === next.errors?.serviceIds &&
+    prev.onServiceToggle === next.onServiceToggle &&
+    prev.onServiceRemove === next.onServiceRemove
+)

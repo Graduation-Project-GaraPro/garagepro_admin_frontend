@@ -5,11 +5,18 @@ export interface AuditHistory {
   policyId: string;
   policy: string | null;
   changedBy: string | null;
-  changedByUser: string | null;
+  changedByUser: User | null;
   changedAt: string;
   changeSummary: string | null;
   previousValues: string | null;
   newValues: string | null;
+}
+export interface User {
+    id: string;
+    userName: string;
+    normalizedUserName: string;
+    email: string;
+      
 }
 
 export interface PaginationParams {

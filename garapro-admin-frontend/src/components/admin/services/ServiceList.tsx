@@ -40,6 +40,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+
+import { Edit } from "lucide-react";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -738,7 +740,7 @@ export default function ServiceList() {
                             </Button>
                             <Button variant="outline" size="icon" asChild>
                               <Link href={`/admin/services/edit/${service.id}`}>
-                                <Pencil className="h-4 w-4" />
+                                <Edit className="h-4 w-4" />
                               </Link>
                             </Button>
                             <Button

@@ -1,3 +1,4 @@
+import { Commune } from '@/services/location-service';
 import { authService } from "@/services/authService"
 
 
@@ -8,9 +9,9 @@ export interface GarageBranch {
   phoneNumber: string
   email: string
   street: string
-  ward: string
-  district: string
-  city: string
+  commune: string
+  province: string
+ 
   description: string
   isActive: boolean
   createdAt: string
@@ -25,9 +26,8 @@ export interface CreateBranchRequest {
   phoneNumber: string
   email: string
   street: string
-  ward: string
-  district: string
-  city: string
+  commune: string
+  province: string
   description: string
   serviceIds: string[]
   staffIds: string[]
@@ -40,9 +40,9 @@ export interface UpdateBranchRequest {
   phoneNumber: string
   email: string
   street: string
-  ward: string
-  district: string
-  city: string
+  commune: string
+  province: string
+  
   description: string
   isActive: boolean
   serviceIds: string[]
@@ -144,17 +144,17 @@ export interface Province {
 export interface District {
   code: string
   name: string
-  province_code: string
+  provinceCode: string
 }
 
 export interface Ward {
   code: string
   name: string
-  district_code: string
+  districtCode: string
 }
 class BranchService {
   private baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
-
+  private dbUrl = '/data/db.json'
    private getAuthToken(): string | null {
     return authService.getToken(); // CHỈ DÙNG GETTOKEN
   }
@@ -164,6 +164,8 @@ class BranchService {
     
     try {
       const token = await this.getAuthToken();
+    console.log('🚀 Token:', token);
+
        if (!token) {
         if (typeof window !== 'undefined') {
           window.location.href = '/';
@@ -269,6 +271,8 @@ class BranchService {
   }
 
   async createBranch(branchData: CreateBranchRequest): Promise<void> {
+    console.log("bnranch",branchData)
+
     const url = `${this.baseURL}/Branch`;
     await this.request(url, {
       method: 'POST',
@@ -277,6 +281,8 @@ class BranchService {
   }
 
   async updateBranch(branchId: string, branchData: UpdateBranchRequest): Promise<void> {
+    console.log("bnranch",branchData)
+
     const url = `${this.baseURL}/Branch/${branchId}`;
     await this.request(url, {
       method: 'PUT',
@@ -436,13 +442,16 @@ class BranchService {
     return days[dayOfWeek - 1] || 'Unknown'
   }
 
-  async getProvinces(): Promise<Province[]> {
+   async getProvinces(): Promise<Province[]> {
     try {
-      const response = await fetch('https://provinces.open-api.vn/api/')
-      if (!response.ok) throw new Error('Failed to fetch provinces')
-      return response.json()
+      const response = await fetch(this.dbUrl)
+      if (!response.ok) throw new Error('Failed to load DB')
+      const data = await response.json()
+    console.log("data",data)
+      return data.province || []
     } catch (error) {
       console.error('Failed to fetch provinces:', error)
+      // fallback tĩnh
       return [
         { code: '79', name: 'Thành phố Hồ Chí Minh' },
         { code: '01', name: 'Thành phố Hà Nội' },
@@ -455,10 +464,11 @@ class BranchService {
 
   async getDistricts(provinceCode: string): Promise<District[]> {
     try {
-      const response = await fetch(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`)
-      if (!response.ok) throw new Error('Failed to fetch districts')
+      const response = await fetch(this.dbUrl)
+      if (!response.ok) throw new Error('Failed to load DB')
       const data = await response.json()
-      return data.districts || []
+      const districts: District[] = data.districts || []
+      return districts.filter(d => d.provinceCode === provinceCode)
     } catch (error) {
       console.error('Failed to fetch districts:', error)
       return []
@@ -467,10 +477,11 @@ class BranchService {
 
   async getWards(districtCode: string): Promise<Ward[]> {
     try {
-      const response = await fetch(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`)
-      if (!response.ok) throw new Error('Failed to fetch wards')
+      const response = await fetch(this.dbUrl)
+      if (!response.ok) throw new Error('Failed to load DB')
       const data = await response.json()
-      return data.wards || []
+      const wards: Ward[] = data.wards || []
+      return wards.filter(w => w.districtCode === districtCode)
     } catch (error) {
       console.error('Failed to fetch wards:', error)
       return []
