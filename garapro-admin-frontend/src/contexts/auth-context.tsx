@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // contexts/auth-context.tsx
-"use client";
+'use client';
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { authService } from "@/services/authService";
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { authService } from '@/services/authService';
 
 export interface User {
   userId: string;
@@ -18,6 +17,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
+  hasRole: (role: string) => boolean;
+  hasAnyRole: (roles: string[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,7 +27,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     checkAuth();
@@ -34,93 +34,94 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
+      console.log('🔄 checkAuth started');
+      
       if (authService.isAuthenticated()) {
-        const userData = await getCurrentUser();
+        console.log('✅ Token exists, creating user from token data');
+        
+        // Tạo user từ thông tin trong token/sessionStorage
+        const userData = await createUserFromStoredData();
         if (userData) {
+          console.log('✅ User created from stored data:', userData.email);
           setUser(userData);
-          console.log("✅ Auth check: User authenticated", userData.email);
-
-          // Nếu đang ở trang chủ (login) và đã login -> redirect đến admin
-          // NHƯNG chỉ redirect nếu middleware chưa làm (tránh loop)
-          if (pathname === "/" && !isRedirecting) {
-            console.log("🔄 Auth context: Redirecting to /admin");
-            setTimeout(() => router.push("/admin"), 100); // Small delay để tránh conflict với middleware
-          }
         } else {
-          console.log("❌ Auth check: Token invalid");
+          console.log('❌ Cannot create user from stored data');
           await authService.logout();
         }
       } else {
-        console.log("🔐 Auth check: No token found");
+        console.log('❌ No token found');
       }
     } catch (error) {
-      console.error("Auth check failed:", error);
+      console.error('Auth check failed:', error);
     } finally {
       setIsLoading(false);
+      console.log('🔄 checkAuth completed');
     }
   };
 
-  // Biến để tránh redirect loop
-  let isRedirecting = false;
-
-  const getCurrentUser = async (): Promise<User | null> => {
+  const createUserFromStoredData = async (): Promise<User | null> => {
     try {
-      const token = authService.getToken();
-      if (!token) return null;
-
-      const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_BASE_URL || "https://localhost:7113/api"
-        }/auth/me`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        return await response.json();
+      const userId = authService.getCurrentUserId();
+      const email = authService.getCurrentUserEmail();
+      
+      console.log('🔍 Creating user from stored data:', { userId, email });
+      
+      if (!userId || !email) {
+        console.log('❌ Missing user data in storage');
+        return null;
       }
-      return null;
-    } catch {
+
+      // Mặc định roles là ['User'], hoặc lấy từ token nếu có
+      // Trong thực tế, bạn có thể decode JWT token để lấy roles
+      const userData: User = {
+        userId,
+        email,
+        roles: ['Admin'] // Tạm thời hardcode, sau này có thể decode từ token
+      };
+
+      return userData;
+    } catch (error) {
+      console.error('❌ createUserFromStoredData error:', error);
       return null;
     }
   };
 
   const login = async (loginData: any) => {
     try {
-      console.log("🔐 Starting login process...");
+      console.log('🔐 Starting login process...');
       const authData = await authService.phoneLogin(loginData);
       const userData = {
         userId: authData.userId,
         email: authData.email,
-        roles: authData.roles,
+        roles: authData.roles
       };
       setUser(userData);
-
-      console.log("✅ Login successful, redirecting to /admin");
-      // Redirect sau khi login thành công
-      isRedirecting = true;
-      router.push("/admin");
+      
+      console.log('✅ Login successful');
+      
     } catch (error) {
-      console.error("❌ Login failed:", error);
+      console.error('❌ Login failed:', error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
-      console.log("🚪 Starting logout process...");
+      console.log('🚪 Starting logout process...');
       await authService.logout();
       setUser(null);
-
-      console.log("✅ Logout successful, redirecting to /");
-      isRedirecting = true;
-      router.push("/");
+      
     } catch (error) {
-      console.error("Logout failed:", error);
+      console.error('Logout failed:', error);
     }
+  };
+
+  const hasRole = (role: string): boolean => {
+    return user?.roles.includes(role) || false;
+  };
+
+  const hasAnyRole = (roles: string[]): boolean => {
+    return user?.roles.some(role => roles.includes(role)) || false;
   };
 
   const value: AuthContextType = {
@@ -129,15 +130,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     isLoading,
     isAuthenticated: !!user,
+    hasRole,
+    hasAnyRole,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

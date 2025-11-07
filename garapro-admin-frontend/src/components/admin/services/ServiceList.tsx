@@ -40,6 +40,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+
+import { Edit } from "lucide-react";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -304,7 +306,9 @@ export default function ServiceList() {
     if (error.message && error.message.includes('HTTP error')) {
       const errorMatch = error.message.match(/message: (.+)$/);
       const serverMessage = errorMatch ? errorMatch[1] : 'Unknown server error';
+      console.log(errorMatch)
       toast.error('Failed to delete service', {
+        
         description: serverMessage
       });
     } else {
@@ -670,90 +674,107 @@ export default function ServiceList() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {services.map((service) => (
-                      <TableRow key={service.id} className="group">
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedServices.has(service.id)}
-                            onCheckedChange={() => toggleServiceSelection(service.id)}
-                            aria-label={`Select ${service.name}`}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          <div>
-                            <p className="font-semibold">{service.name}</p>
-                            {service.description && (
-                              <p className="text-sm text-muted-foreground line-clamp-1">
-                                {service.description}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {service.serviceType?.name || 'Uncategorized'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center text-sm">
-                            <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
-                            {service.estimatedDuration} min
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center text-sm font-medium">
-                            <DollarSign className="mr-1 h-4 w-4 text-muted-foreground" />
-                            
-                            {formatCurrency(service.basePrice)}                            
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center text-sm">
-                            <MapPin className="mr-1 h-4 w-4 text-muted-foreground" />
-                            {service.branchIds.length} branch{service.branchIds.length !== 1 ? 'es' : ''}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={service.isActive ? "default" : "secondary"}
-                            className={service.isActive ? "bg-green-100 text-green-800 hover:bg-green-100" : ""}
-                          >
-                            {service.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={service.isAdvanced ? "default" : "outline"}
-                            className={service.isAdvanced ? "bg-blue-100 text-blue-800 hover:bg-blue-100" : ""}
-                          >
-                            {service.isAdvanced ? "Advance" : "Regular"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end space-x-1">
-                            <Button variant="outline" size="icon" asChild>
-                              <Link href={`/admin/services/view/${service.id}`}>
-                                <Eye className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Button variant="outline" size="icon" asChild>
-                              <Link href={`/admin/services/edit/${service.id}`}>
-                                <Pencil className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              onClick={() => handleDeleteClick(service)}
-                              disabled={isDeleting}
+                      {services.map((service) => (
+                        <TableRow key={service.id} className="group">
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedServices.has(service.id)}
+                              onCheckedChange={() => toggleServiceSelection(service.id)}
+                              aria-label={`Select ${service.name}`}
+                            />
+                          </TableCell>
+
+                          <TableCell className="font-medium max-w-[250px]">
+                            <div>
+                              <p className="font-semibold truncate">{service.name}</p>
+                              {service.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-1">
+                                  {service.description}
+                                </p>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="max-w-[150px] truncate">
+                            <Badge variant="outline" className="text-xs truncate max-w-full">
+                              {service.serviceType?.name || "Uncategorized"}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap">
+                            <div className="flex items-center text-sm">
+                              <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
+                              {service.estimatedDuration} min
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap">
+                            <div className="flex items-center text-sm font-medium">
+                              
+                              {formatCurrency(service.basePrice)}
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap">
+                            <div className="flex items-center text-sm">
+                              <MapPin className="mr-1 h-4 w-4 text-muted-foreground" />
+                              {service.branchIds.length} branch
+                              {service.branchIds.length !== 1 ? "es" : ""}
+                            </div>
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap">
+                            <Badge
+                              variant={service.isActive ? "default" : "secondary"}
+                              className={
+                                service.isActive
+                                  ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                  : ""
+                              }
                             >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
+                              {service.isActive ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="whitespace-nowrap">
+                            <Badge
+                              variant={service.isAdvanced ? "default" : "outline"}
+                              className={
+                                service.isAdvanced
+                                  ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                                  : ""
+                              }
+                            >
+                              {service.isAdvanced ? "Advance" : "Regular"}
+                            </Badge>
+                          </TableCell>
+
+                          <TableCell className="text-right">
+                            <div className="flex justify-end space-x-1">
+                              <Button variant="outline" size="icon" asChild>
+                                <Link href={`/admin/services/view/${service.id}`}>
+                                  <Eye className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <Button variant="outline" size="icon" asChild>
+                                <Link href={`/admin/services/edit/${service.id}`}>
+                                  <Edit className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                onClick={() => handleDeleteClick(service)}
+                                disabled={isDeleting}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+
                 </Table>
               </div>
 
@@ -894,7 +915,7 @@ export default function ServiceList() {
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. This will permanently delete the service
-                <span className="font-semibold"> "{serviceToDelete?.name}"</span> and remove it from our servers.
+                <span className="font-semibold"> {serviceToDelete?.name}</span> and remove it from our servers.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

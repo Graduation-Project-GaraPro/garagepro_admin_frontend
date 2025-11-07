@@ -20,7 +20,7 @@ export interface LoginDto {
 let globalToken: string | null = null;
 let globalUserId: string | null = null;
 let globalUserEmail: string | null = null;
-
+let globalUserRoles: string[] = [];
 class AuthService {
   private isRefreshing = false;
   private failedQueue: Array<{
@@ -32,32 +32,33 @@ class AuthService {
 
   private getStoredToken(): string | null {
     if (globalToken) {
+      console.log(' Using globalToken');
       return globalToken;
     }
-
-    if (typeof window !== "undefined") {
-      const storedToken = sessionStorage.getItem("authToken");
+    
+    if (typeof window !== 'undefined') {
+      const storedToken = sessionStorage.getItem('authToken');
+      console.log(' sessionStorage token:', storedToken);
       if (storedToken) {
         globalToken = storedToken;
         return storedToken;
       }
     }
+    console.log(' No token found');
     return null;
   }
 
-  private setStoredUserData(
-    token: string,
-    userId: string,
-    email: string
-  ): void {
+  private setStoredUserData(token: string, userId: string, email: string, roles: string[] = []): void {
     globalToken = token;
     globalUserId = userId;
     globalUserEmail = email;
-
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("authToken", token);
-      sessionStorage.setItem("userId", userId);
-      sessionStorage.setItem("userEmail", email);
+    globalUserRoles = roles;
+    
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('authToken', token);
+      sessionStorage.setItem('userId', userId);
+      sessionStorage.setItem('userEmail', email);
+      sessionStorage.setItem('userRoles', JSON.stringify(roles));
     }
   }
 
@@ -65,33 +66,54 @@ class AuthService {
     globalToken = null;
     globalUserId = null;
     globalUserEmail = null;
-
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem("authToken");
-      sessionStorage.removeItem("userId");
-      sessionStorage.removeItem("userEmail");
+    globalUserRoles = [];
+    
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('userId');
+      sessionStorage.removeItem('userEmail');
+      sessionStorage.removeItem('userRoles');
     }
   }
 
   async phoneLogin(data: LoginDto): Promise<AuthResponseDto> {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: "POST",
-      headers: {
+      headers: { 
         "Content-Type": "application/json",
       },
-      credentials: "include",
+      credentials: 'include',
       body: JSON.stringify(data),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || "Đăng nhập thất bại");
+      throw new Error(error.error || "Login Fail");
     }
 
     const authData = await response.json();
-    this.setStoredUserData(authData.token, authData.userId, authData.email);
-
+    this.setStoredUserData(authData.token, authData.userId, authData.email, authData.roles);
+    
     return authData;
+  }
+
+  getCurrentUserRoles(): string[] {
+    if (globalUserRoles.length > 0) {
+      return globalUserRoles;
+    }
+    
+    if (typeof window !== 'undefined') {
+      const storedRoles = sessionStorage.getItem('userRoles');
+      if (storedRoles) {
+        try {
+          globalUserRoles = JSON.parse(storedRoles);
+          return globalUserRoles;
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
   }
 
   async refreshToken(): Promise<string> {
@@ -119,7 +141,11 @@ class AuthService {
 
   // CHỈ DÙNG MỘT HÀM GETTOKEN DUY NHẤT
   getToken(): string | null {
-    return this.getStoredToken();
+    const token = this.getStoredToken();
+    console.log('🔐 getToken called - Token exists:', !!token);
+    console.log('🔐 sessionStorage authToken:', sessionStorage.getItem('authToken'));
+    console.log('🔐 globalToken:', globalToken);
+    return token;
   }
 
   getCurrentUserId(): string | null {
@@ -210,7 +236,9 @@ class AuthService {
   }
 
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    const authenticated = !!this.getToken();
+    console.log('🔐 isAuthenticated:', authenticated);
+    return authenticated;
   }
 }
 

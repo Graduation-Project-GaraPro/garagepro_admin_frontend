@@ -1,136 +1,368 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+// components/admin/branches/BasicInfoSection.tsx
+import React, { useState, useEffect, useCallback, useRef, useMemo, memo, useTransition } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
-import { CreateBranchRequest, UpdateBranchRequest } from '@/services/branch-service'
-import { useLocationData } from '@/hooks/admin/branches/useBranch'
 import { Loader2 } from 'lucide-react'
+import { LocationService, Province, Commune } from '@/services/location-service'
+
+export type BasicField =
+  | 'branchName'
+  | 'phoneNumber'
+  | 'email'
+  | 'street'
+  | 'commune'
+  | 'province'
+  | 'description'
 
 interface BasicInfoSectionProps {
-  formData: CreateBranchRequest | UpdateBranchRequest
+  branchName: string
+  phoneNumber: string
+  email: string
+  street: string
+  commune: string
+  province: string
+  description: string
   errors: Record<string, string>
-  onChange: (field: keyof (CreateBranchRequest | UpdateBranchRequest), value: string) => void
+  onChange: (field: BasicField, value: string) => void
 }
 
-export const BasicInfoSection = ({ 
-  formData, 
-  errors, 
-  onChange 
-}: BasicInfoSectionProps) => {
-  const { 
-    provinces, 
-    districts, 
-    wards, 
-    loading, 
-    error, 
-    loadDistricts, 
-    loadWards 
-  } = useLocationData()
+/* ---------- Debounce hook ---------- */
+const useDebouncedCallback = (cb: (...args: any[]) => void, delay = 250) => {
+  const t = useRef<number | null>(null)
+  const saved = useRef(cb)
+  useEffect(() => { saved.current = cb }, [cb])
 
-  const [selectedProvinceCode, setSelectedProvinceCode] = useState('')
-  const [selectedDistrictCode, setSelectedDistrictCode] = useState('')
-  const [selectedWardCode, setSelectedWardCode] = useState('')
-  
-  const initializedRef = useRef(false)
+  return useCallback((...args: any[]) => {
+    if (t.current) window.clearTimeout(t.current)
+    t.current = window.setTimeout(() => saved.current(...args), delay)
+  }, [delay])
+}
 
-  // Unified initialization logic
-  useEffect(() => {
-    if (initializedRef.current || provinces.length === 0) return
-    
-    const initializeLocationData = async () => {
-      try {
-        // Initialize province
-        if (formData.city) {
-          const province = provinces.find(p => 
-            p.name === formData.city || 
-            p.name.toLowerCase().includes(formData.city.toLowerCase())
-          )
-          
-          if (province) {
-            setSelectedProvinceCode(province.code)
-            
-            // Load and initialize district
-            const districtData = await loadDistricts(province.code)
-            
-            if (formData.district && districtData) {
-              const district = districtData.find(d => 
-                d.name === formData.district || 
-                d.name.toLowerCase().includes(formData.district.toLowerCase())
-              )
-              
-              if (district) {
-                setSelectedDistrictCode(district.code)
-                
-                // Load and initialize ward
-                const wardData = await loadWards(district.code)
-                
-                if (formData.ward && wardData) {
-                  const ward = wardData.find(w => 
-                    w.name === formData.ward || 
-                    w.name.toLowerCase().includes(formData.ward.toLowerCase())
-                  )
-                  
-                  if (ward) {
-                    setSelectedWardCode(ward.code)
-                  }
-                }
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Error initializing location data:', err)
-      } finally {
-        initializedRef.current = true
-      }
+/* ---------- Subcomponent: TEXT FIELDS (memo) ---------- */
+const TextFields = memo(function TextFields({
+  values,
+  errors,
+  onImmediate,      // gọi onBlur
+  onDebounced,      // gọi onChange(debounced)
+}: {
+  values: { branchName: string; street: string; phoneNumber: string; email: string; description: string }
+  errors: Record<string, string>
+  onImmediate: (field: string, value: string) => void
+  onDebounced: (field: string, value: string) => void
+}) {
+  const [isTyping, startTransition] = useTransition()
+
+  const onChange =
+    (field: keyof typeof values) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      const v = e.target.value
+      // update UI nhanh không block; debounce gọi parent sau
+      startTransition(() => onDebounced(field, v))
     }
 
-    initializeLocationData()
-  }, [provinces, formData.city, formData.district, formData.ward, loadDistricts, loadWards])
+  return (
+    <>
+      {/* Branch Name */}
+      <div className="space-y-2">
+        <Label htmlFor="branchName">Branch Name *</Label>
+        <Input
+          id="branchName"
+          defaultValue={values.branchName}
+          onChange={onChange('branchName')}
+          onBlur={(e) => onImmediate('branchName', e.target.value)}
+          placeholder="e.g., Central Branch"
+          className={errors.branchName ? 'border-red-500' : ''}
+        />
+        {errors.branchName && <p className="text-sm text-red-500">{errors.branchName}</p>}
+      </div>
 
-  // Handle province change
-  const handleProvinceChange = useCallback(async (provinceCode: string) => {
-    const province = provinces.find(p => p.code === provinceCode)
-    if (!province) return
+      {/* Street */}
+      
 
-    setSelectedProvinceCode(provinceCode)
-    setSelectedDistrictCode('')
-    setSelectedWardCode('')
-    
-    onChange('city', province.name)
-    onChange('district', '')
-    onChange('ward', '')
-    
-    await loadDistricts(provinceCode)
-  }, [provinces, onChange, loadDistricts])
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Phone */}
+        <div className="space-y-2">
+          <Label htmlFor="phoneNumber">Phone Number *</Label>
+          <Input
+            id="phoneNumber"
+            defaultValue={values.phoneNumber}
+            onChange={onChange('phoneNumber')}
+            onBlur={(e) => onImmediate('phoneNumber', e.target.value)}
+            placeholder="0123456789"
+            className={errors.phoneNumber ? 'border-red-500' : ''}
+          />
+          {errors.phoneNumber && <p className="text-sm text-red-500">{errors.phoneNumber}</p>}
+        </div>
 
-  // Handle district change
-  const handleDistrictChange = useCallback(async (districtCode: string) => {
-    const district = districts.find(d => d.code === districtCode)
-    if (!district) return
+        {/* Email */}
+        <div className="space-y-2">
+          <Label htmlFor="email">Email *</Label>
+          <Input
+            id="email"
+            type="email"
+            defaultValue={values.email}
+            onChange={onChange('email')}
+            onBlur={(e) => onImmediate('email', e.target.value)}
+            placeholder="branch@garage.com"
+            className={errors.email ? 'border-red-500' : ''}
+          />
+          {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
+        </div>
+      </div>
 
-    setSelectedDistrictCode(districtCode)
-    setSelectedWardCode('')
-    
-    onChange('district', district.name)
-    onChange('ward', '')
-    
-    await loadWards(districtCode)
-  }, [districts, onChange, loadWards])
+      {/* Description */}
+      <div className="space-y-2">
+        <Label htmlFor="description">Description</Label>
+        <Textarea
+          id="description"
+          defaultValue={values.description}
+          onChange={(e) => onChange('description')(e as any)}
+          onBlur={(e) => onImmediate('description', (e.target as HTMLTextAreaElement).value)}
+          placeholder="Describe this branch, its services, and any special features..."
+          rows={3}
+        />
+        <p className="text-sm text-muted-foreground">
+          Optional: Provide details about this branch location and services
+        </p>
+      </div>
 
-  // Handle ward change
-  const handleWardChange = useCallback((wardCode: string) => {
-    const ward = wards.find(w => w.code === wardCode)
-    if (!ward) return
+      <div className="space-y-2">
+        <Label htmlFor="street">Street Address *</Label>
+        <Input
+          id="street"
+          defaultValue={values.street}
+          onChange={onChange('street')}
+          onBlur={(e) => onImmediate('street', e.target.value)}
+          placeholder="Số nhà, tên đường"
+          className={errors.street ? 'border-red-500' : ''}
+        />
+        {errors.street && <p className="text-sm text-red-500">{errors.street}</p>}
+      </div>
 
-    setSelectedWardCode(wardCode)
-    onChange('ward', ward.name)
-  }, [wards, onChange])
+      {/* {isTyping && <div className="text-xs text-muted-foreground">Updating…</div>} */}
+    </>
+  )
+})
 
-  // Show loading during initialization
-  if (!initializedRef.current && provinces.length > 0 && formData.city) {
+/* ---------- Subcomponent: LOCATION (memo) ---------- */
+const LocationFields = memo(function LocationFields({
+  provinces,
+  communes,
+  selectedProvinceCode,
+  selectedCommuneCode,
+  loadingProvinces,
+  loadingCommunes,
+  errors,
+  onProvinceChange,
+  onCommuneChange,
+}: {
+  provinces: Province[]
+  communes: Commune[]
+  selectedProvinceCode: string
+  selectedCommuneCode: string
+  loadingProvinces: boolean
+  loadingCommunes: boolean
+  errors: Record<string, string>
+  onProvinceChange: (provinceCode: string) => void
+  onCommuneChange: (communeCode: string) => void
+}) {
+  // Memo các option để không map lại mỗi lần gõ ở text
+  const provinceOptions = useMemo(
+    () =>
+      provinces.map((p) => (
+        <SelectItem key={p.idProvince} value={p.idProvince}>
+          {p.name}
+        </SelectItem>
+      )),
+    [provinces]
+  )
+
+  const communeOptions = useMemo(
+    () =>
+      communes.map((c) => (
+        <SelectItem key={c.idCommune} value={c.idCommune}>
+          {c.name}
+        </SelectItem>
+      )),
+    [communes]
+  )
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Province */}
+      <div className="space-y-2">
+        <Label htmlFor="province">Province *</Label>
+        <Select value={selectedProvinceCode} onValueChange={onProvinceChange} disabled={loadingProvinces}>
+          <SelectTrigger className={errors.province ? 'border-red-500' : ''}>
+            {loadingProvinces && provinces.length === 0 ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading...</span>
+              </div>
+            ) : (
+              <SelectValue placeholder="Select Province" />
+            )}
+          </SelectTrigger>
+          <SelectContent>{provinceOptions}</SelectContent>
+        </Select>
+        {errors.province && <p className="text-sm text-red-500">{errors.province}</p>}
+      </div>
+
+      {/* Commune */}
+      <div className="space-y-2">
+        <Label htmlFor="commune">Commune *</Label>
+        <Select
+          value={selectedCommuneCode}
+          onValueChange={onCommuneChange}
+          disabled={!selectedProvinceCode || loadingCommunes}
+        >
+          <SelectTrigger className={errors.commune ? 'border-red-500' : ''}>
+            {loadingCommunes && selectedProvinceCode ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading...</span>
+              </div>
+            ) : (
+              <SelectValue placeholder={selectedProvinceCode ? 'Select Commune' : 'Select Province First'} />
+            )}
+          </SelectTrigger>
+          <SelectContent>{communeOptions}</SelectContent>
+        </Select>
+        {errors.commune && <p className="text-sm text-red-500">{errors.commune}</p>}
+      </div>
+    </div>
+  )
+})
+
+/* ---------- Main ---------- */
+function BasicInfoSectionImpl({
+  branchName,
+  phoneNumber,
+  email,
+  street,
+  commune,
+  province,
+  description,
+  errors,
+  onChange,
+}: BasicInfoSectionProps) {
+  const serviceRef = useRef(new LocationService())
+
+  // location state
+  const [provinces, setProvinces] = useState<Province[]>([])
+  const [communes, setCommunes] = useState<Commune[]>([])
+  const [loadingProvinces, setLoadingProvinces] = useState(false)
+  const [loadingCommunes, setLoadingCommunes] = useState(false)
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState('')
+  const [selectedCommuneCode, setSelectedCommuneCode] = useState('')
+  const initializedRef = useRef(false)
+
+  // load provinces once
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      setLoadingProvinces(true)
+      try {
+        const data = await serviceRef.current.getProvinces()
+        if (alive) setProvinces(data)
+      } catch (e) {
+        console.error('Failed to load provinces:', e)
+      } finally {
+        if (alive) setLoadingProvinces(false)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // initialize from props province/comune once data ready
+  useEffect(() => {
+    if (initializedRef.current || provinces.length === 0) return
+
+    ;(async () => {
+      if (!province) {
+        initializedRef.current = true
+        return
+      }
+      const foundProvince = provinces.find(
+        (p) => p.name === province || p.name.toLowerCase().includes(province.toLowerCase())
+      )
+      if (!foundProvince) {
+        initializedRef.current = true
+        return
+      }
+
+      setSelectedProvinceCode(foundProvince.idProvince)
+      setLoadingCommunes(true)
+      try {
+        const communesData = await serviceRef.current.getCommunes(foundProvince.idProvince)
+        setCommunes(communesData)
+        if (commune) {
+          const foundCommune = communesData.find(
+            (c) => c.name === commune || c.name.toLowerCase().includes(commune.toLowerCase())
+          )
+          if (foundCommune) setSelectedCommuneCode(foundCommune.idCommune)
+        }
+      } catch (e) {
+        console.error('Failed to load communes:', e)
+      } finally {
+        setLoadingCommunes(false)
+        initializedRef.current = true
+      }
+    })()
+  }, [provinces, province, commune])
+
+  /* province change */
+  const handleProvinceChange = useCallback(
+    async (provinceCode: string) => {
+      if (provinceCode === selectedProvinceCode) return
+      const foundProvince = provinces.find((p) => p.idProvince === provinceCode)
+      if (!foundProvince) return
+
+      setSelectedProvinceCode(provinceCode)
+      setSelectedCommuneCode('')
+      if (province !== foundProvince.name) onChange('province', foundProvince.name)
+      if (commune !== '') onChange('commune', '')
+
+      setLoadingCommunes(true)
+      try {
+        const communesData = await serviceRef.current.getCommunes(provinceCode)
+        setCommunes(communesData)
+      } catch (e) {
+        console.error('Failed to load communes:', e)
+      } finally {
+        setLoadingCommunes(false)
+      }
+    },
+    [provinces, selectedProvinceCode, onChange, province, commune]
+  )
+
+  /* commune change */
+  const handleCommuneChange = useCallback(
+    (communeCode: string) => {
+      if (communeCode === selectedCommuneCode) return
+      const foundCommune = communes.find((c) => c.idCommune === communeCode)
+      if (!foundCommune) return
+      setSelectedCommuneCode(communeCode)
+      if (commune !== foundCommune.name) onChange('commune', foundCommune.name)
+    },
+    [communes, selectedCommuneCode, commune, onChange]
+  )
+
+  /* debounce push to parent for text fields */
+  const debouncedPush = useDebouncedCallback((field: string, value: string) => {
+    onChange(field, value)
+  }, 250)
+
+  const onImmediate = useCallback((field: string, value: string) => onChange(field, value), [onChange])
+  const onDebounced = useCallback((field: string, value: string) => debouncedPush(field, value), [debouncedPush])
+
+  // Skeleton during first init with province prop
+  if (!initializedRef.current && provinces.length > 0 && province) {
     return (
       <Card>
         <CardHeader>
@@ -151,174 +383,56 @@ export const BasicInfoSection = ({
         <CardTitle>Basic Information</CardTitle>
         <CardDescription>Provide the essential details for your branch</CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-4">
-        {/* Branch Name */}
-        <div className="space-y-2">
-          <Label htmlFor="branchName">Branch Name *</Label>
-          <Input
-            id="branchName"
-            value={formData.branchName}
-            onChange={(e) => onChange('branchName', e.target.value)}
-            placeholder="e.g., Central Branch"
-            className={errors.branchName ? 'border-red-500' : ''}
-          />
-          {errors.branchName && <p className="text-sm text-red-500">{errors.branchName}</p>}
-        </div>
+        {/* TEXT FIELDS — tách riêng để gõ không làm render lại options */}
+        <TextFields
+          values={{ branchName, street, phoneNumber, email, description }}
+          errors={{
+            branchName: errors.branchName,
+            street: errors.street,
+            phoneNumber: errors.phoneNumber,
+            email: errors.email,
+            description: errors.description,
+          }}
+          onImmediate={onImmediate}
+          onDebounced={onDebounced}
+        />
 
-        {/* Address Details */}
-        <div className="space-y-2">
-          <Label htmlFor="street">Street Address *</Label>
-          <Input
-            id="street"
-            value={formData.street}
-            onChange={(e) => onChange('street', e.target.value)}
-            placeholder="Số nhà, tên đường"
-            className={errors.street ? 'border-red-500' : ''}
-          />
-          {errors.street && <p className="text-sm text-red-500">{errors.street}</p>}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Province/City */}
-          <div className="space-y-2">
-            <Label htmlFor="city">Province/City *</Label>
-            <Select 
-              value={selectedProvinceCode}
-              onValueChange={handleProvinceChange}
-              disabled={loading}
-            >
-              <SelectTrigger className={errors.city ? 'border-red-500' : ''}>
-                {loading && provinces.length === 0 ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  <SelectValue placeholder="Select Province" />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {provinces.map((province) => (
-                  <SelectItem key={province.code} value={province.code}>
-                    {province.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.city && <p className="text-sm text-red-500">{errors.city}</p>}
-          </div>
-
-          {/* District/Quận */}
-          <div className="space-y-2">
-            <Label htmlFor="district">District/Quận *</Label>
-            <Select 
-              value={selectedDistrictCode}
-              onValueChange={handleDistrictChange}
-              disabled={!selectedProvinceCode || loading}
-            >
-              <SelectTrigger className={errors.district ? 'border-red-500' : ''}>
-                {loading && selectedProvinceCode ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  <SelectValue placeholder={selectedProvinceCode ? "Select District" : "Select Province First"} />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {districts.map((district) => (
-                  <SelectItem key={district.code} value={district.code}>
-                    {district.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.district && <p className="text-sm text-red-500">{errors.district}</p>}
-          </div>
-
-          {/* Ward/Phường */}
-          <div className="space-y-2">
-            <Label htmlFor="ward">Ward/Phường *</Label>
-            <Select 
-              value={selectedWardCode}
-              onValueChange={handleWardChange}
-              disabled={!selectedDistrictCode || loading}
-            >
-              <SelectTrigger className={errors.ward ? 'border-red-500' : ''}>
-                {loading && selectedDistrictCode ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  <SelectValue placeholder={selectedDistrictCode ? "Select Ward" : "Select District First"} />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {wards.map((ward) => (
-                  <SelectItem key={ward.code} value={ward.code}>
-                    {ward.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.ward && <p className="text-sm text-red-500">{errors.ward}</p>}
-          </div>
-        </div>
-
-        {/* Contact Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="phoneNumber">Phone Number *</Label>
-            <Input
-              id="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={(e) => onChange('phoneNumber', e.target.value)}
-              placeholder="0123456789"
-              className={errors.phoneNumber ? 'border-red-500' : ''}
-            />
-            {errors.phoneNumber && <p className="text-sm text-red-500">{errors.phoneNumber}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email *</Label>
-            <Input
-              id="email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => onChange('email', e.target.value)}
-              placeholder="branch@garage.com"
-              className={errors.email ? 'border-red-500' : ''}
-            />
-            {errors.email && <p className="text-sm text-red-500">{errors.email}</p>}
-          </div>
-        </div>
-
-        {/* Description */}
-        <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            value={formData.description}
-            onChange={(e) => onChange('description', e.target.value)}
-            placeholder="Describe this branch, its services, and any special features..."
-            rows={3}
-          />
-          <p className="text-sm text-muted-foreground">
-            Optional: Provide details about this branch location and services
-          </p>
-        </div>
-
-        {/* Error message */}
-        {error && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800">
-              {error}. Please refresh the page to try again.
-            </p>
-          </div>
-        )}
+        {/* LOCATION — render nặng được tách và memo */}
+        <LocationFields
+          provinces={provinces}
+          communes={communes}
+          selectedProvinceCode={selectedProvinceCode}
+          selectedCommuneCode={selectedCommuneCode}
+          loadingProvinces={loadingProvinces}
+          loadingCommunes={loadingCommunes}
+          errors={{ province: errors.province, commune: errors.commune }}
+          onProvinceChange={handleProvinceChange}
+          onCommuneChange={handleCommuneChange}
+        />
       </CardContent>
     </Card>
   )
 }
+
+/* ---------- Memo comparator ---------- */
+export const BasicInfoSection = memo(
+  BasicInfoSectionImpl,
+  (prev, next) =>
+    prev.branchName === next.branchName &&
+    prev.phoneNumber === next.phoneNumber &&
+    prev.email === next.email &&
+    prev.street === next.street &&
+    prev.commune === next.commune &&
+    prev.province === next.province &&
+    prev.description === next.description &&
+    prev.errors.branchName === next.errors.branchName &&
+    prev.errors.phoneNumber === next.errors.phoneNumber &&
+    prev.errors.email === next.errors.email &&
+    prev.errors.street === next.errors.street &&
+    prev.errors.commune === next.errors.commune &&
+    prev.errors.province === next.errors.province &&
+    prev.errors.description === next.errors.description &&
+    prev.onChange === next.onChange
+)

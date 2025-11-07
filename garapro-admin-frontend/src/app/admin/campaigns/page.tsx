@@ -1,234 +1,338 @@
-'use client'
+"use client";
 
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Edit, Trash2, Eye, BarChart3, Download, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { toast } from 'sonner'
-import { campaignService, PromotionalCampaign } from '@/services/campaign-service'
-import Link from 'next/link'
+import { useState, useEffect, useCallback } from "react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Eye,
+  BarChart3,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Pause,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { toast } from "sonner";
+import {
+  campaignService,
+  PromotionalCampaign,
+} from "@/services/campaign-service";
+import Link from "next/link";
 
 export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = useState<PromotionalCampaign[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isExporting, setIsExporting] = useState(false)
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+  const [campaigns, setCampaigns] = useState<PromotionalCampaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
     totalCount: 0,
-    totalPages: 0
-  })
+    totalPages: 0,
+  });
 
-  const loadCampaigns = useCallback(async (page: number = pagination.page, limit: number = pagination.limit) => {
-    try {
-      setLoading(true)
-      const response = await campaignService.getCampaigns({
-        search: searchTerm || undefined,
-        type: typeFilter === 'all' ? undefined : typeFilter,
-        isActive: statusFilter === 'all' ? undefined : statusFilter === 'active' ? true : false,
-        page: page,
-        limit: limit
-      })
-      setCampaigns(response.campaigns)
-      setPagination(prev => ({
-        ...prev,
-        page: response.pagination.page,
-        limit: response.pagination.limit,
-        totalCount: response.pagination.totalCount,
-        totalPages: response.pagination.totalPages
-      }))
-    } catch (error) {
-      console.error('Failed to load campaigns:', error)
-      toast.error('Failed to load campaigns')
-    } finally {
-      setLoading(false)
-    }
-  }, [searchTerm, typeFilter, statusFilter])
+  const loadCampaigns = useCallback(
+    async (
+      page: number = pagination.page,
+      limit: number = pagination.limit
+    ) => {
+      try {
+        setLoading(true);
+        const response = await campaignService.getCampaigns({
+          search: searchTerm || undefined,
+          type: typeFilter === "all" ? undefined : typeFilter,
+          isActive:
+            statusFilter === "all"
+              ? undefined
+              : statusFilter === "active"
+              ? true
+              : false,
+          page: page,
+          limit: limit,
+        });
+        setCampaigns(response.campaigns);
+        setPagination((prev) => ({
+          ...prev,
+          page: response.pagination.page,
+          limit: response.pagination.limit,
+          totalCount: response.pagination.totalCount,
+          totalPages: response.pagination.totalPages,
+        }));
+      } catch (error) {
+        console.error("Failed to load campaigns:", error);
+        toast.error("Failed to load campaigns");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [searchTerm, typeFilter, statusFilter]
+  );
 
   useEffect(() => {
-    loadCampaigns(1, pagination.limit) // Reset to page 1 when filters change
-  }, [loadCampaigns])
+    loadCampaigns(1, pagination.limit); // Reset to page 1 when filters change
+  }, [loadCampaigns]);
 
   const handleSearch = () => {
-    loadCampaigns(1, pagination.limit) // Reset to page 1 when searching
-  }
+    loadCampaigns(1, pagination.limit); // Reset to page 1 when searching
+  };
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
-      loadCampaigns(newPage, pagination.limit)
+      loadCampaigns(newPage, pagination.limit);
     }
-  }
+  };
 
   const handleLimitChange = (newLimit: number) => {
-    setPagination(prev => ({ ...prev, limit: newLimit }))
-    loadCampaigns(1, newLimit) // Reset to page 1 when changing limit
-  }
+    setPagination((prev) => ({ ...prev, limit: newLimit }));
+    loadCampaigns(1, newLimit); // Reset to page 1 when changing limit
+  };
 
-  const handleStatusToggle = async (campaignId: string, currentStatus: boolean) => {
+  const handleStatusToggle = async (
+    campaignId: string,
+    currentStatus: boolean
+  ) => {
     try {
-      const promise = currentStatus 
+      const promise = currentStatus
         ? campaignService.deactivateCampaign(campaignId)
-        : campaignService.activateCampaign(campaignId)
-      
-      toast.promise(promise, {
-        loading: `${currentStatus ? 'Deactivating' : 'Activating'} campaign...`,
-        success: `Campaign ${currentStatus ? 'deactivated' : 'activated'} successfully`,
-       
-      })
+        : campaignService.activateCampaign(campaignId);
 
-      await promise
-      loadCampaigns(pagination.page, pagination.limit)
+      toast.promise(promise, {
+        loading: `${currentStatus ? "Deactivating" : "Activating"} campaign...`,
+        success: `Campaign ${
+          currentStatus ? "deactivated" : "activated"
+        } successfully`,
+      });
+
+      await promise;
+      loadCampaigns(pagination.page, pagination.limit);
     } catch (error) {
-      toast.error('Failed to delete campaign', {
-        description: error.message || "Please try again later"
-      })
+      toast.error("Failed to delete campaign", {
+        description: error.message || "Please try again later",
+      });
     }
-  }
+  };
 
   const handleDelete = async (campaignId: string) => {
-    setConfirmDeleteId(campaignId)
-  }
+    setConfirmDeleteId(campaignId);
+  };
 
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  }
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   const toggleSelectAll = () => {
-    const allIds = campaigns.map(c => c.id)
-    const allSelected = allIds.every(id => selectedIds.includes(id))
-    setSelectedIds(allSelected ? [] : allIds)
-  }
+    const allIds = campaigns.map((c) => c.id);
+    const allSelected = allIds.every((id) => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : allIds);
+  };
 
   const bulkActivate = async () => {
-    if (selectedIds.length === 0) return
+    if (selectedIds.length === 0) return;
     try {
-      await campaignService.bulkActivateCampaigns(selectedIds)
-      toast.success(`Activated ${selectedIds.length} campaign${selectedIds.length > 1 ? 's' : ''}`)
-      setSelectedIds([])
-      loadCampaigns(pagination.page, pagination.limit)
+      await campaignService.bulkActivateCampaigns(selectedIds);
+      toast.success(
+        `Activated ${selectedIds.length} campaign${
+          selectedIds.length > 1 ? "s" : ""
+        }`
+      );
+      setSelectedIds([]);
+      loadCampaigns(pagination.page, pagination.limit);
     } catch (e: any) {
-      console.error('Bulk activate failed:', e)
+      console.error("Bulk activate failed:", e);
       toast.error("Failed to activate selected campaigns", {
-        description: e.message || "Please try again later"
-      })
+        description: e.message || "Please try again later",
+      });
     }
-}
+  };
 
-    const bulkDeactivate = async () => {
-    if (selectedIds.length === 0) return
+  const bulkDeactivate = async () => {
+    if (selectedIds.length === 0) return;
     try {
-      await campaignService.bulkDeactivateCampaigns(selectedIds)
-      toast.success(`Deactivated ${selectedIds.length} campaign${selectedIds.length > 1 ? 's' : ''}`)
-      setSelectedIds([])
-      loadCampaigns(pagination.page, pagination.limit)
+      await campaignService.bulkDeactivateCampaigns(selectedIds);
+      toast.success(
+        `Deactivated ${selectedIds.length} campaign${
+          selectedIds.length > 1 ? "s" : ""
+        }`
+      );
+      setSelectedIds([]);
+      loadCampaigns(pagination.page, pagination.limit);
     } catch (e: any) {
-      console.error('Bulk deactivate failed:', e)
+      console.error("Bulk deactivate failed:", e);
       toast.error("Failed to deactivate selected campaigns", {
-        description: e.message || "Please try again later"
-      })
+        description: e.message || "Please try again later",
+      });
     }
-  }
+  };
 
-    const bulkDelete = async () => {
-    if (selectedIds.length === 0) return
-    
+  const bulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
     try {
-      await campaignService.bulkDeleteCampaigns(selectedIds)
-      toast.success(`Deleted ${selectedIds.length} campaign${selectedIds.length > 1 ? 's' : ''}`)
-      setSelectedIds([])
-      setConfirmBulkDelete(false)
-      loadCampaigns(pagination.page, pagination.limit)
+      await campaignService.bulkDeleteCampaigns(selectedIds);
+      toast.success(
+        `Deleted ${selectedIds.length} campaign${
+          selectedIds.length > 1 ? "s" : ""
+        }`
+      );
+      setSelectedIds([]);
+      setConfirmBulkDelete(false);
+      loadCampaigns(pagination.page, pagination.limit);
     } catch (e: any) {
-      console.error('Bulk delete failed:', e)
+      console.error("Bulk delete failed:", e);
       toast.error("Failed to delete selected campaigns", {
-        description: e.message || "Please try again later"
-      })
+        description: e.message || "Please try again later",
+      });
     }
-  }
+  };
 
   const getStatusBadge = (isActive: boolean) => {
     return isActive ? (
       <Badge className="bg-green-100 text-green-800">Active</Badge>
     ) : (
       <Badge variant="secondary">Inactive</Badge>
-    )
-  }
+    );
+  };
 
   const getTypeBadge = (type: string) => {
     const typeColors = {
-      discount: 'bg-blue-100 text-blue-800',
-      seasonal: 'bg-orange-100 text-orange-800',
-      loyalty: 'bg-purple-100 text-purple-800',
-    }
+      discount: "bg-blue-100 text-blue-800",
+      seasonal: "bg-orange-100 text-orange-800",
+      loyalty: "bg-purple-100 text-purple-800",
+    };
     return (
-      <Badge className={typeColors[type as keyof typeof typeColors] || 'bg-gray-100 text-gray-800'}>
+      <Badge
+        className={
+          typeColors[type as keyof typeof typeColors] ||
+          "bg-gray-100 text-gray-800"
+        }
+      >
         {type.charAt(0).toUpperCase() + type.slice(1)}
       </Badge>
-    )
-  }
+    );
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString()
-  }
+    return new Date(dateString).toLocaleDateString();
+  };
 
   const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  }).format(amount)
-}
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(amount);
+  };
 
-
-  const handleExport = async (format: 'csv' | 'excel') => {
+  const handleExport = async (format: "csv" | "excel") => {
     try {
-      setIsExporting(true)
-      const blob = await campaignService.exportCampaigns({
-        search: searchTerm || undefined,
-        type: typeFilter === 'all' ? undefined : typeFilter,
-        isActive: statusFilter === 'all' ? undefined : statusFilter === 'active' ? true : false,
-      }, format)
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `campaigns-${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'xlsx'}`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-      toast.success('Export completed successfully')
+      setIsExporting(true);
+      const blob = await campaignService.exportCampaigns(
+        {
+          search: searchTerm || undefined,
+          type: typeFilter === "all" ? undefined : typeFilter,
+          isActive:
+            statusFilter === "all"
+              ? undefined
+              : statusFilter === "active"
+              ? true
+              : false,
+        },
+        format
+      );
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `campaigns-${new Date().toISOString().split("T")[0]}.${
+        format === "csv" ? "csv" : "xlsx"
+      }`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success("Export completed successfully");
     } catch (error) {
-      console.error('Export failed', error)
-      toast.error('Failed to export campaigns')
+      console.error("Export failed", error);
+      toast.error("Failed to export campaigns");
     } finally {
-      setIsExporting(false)
+      setIsExporting(false);
     }
-  }
+  };
+
+  const isUnlimited = (limit?: number | null) => !limit || limit === 2147483647; // sentinel cho "unlimited" nếu bạn đang dùng
+
+  const renderDiscountInfo = (campaign: any) => {
+    const isPercent = campaign.discountType === "percentage";
+    const topLine = isPercent
+      ? `${campaign.discountValue}% off` +
+        (campaign.maximumDiscount && campaign.maximumDiscount > 0
+          ? ` (cap ${formatCurrency(campaign.maximumDiscount)})`
+          : " (no cap)")
+      : `${formatCurrency(campaign.discountValue)} off`;
+
+    const bottomLine =
+      campaign.minimumOrderValue && campaign.minimumOrderValue > 0
+        ? `Min order: ${formatCurrency(campaign.minimumOrderValue)}`
+        : "No minimum order";
+
+    return { topLine, bottomLine };
+  };
+
+  const renderUsage = (usedCount?: number, usageLimit?: number | null) => {
+    const used = usedCount ?? 0;
+    if (isUnlimited(usageLimit)) return `${used} used • Unlimited`;
+    return `${used} of ${usageLimit} used`;
+  };
 
   // Pagination controls component
   const PaginationControls = () => {
-    const { page, totalPages, totalCount, limit } = pagination
-    const startItem = (page - 1) * limit + 1
-    const endItem = Math.min(page * limit, totalCount)
+    const { page, totalPages, totalCount, limit } = pagination;
+    const startItem = (page - 1) * limit + 1;
+    const endItem = Math.min(page * limit, totalCount);
 
-    if (totalCount === 0) return null
+    if (totalCount === 0) return null;
 
     return (
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
         <div className="flex items-center gap-4">
           {/* Items per page selector */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">Show:</span>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              Show:
+            </span>
             <Select
               value={limit.toString()}
               onValueChange={(value) => handleLimitChange(parseInt(value))}
@@ -243,7 +347,9 @@ export default function CampaignsPage() {
                 <SelectItem value="50">50</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-sm text-muted-foreground whitespace-nowrap">per page</span>
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              per page
+            </span>
           </div>
 
           {/* Showing X to Y of Z items */}
@@ -263,18 +369,18 @@ export default function CampaignsPage() {
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          
+
           {/* Page numbers */}
           {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-            let pageNum
+            let pageNum;
             if (totalPages <= 5) {
-              pageNum = i + 1
+              pageNum = i + 1;
             } else if (page <= 3) {
-              pageNum = i + 1
+              pageNum = i + 1;
             } else if (page >= totalPages - 2) {
-              pageNum = totalPages - 4 + i
+              pageNum = totalPages - 4 + i;
             } else {
-              pageNum = page - 2 + i
+              pageNum = page - 2 + i;
             }
 
             return (
@@ -287,7 +393,7 @@ export default function CampaignsPage() {
               >
                 {pageNum}
               </Button>
-            )
+            );
           })}
 
           {totalPages > 5 && page < totalPages - 2 && (
@@ -316,37 +422,53 @@ export default function CampaignsPage() {
           </Button>
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Promotional Campaigns</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Promotional Campaigns
+          </h1>
           <p className="text-muted-foreground">
-            Create and manage discount campaigns, seasonal offers, and loyalty bonuses
+            Create and manage discount campaigns, seasonal offers, and loyalty
+            bonuses
           </p>
         </div>
         <div className="flex items-center gap-2">
           {selectedIds.length > 0 && (
             <>
               <Button variant="outline" onClick={bulkActivate}>
-                <Play className="mr-1 h-4 w-4" /> Activate ({selectedIds.length})
+                <Play className="mr-1 h-4 w-4" /> Activate ({selectedIds.length}
+                )
               </Button>
               <Button variant="outline" onClick={bulkDeactivate}>
-                <Pause className="mr-1 h-4 w-4" /> Deactivate ({selectedIds.length})
+                <Pause className="mr-1 h-4 w-4" /> Deactivate (
+                {selectedIds.length})
               </Button>
-              <Button variant="destructive" onClick={() => setConfirmBulkDelete(true)}>
+              <Button
+                variant="destructive"
+                onClick={() => setConfirmBulkDelete(true)}
+              >
                 Delete ({selectedIds.length})
               </Button>
-                <div className="w-px h-6 bg-gray-200 mx-1" />
+              <div className="w-px h-6 bg-gray-200 mx-1" />
             </>
           )}
-          <Button variant="outline" onClick={() => handleExport('csv')} disabled={isExporting}>
+          <Button
+            variant="outline"
+            onClick={() => handleExport("csv")}
+            disabled={isExporting}
+          >
             <Download className="mr-2 h-4 w-4" /> CSV
           </Button>
-          <Button variant="outline" onClick={() => handleExport('excel')} disabled={isExporting}>
+          <Button
+            variant="outline"
+            onClick={() => handleExport("excel")}
+            disabled={isExporting}
+          >
             <Download className="mr-2 h-4 w-4" /> Excel
           </Button>
           <Link href="/admin/campaigns/create">
@@ -370,7 +492,7 @@ export default function CampaignsPage() {
                 placeholder="Search campaigns..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
               />
             </div>
             <div className="flex gap-4">
@@ -381,7 +503,6 @@ export default function CampaignsPage() {
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="discount">Discount</SelectItem>
-                  
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -416,7 +537,10 @@ export default function CampaignsPage() {
             <div className="text-center py-8">Loading campaigns...</div>
           ) : campaigns.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No campaigns found. {searchTerm || typeFilter !== 'all' || statusFilter !== 'all' ? 'Try adjusting your filters.' : 'Create your first campaign to get started.'}
+              No campaigns found.{" "}
+              {searchTerm || typeFilter !== "all" || statusFilter !== "all"
+                ? "Try adjusting your filters."
+                : "Create your first campaign to get started."}
             </div>
           ) : (
             <>
@@ -424,10 +548,13 @@ export default function CampaignsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>
-                      <input 
-                        type="checkbox" 
-                        onChange={toggleSelectAll} 
-                        checked={campaigns.length > 0 && campaigns.every(c => selectedIds.includes(c.id))} 
+                      <input
+                        type="checkbox"
+                        onChange={toggleSelectAll}
+                        checked={
+                          campaigns.length > 0 &&
+                          campaigns.every((c) => selectedIds.includes(c.id))
+                        }
                       />
                     </TableHead>
                     <TableHead>Campaign Name</TableHead>
@@ -443,10 +570,10 @@ export default function CampaignsPage() {
                   {campaigns.map((campaign) => (
                     <TableRow key={campaign.id}>
                       <TableCell>
-                        <input 
-                          type="checkbox" 
-                          checked={selectedIds.includes(campaign.id)} 
-                          onChange={() => toggleSelect(campaign.id)} 
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(campaign.id)}
+                          onChange={() => toggleSelect(campaign.id)}
                         />
                       </TableCell>
                       <TableCell>
@@ -459,30 +586,31 @@ export default function CampaignsPage() {
                       </TableCell>
                       <TableCell>{getTypeBadge(campaign.type)}</TableCell>
                       <TableCell>
-                        <div className="font-medium">
-                          {campaign.discountType === 'percentage' && `${campaign.discountValue}%`}
-                          {campaign.discountType === 'fixed' && formatCurrency(campaign.discountValue)}
-                          {campaign.discountType === 'free_service' && 'Free Service'}
-                        </div>
-                        {campaign.minimumOrderValue && (
-                          <div className="text-sm text-muted-foreground">
-                            Min: {formatCurrency(campaign.minimumOrderValue)}
-                          </div>
-                        )}
+                        {(() => {
+                          const { topLine, bottomLine } =
+                            renderDiscountInfo(campaign);
+                          return (
+                            <>
+                              <div className="font-medium">{topLine}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {bottomLine}
+                              </div>
+                            </>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
                           <div>{formatDate(campaign.startDate)}</div>
-                          <div className="text-muted-foreground">to {formatDate(campaign.endDate)}</div>
+                          <div className="text-muted-foreground">
+                            to {formatDate(campaign.endDate)}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(campaign.isActive)}</TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          <div>{campaign.usedCount}</div>
-                          {campaign.usageLimit && campaign.usageLimit !== 2147483647 && (
-                            <div className="text-muted-foreground">/ {campaign.usageLimit}</div>
-                          )}
+                          {renderUsage(campaign.usedCount, campaign.usageLimit)}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -497,7 +625,9 @@ export default function CampaignsPage() {
                               <Edit className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Link href={`/admin/campaigns/${campaign.id}/analytics`}>
+                          <Link
+                            href={`/admin/campaigns/${campaign.id}/analytics`}
+                          >
                             <Button variant="ghost" size="sm">
                               <BarChart3 className="h-4 w-4" />
                             </Button>
@@ -505,11 +635,18 @@ export default function CampaignsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleStatusToggle(campaign.id, campaign.isActive)}
+                            onClick={() =>
+                              handleStatusToggle(campaign.id, campaign.isActive)
+                            }
                           >
-                            {campaign.isActive ? 'Deactivate' : 'Activate'}
+                            {campaign.isActive ? "Deactivate" : "Activate"}
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(campaign.id)} className="text-red-600 hover:text-red-700">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(campaign.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -518,7 +655,7 @@ export default function CampaignsPage() {
                   ))}
                 </TableBody>
               </Table>
-              
+
               {/* Pagination Controls */}
               <PaginationControls />
             </>
@@ -526,59 +663,68 @@ export default function CampaignsPage() {
         </CardContent>
       </Card>
 
-
-
-
-          {/* Bulk Delete Confirmation Modal */}
-          {confirmBulkDelete && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
-                <h3 className="text-lg font-semibold mb-2">Delete Campaigns</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Are you sure you want to delete {selectedIds.length} campaign{selectedIds.length > 1 ? 's' : ''}? This action cannot be undone.
-                </p>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setConfirmBulkDelete(false)}>
-                    Cancel
-                  </Button>
-                  <Button variant="destructive" onClick={bulkDelete}>
-                    Delete {selectedIds.length}
-                  </Button>
-                </div>
-              </div>
+      {/* Bulk Delete Confirmation Modal */}
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+            <h3 className="text-lg font-semibold mb-2">Delete Campaigns</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to delete {selectedIds.length} campaign
+              {selectedIds.length > 1 ? "s" : ""}? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setConfirmBulkDelete(false)}
+              >
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={bulkDelete}>
+                Delete {selectedIds.length}
+              </Button>
             </div>
-          )}
+          </div>
+        </div>
+      )}
 
       {/* Confirm Delete Modal */}
       {confirmDeleteId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
             <h3 className="text-lg font-semibold mb-2">Delete Campaign</h3>
-            <p className="text-sm text-muted-foreground mb-4">Are you sure you want to delete this campaign? This action cannot be undone.</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Are you sure you want to delete this campaign? This action cannot
+              be undone.
+            </p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
               <Button
-                  variant="destructive"
-                  onClick={async () => {
-                    try {
-                      await campaignService.deleteCampaign(confirmDeleteId)
-                      setConfirmDeleteId(null)
-                      toast.success('Campaign deleted successfully')
-                      loadCampaigns(pagination.page, pagination.limit)
-                    } catch (error: any) {
-                      console.error('Delete failed:', error)
-                      toast.error('Failed to delete campaign', {
-                        description: error.message || "Please try again later"
-                      })
-                    }
-                  }}
-                >
-                  Delete
-                </Button>
+                variant="outline"
+                onClick={() => setConfirmDeleteId(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  try {
+                    await campaignService.deleteCampaign(confirmDeleteId);
+                    setConfirmDeleteId(null);
+                    toast.success("Campaign deleted successfully");
+                    loadCampaigns(pagination.page, pagination.limit);
+                  } catch (error: any) {
+                    console.error("Delete failed:", error);
+                    toast.error("Failed to delete campaign", {
+                      description: error.message || "Please try again later",
+                    });
+                  }
+                }}
+              >
+                Delete
+              </Button>
             </div>
           </div>
         </div>
       )}
     </div>
-  )
+  );
 }

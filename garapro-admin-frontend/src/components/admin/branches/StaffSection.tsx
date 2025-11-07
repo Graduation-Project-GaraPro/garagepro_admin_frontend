@@ -1,149 +1,103 @@
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState, useCallback, memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { X, AlertTriangle, UserCheck, Users } from 'lucide-react'
-import { CreateBranchRequest, UpdateBranchRequest, User } from '@/services/branch-service'
+import { User } from '@/services/branch-service'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-interface StaffSectionProps {
-  formData: CreateBranchRequest | UpdateBranchRequest
-  errors: Record<string, string>
+type StaffSectionProps = {
+  /** Danh sách staffId đã chọn (từ parent) */
+  selectedStaffIds: string[]
+  /** Lỗi chỉ cho field staffIds (tránh truyền cả object errors lớn) */
+  errors?: { staffIds?: string }
   managers: User[]
   technicians: User[]
   managersWithoutBranch: User[]
   techniciansWithoutBranch: User[]
+  /** Staff hiện tại của branch (edit mode) */
+  currentBranchStaffIds?: string[]
   onStaffToggle: (staffId: string, selected: boolean) => void
   onStaffRemove: (staffId: string) => void
-  currentBranchStaffIds?: string[] // Staff hiện tại của branch (cho edit mode)
 }
 
-export const StaffSection = ({ 
-  formData, 
-  errors, 
-  managers, 
-  technicians, 
-  managersWithoutBranch, 
-  techniciansWithoutBranch, 
-  onStaffToggle, 
+function StaffSectionImpl({
+  selectedStaffIds,
+  errors = {},
+  managers,
+  technicians,
+  managersWithoutBranch,
+  techniciansWithoutBranch,
+  onStaffToggle,
   onStaffRemove,
-  currentBranchStaffIds = []
-}: StaffSectionProps) => {
-  const [activeTab, setActiveTab] = useState('available')
-  const [warningMessages, setWarningMessages] = useState<{ [key: string]: string }>({})
+  currentBranchStaffIds = [],
+}: StaffSectionProps) {
+  const [activeTab, setActiveTab] = useState<'available' | 'all'>('available')
+  const [warningMessages, setWarningMessages] = useState<Record<string, string>>({})
 
-  const selectedStaffIds = useMemo(() => 
-    new Set(formData.staffIds), 
-    [formData.staffIds]
+  // Memoized sets for O(1) lookup & stable refs
+  const selectedIdsSet = useMemo(() => new Set(selectedStaffIds), [selectedStaffIds])
+  const currentBranchStaffSet = useMemo(() => new Set(currentBranchStaffIds), [currentBranchStaffIds])
+  const managerIdSet = useMemo(() => new Set(managers.map(m => m.id)), [managers])
+
+  const allStaff = useMemo(() => [...managers, ...technicians], [managers, technicians])
+  const availableStaff = useMemo(
+    () => [...managersWithoutBranch, ...techniciansWithoutBranch],
+    [managersWithoutBranch, techniciansWithoutBranch]
+  )
+  const availableIdSet = useMemo(() => new Set(availableStaff.map(s => s.id)), [availableStaff])
+
+  const selectedStaff = useMemo(
+    () => allStaff.filter(staff => selectedIdsSet.has(staff.id)),
+    [allStaff, selectedIdsSet]
   )
 
-  const currentBranchStaffSet = useMemo(() => 
-    new Set(currentBranchStaffIds),
-    [currentBranchStaffIds]
-  )
+  const getStaffRole = useCallback((staff: User) => (managerIdSet.has(staff.id) ? 'Manager' : 'Technician'), [managerIdSet])
 
-  const allStaff = useMemo(() => 
-    [...managers, ...technicians], 
-    [managers, technicians]
-  )
-
-  const availableStaff = useMemo(() => [
-    ...managersWithoutBranch,
-    ...techniciansWithoutBranch
-  ], [managersWithoutBranch, techniciansWithoutBranch])
-
-  const selectedStaff = useMemo(() => 
-    allStaff.filter(staff => selectedStaffIds.has(staff.id)),
-    [allStaff, selectedStaffIds]
-  )
-
-  const getStaffRole = (staff: User) => {
-    return managers.some(m => m.id === staff.id) ? 'Manager' : 'Technician'
-  }
-
-  const isStaffAvailable = (staffId: string) => {
-    return availableStaff.some(staff => staff.id === staffId)
-  }
-
-  const isStaffCurrentlyInBranch = (staffId: string) => {
-    return currentBranchStaffSet.has(staffId)
-  }
-
-  const getBranchAssignmentStatus = (staffId: string) => {
-    // Nếu là staff hiện tại của branch đang edit
-    if (isStaffCurrentlyInBranch(staffId)) {
-      return { 
-        status: 'current', 
-        message: 'Currently assigned to this branch' 
-      }
+  const getBranchAssignmentStatus = useCallback((staffId: string) => {
+    if (currentBranchStaffSet.has(staffId)) {
+      return { status: 'current' as const, message: 'Currently assigned to this branch' }
     }
-    
-    // Nếu available (chưa assign branch nào)
-    if (isStaffAvailable(staffId)) {
-      return { 
-        status: 'available', 
-        message: 'Available for assignment' 
-      }
+    if (availableIdSet.has(staffId)) {
+      return { status: 'available' as const, message: 'Available for assignment' }
     }
-    
-    // Đã assign branch khác
-    return { 
-      status: 'assigned', 
-      message: 'Already assigned to another branch' 
-    }
-  }
+    return { status: 'assigned' as const, message: 'Already assigned to another branch' }
+  }, [availableIdSet, currentBranchStaffSet])
 
-  const handleStaffToggleWithWarning = (staff: User, selected: boolean) => {
+  const handleStaffToggleWithWarning = useCallback((staff: User, selected: boolean) => {
     const { status } = getBranchAssignmentStatus(staff.id)
 
-    if (selected) {
-      // Nếu là staff hiện tại của branch → không warning
-      if (status === 'current') {
-        setWarningMessages(prev => {
-          const newWarnings = { ...prev }
-          delete newWarnings[staff.id]
-          return newWarnings
-        })
+    setWarningMessages(prev => {
+      const next = { ...prev }
+      if (selected) {
+        if (status === 'assigned') {
+          next[staff.id] =
+            `${staff.fullName} is already assigned to another branch. ` +
+            `Assigning them here will remove them from their current branch.`
+        } else {
+          delete next[staff.id]
+        }
+      } else {
+        delete next[staff.id]
       }
-      // Nếu đã assign branch khác → show warning
-      else if (status === 'assigned') {
-        setWarningMessages(prev => ({
-          ...prev,
-          [staff.id]: `${staff.fullName} is already assigned to another branch. Assigning them here will remove them from their current branch.`
-        }))
-      }
-      // Available → không warning
-      else {
-        setWarningMessages(prev => {
-          const newWarnings = { ...prev }
-          delete newWarnings[staff.id]
-          return newWarnings
-        })
-      }
-    } else {
-      // Deselected → remove warning
-      setWarningMessages(prev => {
-        const newWarnings = { ...prev }
-        delete newWarnings[staff.id]
-        return newWarnings
-      })
-    }
-    
-    onStaffToggle(staff.id, selected)
-  }
+      return next
+    })
 
-  const StaffCheckbox = ({ staff }: { staff: User }) => {
-    const isSelected = selectedStaffIds.has(staff.id)
+    onStaffToggle(staff.id, selected)
+  }, [getBranchAssignmentStatus, onStaffToggle])
+
+  const StaffCheckbox = useCallback(({ staff }: { staff: User }) => {
+    const isSelected = selectedIdsSet.has(staff.id)
     const { status } = getBranchAssignmentStatus(staff.id)
     const hasWarning = warningMessages[staff.id]
     const role = getStaffRole(staff)
 
     return (
-      <label 
+      <label
         className={`flex items-start gap-2 p-3 border rounded-lg cursor-pointer transition-colors ${
-          isSelected 
-            ? status === 'current' 
+          isSelected
+            ? status === 'current'
               ? 'border-blue-500 bg-blue-50'
               : status === 'available'
               ? 'border-green-500 bg-green-50'
@@ -160,9 +114,7 @@ export const StaffSection = ({
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <div className="font-medium">{staff.fullName}</div>
-            <Badge variant={role === 'Manager' ? 'default' : 'secondary'}>
-              {role}
-            </Badge>
+            <Badge variant={role === 'Manager' ? 'default' : 'secondary'}>{role}</Badge>
             {status === 'current' && (
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                 <UserCheck className="h-3 w-3 mr-1" />
@@ -182,9 +134,7 @@ export const StaffSection = ({
               </Badge>
             )}
           </div>
-          <div className="text-sm text-muted-foreground mb-1">
-            {staff.email}
-          </div>
+          <div className="text-sm text-muted-foreground mb-1">{staff.email}</div>
           <div className="text-xs text-muted-foreground">
             Joined: {new Date(staff.createdAt).toLocaleDateString()}
             {!staff.isActive && ' • Inactive'}
@@ -198,9 +148,8 @@ export const StaffSection = ({
         </div>
       </label>
     )
-  }
+  }, [getBranchAssignmentStatus, getStaffRole, handleStaffToggleWithWarning, selectedIdsSet, warningMessages])
 
-  // Tính số lượng staff cho badges
   const availableCount = availableStaff.length
   const totalCount = allStaff.length
 
@@ -208,53 +157,42 @@ export const StaffSection = ({
     <Card>
       <CardHeader>
         <CardTitle>Staff Members</CardTitle>
-        <CardDescription>
-          Assign staff to this branch. Available staff are not assigned to any branch.
-        </CardDescription>
+        <CardDescription>Assign staff to this branch. Available staff are not assigned to any branch.</CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={(v: 'available' | 'all') => setActiveTab(v)}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="available" className="flex items-center gap-2">
               <UserCheck className="h-4 w-4" />
               Available Staff
-              <Badge variant="secondary" className="ml-1">
-                {availableCount}
-              </Badge>
+              <Badge variant="secondary" className="ml-1">{availableCount}</Badge>
             </TabsTrigger>
             <TabsTrigger value="all" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               All Staff
-              <Badge variant="secondary" className="ml-1">
-                {totalCount}
-              </Badge>
+              <Badge variant="secondary" className="ml-1">{totalCount}</Badge>
             </TabsTrigger>
           </TabsList>
 
-          {/* Available Staff Tab */}
+          {/* Available Staff */}
           <TabsContent value="available" className="space-y-4">
             {managersWithoutBranch.length > 0 && (
               <div className="space-y-2">
                 <Label>Available Managers</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {managersWithoutBranch.map((manager) => (
-                    <StaffCheckbox key={manager.id} staff={manager} />
-                  ))}
+                  {managersWithoutBranch.map(m => <StaffCheckbox key={m.id} staff={m} />)}
                 </div>
               </div>
             )}
-
             {techniciansWithoutBranch.length > 0 && (
               <div className="space-y-2">
                 <Label>Available Technicians</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {techniciansWithoutBranch.map((technician) => (
-                    <StaffCheckbox key={technician.id} staff={technician} />
-                  ))}
+                  {techniciansWithoutBranch.map(t => <StaffCheckbox key={t.id} staff={t} />)}
                 </div>
               </div>
             )}
-
             {availableCount === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <UserCheck className="h-12 w-12 mx-auto mb-4 text-gray-300" />
@@ -264,30 +202,24 @@ export const StaffSection = ({
             )}
           </TabsContent>
 
-          {/* All Staff Tab */}
+          {/* All Staff */}
           <TabsContent value="all" className="space-y-4">
             {managers.length > 0 && (
               <div className="space-y-2">
                 <Label>All Managers</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {managers.map((manager) => (
-                    <StaffCheckbox key={manager.id} staff={manager} />
-                  ))}
+                  {managers.map(m => <StaffCheckbox key={m.id} staff={m} />)}
                 </div>
               </div>
             )}
-
             {technicians.length > 0 && (
               <div className="space-y-2">
                 <Label>All Technicians</Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {technicians.map((technician) => (
-                    <StaffCheckbox key={technician.id} staff={technician} />
-                  ))}
+                  {technicians.map(t => <StaffCheckbox key={t.id} staff={t} />)}
                 </div>
               </div>
             )}
-
             {totalCount === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
@@ -302,27 +234,24 @@ export const StaffSection = ({
           <div className="space-y-2">
             <Label>Selected Staff ({selectedStaff.length})</Label>
             <div className="space-y-2">
-              {selectedStaff.map((staff) => {
+              {selectedStaff.map(staff => {
                 const { status } = getBranchAssignmentStatus(staff.id)
                 const role = getStaffRole(staff)
-                
                 return (
-                  <div 
-                    key={staff.id} 
+                  <div
+                    key={staff.id}
                     className={`flex items-center justify-between p-3 border rounded-lg ${
-                      status === 'current' 
+                      status === 'current'
                         ? 'border-blue-200 bg-blue-50'
-                        : status === 'assigned' 
-                        ? 'border-orange-200 bg-orange-50' 
+                        : status === 'assigned'
+                        ? 'border-orange-200 bg-orange-50'
                         : ''
                     }`}
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <div className="font-medium">{staff.fullName}</div>
-                        <Badge variant={role === 'Manager' ? 'default' : 'secondary'}>
-                          {role}
-                        </Badge>
+                        <Badge variant={role === 'Manager' ? 'default' : 'secondary'}>{role}</Badge>
                         {status === 'current' && (
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                             <UserCheck className="h-3 w-3 mr-1" />
@@ -336,9 +265,7 @@ export const StaffSection = ({
                           </Badge>
                         )}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {staff.email}
-                      </div>
+                      <div className="text-sm text-muted-foreground">{staff.email}</div>
                       <div className="text-xs text-muted-foreground">
                         Joined: {new Date(staff.createdAt).toLocaleDateString()}
                         {!staff.isActive && ' • Inactive'}
@@ -361,7 +288,7 @@ export const StaffSection = ({
           </div>
         )}
 
-        {/* Global Warning - chỉ hiện khi có staff từ branch khác */}
+        {/* Global Warning */}
         {Object.keys(warningMessages).length > 0 && (
           <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
             <div className="flex items-start gap-3">
@@ -369,16 +296,31 @@ export const StaffSection = ({
               <div className="flex-1">
                 <div className="font-medium text-orange-800">Staff Reassignment Warning</div>
                 <div className="text-sm text-orange-700 mt-1">
-                  You have selected {Object.keys(warningMessages).length} staff member(s) who are already assigned to other branches. 
+                  You have selected {Object.keys(warningMessages).length} staff member(s) who are already assigned to other branches.
                   Saving this form will reassign them to this branch and remove them from their current assignments.
                 </div>
               </div>
             </div>
           </div>
         )}
-        
+
         {errors.staffIds && <p className="text-sm text-red-500">{errors.staffIds}</p>}
       </CardContent>
     </Card>
   )
 }
+
+/** Chỉ re-render khi props thực sự đổi */
+export const StaffSection = memo(
+  StaffSectionImpl,
+  (prev, next) =>
+    prev.selectedStaffIds === next.selectedStaffIds &&
+    prev.managers === next.managers &&
+    prev.technicians === next.technicians &&
+    prev.managersWithoutBranch === next.managersWithoutBranch &&
+    prev.techniciansWithoutBranch === next.techniciansWithoutBranch &&
+    prev.currentBranchStaffIds === next.currentBranchStaffIds &&
+    prev.errors?.staffIds === next.errors?.staffIds &&
+    prev.onStaffToggle === next.onStaffToggle &&
+    prev.onStaffRemove === next.onStaffRemove
+)

@@ -3,39 +3,45 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { Service } from '@/types/service';
-import { serviceService } from '@/services/service-Service';
 import ServiceForm from '@/components/admin/services/ServiceForm';
 
+import { serviceService,Service } from '@/services/service-Service';
+
 export default function EditServicePage() {
-  const params = useParams();
+  const { id } = useParams<{ id: string }>();
   const [service, setService] = useState<Service | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadService();
-  }, [params.id]);
-
-  const loadService = async () => {
-    try {
-      if (params.id) {
-        const serviceData = await serviceService.getServiceById(params.id as string);
-        setService(serviceData);
+    let alive = true;
+    setLoading(true);
+    (async () => {
+      try {
+        if (!id) return;
+        const data = await serviceService.getServiceById(id);
+        if (!alive) return;
+        setService(data);
+      } catch (e) {
+        console.error('Error loading service:', e);
+      } finally {
+        if (alive) setLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading service:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    })();
+    return () => { alive = false; };
+  }, [id]);
 
-  if (isLoading) {
-    return <div>Loading service...</div>;
+  if (loading) {
+    return <div className="container mx-auto py-6">Loading service...</div>;
+  }
+
+  if (!service) {
+    return <div className="container mx-auto py-6 text-destructive">Không tìm thấy service.</div>;
   }
 
   return (
     <div className="container mx-auto py-6">
-      <ServiceForm service={service} />
+      {/* ép init chuẩn theo service vừa fetch */}
+      <ServiceForm key={service.id} service={service} />
     </div>
   );
 }

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { authService } from "@/services/authService";
 
 // types/role.ts
@@ -113,6 +115,16 @@ class RoleService {
       }
     }
 
+    if (response.status === 403) {
+      console.log("🚫 Access denied");
+      if (typeof window !== "undefined") {
+        window.location.href = "/access-denied";
+      }
+      window.location.href = "/access-denied";
+      throw new Error(
+        "Access denied: You do not have permission to access this resource."
+      );
+    }
     // Handle no content
     if (response.status === 204) {
       return null as T;
@@ -146,7 +158,7 @@ class RoleService {
   // Get all roles
   async getRoles(): Promise<Role[]> {
     const roles = await this.fetchAPI<Role[]>("/Roles");
-    //console.log(roles);
+    console.log(roles);
     return this.fetchAPI<Role[]>("/Roles");
   }
 

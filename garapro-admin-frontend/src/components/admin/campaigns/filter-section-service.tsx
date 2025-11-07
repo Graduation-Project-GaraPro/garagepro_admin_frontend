@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ServiceCategory } from '@/services/campaign-service'
+import React from 'react'
 
 interface FilterSectionProps {
   selectedParentCategory: string
@@ -16,7 +17,7 @@ interface FilterSectionProps {
   parentCategories: ServiceCategory[]
 }
 
-export function FilterSection({ 
+ function FilterSection({ 
   selectedParentCategory,
   onParentCategoryChange,
   searchTerm,
@@ -81,3 +82,5 @@ export function FilterSection({
     </div>
   )
 }
+// trước đây: export default ServiceCategoryList
+export default React.memo(FilterSection)

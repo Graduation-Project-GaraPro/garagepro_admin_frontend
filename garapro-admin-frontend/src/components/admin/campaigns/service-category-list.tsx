@@ -4,14 +4,14 @@
 import { ServiceCategory } from '@/services/campaign-service';
 import { ServiceCategoryItem } from './service-category-item';
 import { ClipboardList } from 'lucide-react'
-
+import React from 'react'
 interface ServiceCategoryListProps {
   categories: ServiceCategory[];
   selectedServices: string[];
   onServiceToggle: (serviceId: string, checked: boolean) => void;
 }
 
-export function ServiceCategoryList({ 
+ function ServiceCategoryList({ 
   categories, 
   selectedServices, 
   onServiceToggle,
@@ -38,3 +38,4 @@ export function ServiceCategoryList({
     </div>
   );
 }
+export default React.memo(ServiceCategoryList)

@@ -3,9 +3,25 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Edit, Trash2, ToggleLeft, ToggleRight, Calendar, DollarSign, Users, Wrench } from 'lucide-react'
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  ToggleLeft,
+  ToggleRight,
+  Calendar,
+  DollarSign,
+  Users,
+  Wrench,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { campaignService, PromotionalCampaign } from '@/services/campaign-service'
 
@@ -15,8 +31,70 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<PromotionalCampaign | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [banner, setBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [banner, setBanner] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
 
+  // --------- Helpers ----------
+  // Format tiền VND: 1.000.000đ
+  const formatVND = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '0đ'
+    const n = Number(amount)
+    if (Number.isNaN(n)) return '0đ'
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + 'đ'
+  }
+
+  // Date hiển thị an toàn
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '-'
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return '-'
+    // Giữ EN-US hoặc đổi sang vi-VN tuỳ ý; ở đây để EN dễ đọc
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+  }
+
+  const getStatusBadge = (isActive: boolean | null | undefined) =>
+    isActive ? (
+      <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
+    ) : (
+      <Badge variant="secondary" className="bg-gray-100 text-gray-600">
+        Inactive
+      </Badge>
+    )
+
+  const getTypeBadge = (type: string | null | undefined) => {
+    const t = type || 'discount'
+    const typeColors: Record<string, string> = {
+      discount: 'bg-blue-100 text-blue-800 border-blue-200',
+      seasonal: 'bg-orange-100 text-orange-800 border-orange-200',
+      loyalty: 'bg-purple-100 text-purple-800 border-purple-200',
+    }
+    const typeLabels: Record<string, string> = {
+      discount: 'Discount',
+      seasonal: 'Seasonal',
+      loyalty: 'Loyalty',
+    }
+    return (
+      <Badge className={typeColors[t] || 'bg-gray-100 text-gray-800 border-gray-200'}>
+        {typeLabels[t] || t.charAt(0).toUpperCase() + t.slice(1)}
+      </Badge>
+    )
+  }
+
+  const getDiscountDisplay = (c: PromotionalCampaign) => {
+    if (c.discountType === 'fixed') {
+      return `${formatVND(c.discountValue)} off`
+    }
+    // default percentage
+    return `${c.discountValue}% off`
+  }
+
+  // --------- Data ----------
   const loadCampaign = useCallback(async () => {
     try {
       setLoading(true)
@@ -35,50 +113,7 @@ export default function CampaignDetailPage() {
     if (campaignId) loadCampaign()
   }, [campaignId, loadCampaign])
 
-  const formatCurrency = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
-  const formatDate = (date: string) => new Date(date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-
-  const getStatusBadge = (isActive: boolean) => (
-    isActive ? 
-      <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge> : 
-      <Badge variant="secondary" className="bg-gray-100 text-gray-600">Inactive</Badge>
-  )
-
-  const getTypeBadge = (type: string) => {
-    const typeColors: Record<string, string> = {
-      discount: 'bg-blue-100 text-blue-800 border-blue-200',
-      seasonal: 'bg-orange-100 text-orange-800 border-orange-200',
-      loyalty: 'bg-purple-100 text-purple-800 border-purple-200',
-    }
-    const typeLabels: Record<string, string> = {
-      discount: 'Discount',
-      seasonal: 'Seasonal',
-      loyalty: 'Loyalty'
-    }
-    return (
-      <Badge className={typeColors[type] || 'bg-gray-100 text-gray-800 border-gray-200'}>
-        {typeLabels[type] || type.charAt(0).toUpperCase() + type.slice(1)}
-      </Badge>
-    )
-  }
-
-  const getDiscountDisplay = (campaign: PromotionalCampaign) => {
-    switch (campaign.discountType) {
-      case 'percentage':
-        return `${campaign.discountValue}% off`
-      case 'fixed':
-        return `${formatCurrency(campaign.discountValue)} off`
-      case 'free_service':
-        return 'Free Service'
-      default:
-        return `${campaign.discountValue}% off`
-    }
-  }
-
+  // --------- Actions ----------
   const handleDelete = async () => {
     if (!campaign) return
     if (confirm('Are you sure you want to delete this campaign? This action cannot be undone.')) {
@@ -101,13 +136,13 @@ export default function CampaignDetailPage() {
         await campaignService.activateCampaign(campaign.id)
         setBanner({ type: 'success', message: 'Campaign activated successfully.' })
       }
-      // Reload campaign data
       await loadCampaign()
     } catch (e) {
       setBanner({ type: 'error', message: 'Failed to update campaign status. Please try again.' })
     }
   }
 
+  // --------- UI States ----------
   if (loading) {
     return (
       <div className="space-y-6">
@@ -135,14 +170,21 @@ export default function CampaignDetailPage() {
     )
   }
 
+  // --------- Render ----------
   return (
     <div className="space-y-6">
       {banner && (
-        <div className={`${banner.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800'} border rounded-lg p-4`}>
+        <div
+          className={`${
+            banner.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          } border rounded-lg p-4`}
+        >
           {banner.message}
         </div>
       )}
-      
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -163,7 +205,7 @@ export default function CampaignDetailPage() {
               <ToggleRight className="h-4 w-4 mr-2 text-green-600" />
             ) : (
               <ToggleLeft className="h-4 w-4 mr-2 text-gray-600" />
-            )} 
+            )}
             {campaign.isActive ? 'Deactivate' : 'Activate'}
           </Button>
           <Link href={`/admin/campaigns/${campaign.id}/edit`}>
@@ -196,7 +238,9 @@ export default function CampaignDetailPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Campaign Type</CardTitle>
-            <Badge variant="outline" className="text-xs">Type</Badge>
+            <Badge variant="outline" className="text-xs">
+              Type
+            </Badge>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{getTypeBadge(campaign.type)}</div>
@@ -209,12 +253,11 @@ export default function CampaignDetailPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{campaign.usedCount}</div>
+            <div className="text-2xl font-bold">{campaign.usedCount ?? 0}</div>
             <p className="text-xs text-muted-foreground">
-              {campaign.usageLimit && campaign.usageLimit !== 2147483647 
-                ? `of ${campaign.usageLimit} limit` 
-                : 'Unlimited usage'
-              }
+              {campaign.usageLimit && campaign.usageLimit !== 2147483647
+                ? `of ${campaign.usageLimit} limit`
+                : 'Unlimited usage'}
             </p>
           </CardContent>
         </Card>
@@ -259,7 +302,7 @@ export default function CampaignDetailPage() {
             <div>
               <h4 className="font-medium mb-2">Description</h4>
               <p className="text-sm text-muted-foreground bg-gray-50 rounded-lg p-3">
-                {campaign.description}
+                {campaign.description || '-'}
               </p>
             </div>
 
@@ -268,29 +311,32 @@ export default function CampaignDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <div className="text-muted-foreground">Discount Type</div>
-                  <div className="font-medium capitalize">{campaign.discountType.replace('_', ' ')}</div>
+                  <div className="font-medium capitalize">
+                    {(campaign.discountType || 'percentage').replace('_', ' ')}
+                  </div>
                 </div>
                 <div>
                   <div className="text-muted-foreground">Discount Value</div>
                   <div className="font-medium">
-                    {campaign.discountType === 'percentage' 
+                    {campaign.discountType === 'percentage'
                       ? `${campaign.discountValue}%`
                       : campaign.discountType === 'fixed'
-                      ? formatCurrency(campaign.discountValue)
-                      : 'Free Service'
-                    }
+                      ? formatVND(campaign.discountValue)
+                      : '-'}
                   </div>
                 </div>
+
                 {campaign.minimumOrderValue > 0 && (
                   <div>
                     <div className="text-muted-foreground">Minimum Order</div>
-                    <div className="font-medium">{formatCurrency(campaign.minimumOrderValue)}</div>
+                    <div className="font-medium">{formatVND(campaign.minimumOrderValue)}</div>
                   </div>
                 )}
+
                 {campaign.maximumDiscount > 0 && (
                   <div>
                     <div className="text-muted-foreground">Maximum Discount</div>
-                    <div className="font-medium">{formatCurrency(campaign.maximumDiscount)}</div>
+                    <div className="font-medium">{formatVND(campaign.maximumDiscount)}</div>
                   </div>
                 )}
               </div>
@@ -311,15 +357,20 @@ export default function CampaignDetailPage() {
             <div className="space-y-3">
               {campaign.services && campaign.services.length > 0 ? (
                 campaign.services.map((service) => (
-                  <div key={service.serviceId} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div
+                    key={service.serviceId}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
                     <div className="flex-1">
                       <div className="font-medium text-sm">{service.serviceName}</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {service.description}
-                      </div>
+                      {service.description ? (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {service.description}
+                        </div>
+                      ) : null}
                       <div className="flex items-center gap-2 mt-2">
                         <Badge variant="outline" className="text-xs">
-                          {formatCurrency(service.price)}
+                          {formatVND(service.price)}
                         </Badge>
                         {service.isAdvanced && (
                           <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700">
@@ -350,35 +401,36 @@ export default function CampaignDetailPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
               <div className="text-muted-foreground">Campaign ID</div>
-              <div className="font-mono text-xs mt-1 p-2 bg-gray-50 rounded border">
+              <div className="font-mono text-xs mt-1 p-2 bg-gray-50 rounded border break-all">
                 {campaign.id}
               </div>
             </div>
             <div>
               <div className="text-muted-foreground">Created At</div>
               <div className="font-medium">
-                {new Date(campaign.createdAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+                {campaign.createdAt
+                  ? new Date(campaign.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : '-'}
               </div>
             </div>
             <div>
               <div className="text-muted-foreground">Last Updated</div>
               <div className="font-medium">
-                {campaign.updatedAt ? 
-                  new Date(campaign.updatedAt).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  }) : 
-                  'Never'
-                }
+                {campaign.updatedAt
+                  ? new Date(campaign.updatedAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : 'Never'}
               </div>
             </div>
           </div>

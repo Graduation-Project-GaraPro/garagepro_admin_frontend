@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useMemo, useDeferredValue } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Save, Calendar, DollarSign, Percent, Banknote,TriangleAlert } from 'lucide-react'
+import { ArrowLeft, Save, Calendar, DollarSign, Percent, Banknote, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,21 +13,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { campaignService, UpdateCampaignRequest, PromotionalCampaign, ServiceCategory } from '@/services/campaign-service'
-import { ServiceCategoryList } from '@/components/admin/campaigns/service-category-list'
-import { FilterSection } from '@/components/admin/campaigns/filter-section-service'
-import { SelectedServicesSummary } from '@/components/admin/campaigns/selected-services-summary'
+import  ServiceCategoryList  from '@/components/admin/campaigns/service-category-list'
+import  FilterSection  from '@/components/admin/campaigns/filter-section-service'
+import  SelectedServicesSummary  from '@/components/admin/campaigns/selected-services-summary'
+import debounce from 'lodash.debounce'
 
 export default function EditCampaignPage() {
   const params = useParams()
   const router = useRouter()
   const campaignId = params.id as string
+
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
   const [serviceCategories, setServiceCategories] = useState<ServiceCategory[]>([])
   const [servicesLoading, setServicesLoading] = useState(true)
 
-   const [isEditable, setIsEditable] = useState(true)
+  const [isEditable, setIsEditable] = useState(true)
   const [campaign, setCampaign] = useState<PromotionalCampaign | null>(null)
+
   const [formData, setFormData] = useState<UpdateCampaignRequest>({
     name: '',
     description: '',
@@ -38,36 +41,42 @@ export default function EditCampaignPage() {
     endDate: '',
     isActive: true,
     minimumOrderValue: 0,
-    maximumDiscount: 0,
-    usageLimit: 0,
+    maximumDiscount: 0, // 0 = unlimited khi percentage
+    usageLimit: 0, // 0 = unlimited
     serviceIds: [],
   })
+
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const [parentCategories, setParentCategories] = useState<ServiceCategory[]>([])
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>('all')
-  const [searchTerm, setSearchTerm] = useState<string>('')
+
+  // Debounce tìm kiếm dịch vụ
+  const [rawSearch, setRawSearch] = useState<string>('')
+  const deferredSearch = useDeferredValue(rawSearch)
+
   const [isActiveFilter, setIsActiveFilter] = useState<boolean>(true)
 
   const [touchedFields, setTouchedFields] = useState({
     discountValue: false,
     minimumOrderValue: false,
-    maximumDiscount: false
+    maximumDiscount: false,
   })
 
   const [displayValues, setDisplayValues] = useState({
     discountValue: '',
-    minimumOrderValue: '', 
-    maximumDiscount: ''
+    minimumOrderValue: '',
+    maximumDiscount: '',
   })
 
+  // ---------- Helpers ----------
   const formatNumber = (value: number | undefined): string => {
     if (!value || value === 0) return ''
-    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+    return value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   }
 
   const formatVietnameseCurrency = (price: number) => {
-    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")
+    return price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')
   }
 
   const getDiscountIcon = () => {
@@ -81,68 +90,65 @@ export default function EditCampaignPage() {
     }
   }
 
-  const loadServices = async () => {
+  // ---------- Load services (debounced) ----------
+  const loadServices = useCallback(async () => {
     try {
       setServicesLoading(true)
       const categoriesData = await campaignService.getServicesByFilter({
         parentServiceCategoryId: selectedParentCategory === 'all' ? undefined : selectedParentCategory,
-        searchTerm: searchTerm || undefined,
+        searchTerm: deferredSearch || undefined,
         isActive: isActiveFilter
       })
       setServiceCategories(categoriesData)
     } catch (error) {
       console.error('Failed to load services:', error)
-      toast.error("Failed to load services. Please try again.")
+      toast.error('Failed to load services. Please try again.')
     } finally {
       setServicesLoading(false)
     }
-  }
+  }, [selectedParentCategory, deferredSearch, isActiveFilter])
 
+  useEffect(() => {
+    const run = debounce(loadServices, 300)
+    run()
+    return () => run.cancel()
+  }, [loadServices])
+
+  // ---------- Initial load ----------
   useEffect(() => {
     const loadData = async () => {
       try {
         setInitialLoading(true)
         setErrors({})
-        
+
         if (!campaignId) {
           setErrors({ load: 'Campaign ID is missing' })
           return
         }
 
-        // Load parent categories
         const parentCategoriesData = await campaignService.getParentCategories()
         setParentCategories(parentCategoriesData)
 
-        // Load campaign data
         const campaignData = await campaignService.getCampaignById(campaignId)
-        
         if (!campaignData) {
           setErrors({ load: 'Campaign not found' })
           return
         }
-
         setCampaign(campaignData)
-        
 
-         // 🔹 Check campaign có thể edit được không
+        // kiểm tra editable
         const today = new Date()
         const endDate = campaignData?.endDate ? new Date(campaignData.endDate) : null
         const hasUsage = campaignData?.voucherUsages && campaignData.voucherUsages.length > 0
         const isExpired = endDate && endDate < today
-        
+
         if (hasUsage || isExpired) {
           setIsEditable(false)
-          if (hasUsage) {
-            toast.error('This campaign cannot be edited because it has been used in orders.')
-          } else if (isExpired) {
-            toast.error('This campaign cannot be edited because it has expired.')
-          }
+          if (hasUsage) toast.error('This campaign cannot be edited because it has been used in orders.')
+          else if (isExpired) toast.error('This campaign cannot be edited because it has expired.')
         }
 
-        // Load service categories với filter
-        await loadServices()
-
-        // Initialize form data với campaign data
+        // init form
         setFormData({
           name: campaignData.name || '',
           description: campaignData.description || '',
@@ -153,33 +159,29 @@ export default function EditCampaignPage() {
           endDate: campaignData.endDate ? new Date(campaignData.endDate).toLocaleDateString('en-CA') : '',
           isActive: campaignData.isActive ?? true,
           minimumOrderValue: campaignData.minimumOrderValue || 0,
-          maximumDiscount: campaignData.maximumDiscount || 0,
-          usageLimit: campaignData.usageLimit || 0,
-          serviceIds: campaignData.services?.map(service => service.serviceId) || [],
+          maximumDiscount: campaignData.maximumDiscount || 0, // 0 = unlimited
+          usageLimit: campaignData.usageLimit || 0, // 0 = unlimited
+          serviceIds: campaignData.services?.map(s => s.serviceId) || [],
         })
 
-        console.log("start date",new Date(campaignData.startDate).toLocaleDateString('en-CA'))
-        // Set display values
+        // init display
         if (campaignData.discountValue > 0) {
-          const formatted = campaignData.discountType === 'percentage' 
+          const formatted = campaignData.discountType === 'percentage'
             ? campaignData.discountValue.toString()
             : formatNumber(campaignData.discountValue)
           setDisplayValues(prev => ({ ...prev, discountValue: formatted }))
         }
-        
         if (campaignData.minimumOrderValue && campaignData.minimumOrderValue > 0) {
           setDisplayValues(prev => ({ ...prev, minimumOrderValue: formatNumber(campaignData.minimumOrderValue) }))
         }
-        
         if (campaignData.maximumDiscount && campaignData.maximumDiscount > 0) {
           setDisplayValues(prev => ({ ...prev, maximumDiscount: formatNumber(campaignData.maximumDiscount) }))
         }
       } catch (error) {
         console.error('Error loading data:', error)
-        const errorMessage = error instanceof Error 
-          ? `Failed to load campaign: ${error.message}` 
+        const errorMessage = error instanceof Error
+          ? `Failed to load campaign: ${error.message}`
           : 'Failed to load campaign. Please try again.'
-        
         setErrors({ load: errorMessage })
         toast.error('Failed to load campaign data')
       } finally {
@@ -188,214 +190,223 @@ export default function EditCampaignPage() {
       }
     }
 
-    if (campaignId) {
-      loadData()
-    }
+    if (campaignId) loadData()
   }, [campaignId])
 
+  // Clear error maximumDiscount khi đổi sang fixed (field ẩn)
   useEffect(() => {
-    loadServices()
-  }, [selectedParentCategory, searchTerm, isActiveFilter])
-
-
-    useEffect(() => {
-      if (isEditable) {
-        validateForm();
-      } else {
-        // Clear errors khi không editable
-        setErrors({});
-      }
-    }, [formData, isEditable]);
-  
-  const handleInputChange = (field: keyof UpdateCampaignRequest, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    if (errors[field]) {
+    if (formData.discountType !== 'percentage') {
       setErrors(prev => {
-        const newErrors = { ...prev }
-        delete newErrors[field]
-        return newErrors
+        if (!prev.maximumDiscount) return prev
+        const { maximumDiscount, ...rest } = prev
+        return rest
+      })
+      setDisplayValues(prev => ({ ...prev, maximumDiscount: '' }))
+    }
+  }, [formData.discountType])
+
+  // ---------- Form change helpers ----------
+  const handleInputChange = useCallback((field: keyof UpdateCampaignRequest, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    // clear error của chính field
+    setErrors(prev => (prev[field] ? (() => {
+      const { [field]: _, ...rest } = prev
+      return rest
+    })() : prev))
+
+    // clear maximumDiscount lỗi khi chuyển loại
+    if (field === 'discountType' && value !== 'percentage') {
+      setErrors(prev => {
+        if (!prev.maximumDiscount) return prev
+        const { maximumDiscount, ...rest } = prev
+        return rest
       })
     }
-  }
+  }, [])
 
   const handleServiceToggle = (serviceId: string, checked: boolean) => {
-    const currentServiceIds = formData.serviceIds || []
-    if (checked) {
-      handleInputChange('serviceIds', [...currentServiceIds, serviceId])
-    } else {
-      handleInputChange('serviceIds', currentServiceIds.filter(id => id !== serviceId))
-    }
+    const current = formData.serviceIds || []
+    handleInputChange(
+      'serviceIds',
+      checked ? [...current, serviceId] : current.filter(id => id !== serviceId)
+    )
   }
 
-  const markFieldAsTouched = (fieldName: keyof typeof touchedFields) => {
-    setTouchedFields(prev => ({ ...prev, [fieldName]: true }))
+  const markFieldAsTouched = (field: keyof typeof touchedFields) => {
+    setTouchedFields(prev => ({ ...prev, [field]: true }))
   }
 
+  // ---------- Money/percent inputs ----------
   const handleDiscountValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/\./g, '')
-    const numericValue = parseFloat(rawValue) || 0
-    
-    let displayValue = ''
-    if (formData.discountType === 'percentage') {
-      displayValue = rawValue
-    } else {
-      displayValue = formatNumber(numericValue)
-    }
-    
-    setDisplayValues(prev => ({ ...prev, discountValue: displayValue }))
-    handleInputChange('discountValue', numericValue)
+    const raw = e.target.value.replace(/\./g, '')
+    const numeric = raw.trim() === '' ? 0 : Number.isNaN(parseFloat(raw)) ? 0 : parseFloat(raw)
+
+    const display = formData.discountType === 'percentage'
+      ? raw
+      : formatNumber(numeric)
+
+    setDisplayValues(prev => ({ ...prev, discountValue: display }))
+    handleInputChange('discountValue', numeric)
   }
 
   const handleDiscountValueBlur = () => {
     markFieldAsTouched('discountValue')
-    if (formData.discountValue && formData.discountValue > 0) {
-      const formatted = formData.discountType === 'percentage' 
+
+    if (formData.discountValue > 0) {
+      const formatted = formData.discountType === 'percentage'
         ? formData.discountValue.toString()
         : formatNumber(formData.discountValue)
       setDisplayValues(prev => ({ ...prev, discountValue: formatted }))
+    } else {
+      setDisplayValues(prev => ({ ...prev, discountValue: '' }))
     }
+
+    validateForm()
   }
 
   const handleMinimumOrderValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/\./g, '')
-    const numericValue = parseFloat(rawValue) || 0
-    
-    setDisplayValues(prev => ({ ...prev, minimumOrderValue: formatNumber(numericValue) }))
-    handleInputChange('minimumOrderValue', numericValue)
+    const raw = e.target.value.replace(/\./g, '')
+    const numeric = raw.trim() === '' ? 0 : Number.isNaN(parseFloat(raw)) ? 0 : parseFloat(raw)
+    setDisplayValues(prev => ({ ...prev, minimumOrderValue: formatNumber(numeric) }))
+    handleInputChange('minimumOrderValue', numeric)
   }
 
   const handleMinimumOrderValueBlur = () => {
     markFieldAsTouched('minimumOrderValue')
     if (formData.minimumOrderValue && formData.minimumOrderValue > 0) {
-      setDisplayValues(prev => ({ 
-        ...prev, 
-        minimumOrderValue: formatNumber(formData.minimumOrderValue) 
-      }))
+      setDisplayValues(prev => ({ ...prev, minimumOrderValue: formatNumber(formData.minimumOrderValue) }))
+    } else {
+      setDisplayValues(prev => ({ ...prev, minimumOrderValue: '' }))
     }
+    validateForm()
   }
 
   const handleMaximumDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/\./g, '')
-    const numericValue = parseFloat(rawValue) || 0
-    
-    setDisplayValues(prev => ({ ...prev, maximumDiscount: formatNumber(numericValue) }))
-    handleInputChange('maximumDiscount', numericValue)
+    const raw = e.target.value.replace(/\./g, '')
+    const numeric = raw.trim() === '' ? 0 : Number.isNaN(parseFloat(raw)) ? 0 : parseFloat(raw)
+    setDisplayValues(prev => ({ ...prev, maximumDiscount: formatNumber(numeric) }))
+    handleInputChange('maximumDiscount', numeric)
   }
 
   const handleMaximumDiscountBlur = () => {
     markFieldAsTouched('maximumDiscount')
-    if (formData.maximumDiscount && formData.maximumDiscount > 0) {
-      setDisplayValues(prev => ({ 
-        ...prev, 
-        maximumDiscount: formatNumber(formData.maximumDiscount) 
-      }))
+
+    // rỗng => coi như 0 (unlimited)
+    if (!displayValues.maximumDiscount || formData.maximumDiscount === 0) {
+      setDisplayValues(prev => ({ ...prev, maximumDiscount: '' }))
+      if (formData.maximumDiscount !== 0) {
+        setFormData(prev => ({ ...prev, maximumDiscount: 0 }))
+      }
+    } else if (formData.maximumDiscount > 0) {
+      setDisplayValues(prev => ({ ...prev, maximumDiscount: formatNumber(formData.maximumDiscount) }))
     }
+
+    validateForm()
   }
 
+  // ---------- Validation ----------
   const validateForm = (): boolean => {
-  const newErrors: Record<string, string> = {}
-  const today = new Date().toISOString().split('T')[0]
+    const newErrors: Record<string, string> = {}
+    const todayStr = new Date().toISOString().split('T')[0]
 
-  if (!formData.name?.trim()) {
-    newErrors.name = 'Campaign name is required'
-  }
+    // Required text
+    if (!formData.name?.trim()) newErrors.name = 'Campaign name is required'
+    if (!formData.description?.trim()) newErrors.description = 'Description is required'
+    if (!formData.type) newErrors.type = 'Campaign type is required'
+    if (!formData.discountType) newErrors.discountType = 'Discount type is required'
 
-  if (!formData.description?.trim()) {
-    newErrors.description = 'Description is required'
-  }
-
-  if (!formData.type) {
-    newErrors.type = 'Campaign type is required'
-  }
-
-  if (!formData.discountType) {
-    newErrors.discountType = 'Discount type is required'
-  }
-
-  // 🔹 Validate discount value theo BE
-  if (formData.discountValue <= 0) {
-    newErrors.discountValue = 'Discount value must be greater than 0'
-  } else if (formData.discountType === 'percentage') {
-    if (formData.discountValue > 100) {
-      newErrors.discountValue = 'Percentage discount cannot exceed 100%'
-    }
-  } else if (formData.discountType === 'fixed') {
-    if (formData.discountValue < 1000) {
-      newErrors.discountValue = 'Fixed amount discount must be at least 1000 VND'
-    }
-  }
-
-  // 🔹 Validate dates theo BE
-  if (!formData.startDate) {
-    newErrors.startDate = 'Start date is required'
-  }
-
-  if (!formData.endDate) {
-    newErrors.endDate = 'End date is required'
-  }
-
-  if (formData.startDate && formData.endDate) {
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-      newErrors.endDate = 'End date must be greater than start date'
-    }
-    
-    if (new Date(formData.endDate) < new Date(today)) {
-      newErrors.endDate = 'End date cannot be in the past'
-    }
-  }
-
-  //  Validate start date không được sửa về quá khứ (chỉ cho edit)
-    if (campaign && formData.startDate !== campaign.startDate?.split('T')[0]) {
-      // Nếu đang thay đổi start date
-      const originalStartDate = campaign.startDate
-        ? new Date(campaign.startDate).toLocaleDateString('en-CA') // YYYY-MM-DD (local)
-        : null;
-
-      // Lấy ngày hôm nay (chỉ phần date)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      // Chuyển formData.startDate thành date object local
-      const newStartDate = new Date(formData.startDate);
-      newStartDate.setHours(0, 0, 0, 0);
-
-      //  Chỉ validate nếu start date mới là quá khứ VÀ khác với start date cũ
-      if (newStartDate < today && formData.startDate !== originalStartDate) {
-        newErrors.startDate = 'Cannot change start date to a past date';
+    // Discount value (required)
+    if (touchedFields.discountValue) {
+      if (formData.discountType === 'percentage') {
+        if (!formData.discountValue || Number.isNaN(formData.discountValue)) {
+          newErrors.discountValue = 'Please enter a percentage discount (1–100)'
+        } else if (formData.discountValue < 1 || formData.discountValue > 100) {
+          newErrors.discountValue = 'Percentage must be between 1 and 100'
+        }
+      } else {
+        if (!formData.discountValue || Number.isNaN(formData.discountValue)) {
+          newErrors.discountValue = 'Please enter a discount amount ≥ 1.000đ'
+        } else if (formData.discountValue < 1000) {
+          newErrors.discountValue = 'Discount value must be ≥ 1.000đ'
+        }
       }
     }
 
+    // Dates
+    if (!formData.startDate) newErrors.startDate = 'Start date is required'
+    if (!formData.endDate) newErrors.endDate = 'End date is required'
+    if (formData.startDate && formData.endDate) {
+      if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+        newErrors.endDate = 'End date must be greater than start date'
+      }
+      if (new Date(formData.endDate) < new Date(todayStr)) {
+        newErrors.endDate = 'End date cannot be in the past'
+      }
+    }
 
-  // 🔹 Validate không cho bật campaign đã hết hạn
-  if (formData.isActive && formData.endDate && new Date(formData.endDate) < new Date(today)) {
-    newErrors.isActive = 'Cannot activate a campaign that has already expired'
+    // Start date editing guard (không đổi về quá khứ)
+    if (campaign && formData.startDate !== campaign.startDate?.split('T')[0]) {
+      const originalStartCA = campaign.startDate
+        ? new Date(campaign.startDate).toLocaleDateString('en-CA')
+        : null
+      const today = new Date(); today.setHours(0,0,0,0)
+      const newStart = new Date(formData.startDate); newStart.setHours(0,0,0,0)
+
+      if (newStart < today && formData.startDate !== originalStartCA) {
+        newErrors.startDate = 'Cannot change start date to a past date'
+      }
+    }
+
+    // isActive cannot be true if expired
+    if (formData.isActive && formData.endDate && new Date(formData.endDate) < new Date(todayStr)) {
+      newErrors.isActive = 'Cannot activate a campaign that has already expired'
+    }
+
+    // Services
+    if (!formData.serviceIds || formData.serviceIds.length === 0) {
+      newErrors.serviceIds = 'At least one service is required'
+    }
+
+    // Numbers
+    if (touchedFields.minimumOrderValue && formData.minimumOrderValue < 0) {
+      newErrors.minimumOrderValue = 'Minimum order value cannot be negative'
+    }
+
+    // Maximum discount: chỉ áp dụng khi percentage; 0/rỗng = unlimited; >0 thì ≥ 1000
+    if (formData.discountType === 'percentage' && touchedFields.maximumDiscount) {
+      const md = formData.maximumDiscount ?? 0
+      if (md !== 0 && md < 1000) {
+        newErrors.maximumDiscount = 'Maximum discount must be ≥ 1.000đ (or 0 = unlimited)'
+      }
+    } else {
+      // nếu fixed thì xoá lỗi cũ (nếu còn)
+      if (errors.maximumDiscount) {
+        // sẽ được effect phía trên xử lý; giữ an toàn:
+        const { maximumDiscount, ...rest } = errors
+        setErrors(rest)
+      }
+    }
+
+    // Usage limit: 0 = unlimited; chỉ lỗi nếu < 0
+    if (formData.usageLimit < 0) {
+      newErrors.usageLimit = 'Usage limit must be ≥ 0 (0 = unlimited)'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
-
-  // 🔹 Validate serviceIds
-  if (!formData.serviceIds || formData.serviceIds.length === 0) {
-    newErrors.serviceIds = 'At least one service is required'
-  }
-
-  // 🔹 Validate các giá trị số không âm
-  if (formData.minimumOrderValue && formData.minimumOrderValue < 0) {
-    newErrors.minimumOrderValue = 'Minimum order value cannot be negative'
-  }
-
-  if (formData.maximumDiscount && formData.maximumDiscount < 1000) {
-    newErrors.maximumDiscount = 'Maximum discount Must be greater than 1.000đ'
-  }
-
-  if (formData.usageLimit && formData.usageLimit < 1) {
-    newErrors.usageLimit = 'Usage limit must be greater than 0'
-  }
-
-  setErrors(newErrors)
-  return Object.keys(newErrors).length === 0
-}
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
+    // đánh dấu các field blur-validate
+    setTouchedFields(prev => ({
+      ...prev,
+      discountValue: true,
+      minimumOrderValue: true,
+      maximumDiscount: true,
+    }))
+
     if (!validateForm()) {
       toast.error('Please check the form for errors')
       return
@@ -406,15 +417,13 @@ export default function EditCampaignPage() {
         setLoading(true)
         setErrors({})
 
-        console.log('Updating campaign with data:', formData)
         await campaignService.updateCampaign(campaignId, formData)
         resolve(true)
       } catch (error) {
         console.error('Error updating campaign:', error)
-        const errorMessage = error instanceof Error 
-          ? `Failed to update campaign: ${error.message}` 
+        const errorMessage = error instanceof Error
+          ? `Failed to update campaign: ${error.message}`
           : 'Failed to update campaign. Please try again.'
-        
         setErrors({ submit: errorMessage })
         reject(new Error(errorMessage))
       } finally {
@@ -425,16 +434,14 @@ export default function EditCampaignPage() {
     toast.promise(promise, {
       loading: 'Updating campaign...',
       success: () => {
-        setTimeout(() => {
-          router.push('/admin/campaigns')
-        }, 1000)
+        setTimeout(() => router.push('/admin/campaigns'), 1000)
         return 'Campaign updated successfully!'
       },
       error: (error) => error.message || 'Failed to update campaign',
     })
   }
 
-  // Show loading state
+  // ---------- UI states ----------
   if (initialLoading) {
     return (
       <div className="space-y-6">
@@ -446,7 +453,6 @@ export default function EditCampaignPage() {
     )
   }
 
-  // Show error state
   if (errors.load) {
     return (
       <div className="space-y-6">
@@ -463,7 +469,6 @@ export default function EditCampaignPage() {
     )
   }
 
-  // Show form only if campaign is loaded
   if (!campaign) {
     return (
       <div className="space-y-6">
@@ -480,7 +485,7 @@ export default function EditCampaignPage() {
     )
   }
 
-   return (
+  return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link href={`/admin/campaigns`}>
@@ -527,9 +532,9 @@ export default function EditCampaignPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Campaign Name *</Label>
-                  <Input 
-                    id="name" 
-                    value={formData.name || ''} 
+                  <Input
+                    id="name"
+                    value={formData.name || ''}
                     onChange={(e) => handleInputChange('name', e.target.value)}
                     className={errors.name ? 'border-red-500' : ''}
                     placeholder="e.g., Summer Sale 2024"
@@ -539,8 +544,8 @@ export default function EditCampaignPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="type">Campaign Type *</Label>
-                  <Select 
-                    value={formData.type} 
+                  <Select
+                    value={formData.type}
                     onValueChange={(v) => handleInputChange('type', v)}
                   >
                     <SelectTrigger className={errors.type ? 'border-red-500' : ''}>
@@ -556,10 +561,10 @@ export default function EditCampaignPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="description">Description *</Label>
-                <Textarea 
+                <Textarea
                   id="description"
-                  value={formData.description || ''} 
-                  onChange={(e) => handleInputChange('description', e.target.value)} 
+                  value={formData.description || ''}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
                   rows={3}
                   placeholder="Describe your campaign and what customers can expect..."
                   className={errors.description ? 'border-red-500' : ''}
@@ -588,8 +593,8 @@ export default function EditCampaignPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="discountType">Discount Type *</Label>
-                  <Select 
-                    value={formData.discountType} 
+                  <Select
+                    value={formData.discountType}
                     onValueChange={(v) => handleInputChange('discountType', v)}
                   >
                     <SelectTrigger className={errors.discountType ? 'border-red-500' : ''}>
@@ -597,7 +602,7 @@ export default function EditCampaignPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="percentage">Percentage (%)</SelectItem>
-                      <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+                      <SelectItem value="fixed">Fixed Amount (₫)</SelectItem>
                     </SelectContent>
                   </Select>
                   {errors.discountType && <p className="text-sm text-red-500">{errors.discountType}</p>}
@@ -609,7 +614,7 @@ export default function EditCampaignPage() {
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
                       {getDiscountIcon()}
                     </div>
-                    <Input 
+                    <Input
                       id="discountValue"
                       type="text"
                       value={displayValues.discountValue}
@@ -630,19 +635,20 @@ export default function EditCampaignPage() {
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
                       <DollarSign className="h-4 w-4" />
                     </div>
-                    <Input 
+                    <Input
                       id="minimumOrderValue"
                       type="text"
                       value={displayValues.minimumOrderValue}
                       onChange={handleMinimumOrderValueChange}
                       onBlur={handleMinimumOrderValueBlur}
-                      className="pl-10"
+                      className={`pl-10 ${errors.minimumOrderValue ? 'border-red-500' : ''}`}
                       placeholder="0"
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Leave empty if no minimum order requirement
                   </p>
+                  {errors.minimumOrderValue && <p className="text-sm text-red-500">{errors.minimumOrderValue}</p>}
                 </div>
 
                 {formData.discountType === 'percentage' && (
@@ -652,44 +658,47 @@ export default function EditCampaignPage() {
                       <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
                         <Banknote className="h-4 w-4" />
                       </div>
-                      <Input 
+                      <Input
                         id="maximumDiscount"
                         type="text"
                         value={displayValues.maximumDiscount}
                         onChange={handleMaximumDiscountChange}
                         onBlur={handleMaximumDiscountBlur}
-                        className="pl-10"
-                        placeholder="100.000"
+                        className={`pl-10 ${errors.maximumDiscount ? 'border-red-500' : ''}`}
+                        placeholder="100.000 (0 = unlimited)"
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Maximum amount for percentage discounts
+                      Maximum amount for percentage discounts (0 = unlimited)
                     </p>
-                     {errors.maximumDiscount && <p className="text-sm text-red-500">{errors.maximumDiscount}</p>}
+                    {errors.maximumDiscount && <p className="text-sm text-red-500">{errors.maximumDiscount}</p>}
                   </div>
                 )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="usageLimit">Usage Limit</Label>
-                <Input 
+                <Input
                   id="usageLimit"
-                  type="number" 
-                  min="1"
-                  value={formData.usageLimit || ''} 
-                  onChange={(e) => handleInputChange('usageLimit', parseInt(e.target.value) )} 
-                  placeholder="Must be greater than 0"
+                  type="number"
+                  value={formData.usageLimit}
+                  onChange={(e) =>
+                    handleInputChange(
+                      'usageLimit',
+                      Number.isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value)
+                    )
+                  }
+                  onBlur={() => validateForm()}
+                  placeholder="0 = unlimited"
+                  className={errors.usageLimit ? 'border-red-500' : ''}
                 />
-                <p className="text-xs text-muted-foreground">
-                  {/* Leave empty for unlimited usage */}
-                </p>
-                 {errors.usageLimit && <p className="text-sm text-red-500">{errors.usageLimit}</p>}
+                {errors.usageLimit && <p className="text-sm text-red-500">{errors.usageLimit}</p>}
               </div>
             </CardContent>
           </Card>
 
           {/* Campaign Schedule */}
-           <Card>
+          <Card>
             <CardHeader>
               <CardTitle>Campaign Schedule</CardTitle>
               <CardDescription>Set when your campaign starts and ends</CardDescription>
@@ -702,13 +711,13 @@ export default function EditCampaignPage() {
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
                       <Calendar className="h-4 w-4" />
                     </div>
-                    <Input 
+                    <Input
                       id="startDate"
-                      type="date" 
-                      value={formData.startDate || ''} 
-                      onChange={(e) => handleInputChange('startDate', e.target.value)} 
+                      type="date"
+                      value={formData.startDate || ''}
+                      onChange={(e) => handleInputChange('startDate', e.target.value)}
+                      onBlur={() => validateForm()}
                       className={`pl-10 ${errors.startDate ? 'border-red-500' : ''}`}
-                      // min={new Date().toISOString().split('T')[0]}
                     />
                   </div>
                   {errors.startDate && <p className="text-sm text-red-500">{errors.startDate}</p>}
@@ -720,11 +729,12 @@ export default function EditCampaignPage() {
                     <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
                       <Calendar className="h-4 w-4" />
                     </div>
-                    <Input 
+                    <Input
                       id="endDate"
-                      type="date" 
-                      value={formData.endDate || ''} 
+                      type="date"
+                      value={formData.endDate || ''}
                       onChange={(e) => handleInputChange('endDate', e.target.value)}
+                      onBlur={() => validateForm()}
                       className={`pl-10 ${errors.endDate ? 'border-red-500' : ''}`}
                       min={formData.startDate || new Date().toISOString().split('T')[0]}
                     />
@@ -745,13 +755,13 @@ export default function EditCampaignPage() {
               <FilterSection
                 selectedParentCategory={selectedParentCategory}
                 onParentCategoryChange={setSelectedParentCategory}
-                searchTerm={searchTerm}
-                onSearchTermChange={setSearchTerm}
+                searchTerm={rawSearch}
+                onSearchTermChange={setRawSearch}
                 isActiveFilter={isActiveFilter}
                 onActiveFilterChange={setIsActiveFilter}
                 parentCategories={parentCategories}
               />
-              
+
               {servicesLoading ? (
                 <div className="text-center py-4">Loading services...</div>
               ) : (
@@ -763,7 +773,7 @@ export default function EditCampaignPage() {
                       onServiceToggle={handleServiceToggle}
                     />
                   </div>
-                  
+
                   <div className="mt-6 border-t pt-4">
                     <SelectedServicesSummary
                       selectedServices={formData.serviceIds || []}
@@ -787,13 +797,13 @@ export default function EditCampaignPage() {
                 Cancel
               </Button>
             </Link>
-           <Button 
-                type="submit" 
-                disabled={loading || !isEditable || Object.keys(errors).length > 0}
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {loading ? 'Saving...' : 'Save Changes'}
-              </Button>
+            <Button
+              type="submit"
+              disabled={loading || !isEditable}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {loading ? 'Saving...' : 'Save Changes'}
+            </Button>
           </div>
         </fieldset>
       </form>
