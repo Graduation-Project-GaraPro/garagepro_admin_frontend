@@ -20,8 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 export default function FinancialReports() {
   const [filters, setFilters] = useState({
     period: 'monthly',
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+    startDate: Date,
+    endDate: Date,
     branchId: '',
     serviceType: ''
   });
