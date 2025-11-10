@@ -19,12 +19,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function FinancialReports() {
   const [filters, setFilters] = useState({
-    period: 'monthly',
-    startDate: Date,
-    endDate: Date,
-    branchId: '',
-    serviceType: ''
-  });
+  period: 'monthly',
+  startDate: '',
+  endDate: '',
+  branchId: '',
+  serviceType: ''
+});
+
   
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,9 +49,19 @@ export default function FinancialReports() {
     }
   };
 
-  const handleFilterChange = (newFilters) => {
-    setFilters({ ...filters, ...newFilters });
-  };
+  const handleFilterChange = (updated) => {
+  const normalized = { ...updated };
+
+  if (updated.startDate instanceof Date) {
+    normalized.startDate = format(updated.startDate, 'yyyy-MM-dd');
+  }
+  if (updated.endDate instanceof Date) {
+    normalized.endDate = format(updated.endDate, 'yyyy-MM-dd');
+  }
+
+  setFilters(prev => ({ ...prev, ...normalized }));
+};
+
 
   if (loading) return <LoadingSpinner />;
   if (error) return <div className="p-6 text-destructive bg-destructive/10 rounded-lg mx-4 my-8">{error}</div>;
@@ -98,13 +109,13 @@ export default function FinancialReports() {
                 <ServiceTrends data={reportData} />
               </TabsContent>
               
-              {/* <TabsContent value="technicians" className="mt-4">
+              <TabsContent value="technicians" className="mt-4">
                 <TechnicianPerformance data={reportData} />
               </TabsContent>
               
               <TabsContent value="branches" className="mt-4">
                 <BranchComparison data={reportData} />
-              </TabsContent> */}
+              </TabsContent>
               
               <TabsContent value="orders" className="mt-4">
                 <RepairOrders/>

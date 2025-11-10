@@ -21,10 +21,16 @@ const periodOptions = [
     const [showCustomDate, setShowCustomDate] = useState(filters.period === 'custom');
   
     const handlePeriodChange = (value) => {
-      onFilterChange({ period: value });
-      setShowCustomDate(value === 'custom');
-    };
-  
+  setShowCustomDate(value === 'custom');
+
+  if (value !== 'custom') {
+    // xóa ngày khi không chọn custom
+    onFilterChange({ period: value, startDate: '', endDate: '' });
+  } else {
+    onFilterChange({ period: value });
+  }
+};
+
     return (
       <Card className="mb-6">
         <CardHeader className="pb-3">

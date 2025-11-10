@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { ro } from "date-fns/locale";
 import { apiClient } from "./api-client";
 
 export interface User {
@@ -121,60 +122,22 @@ class UserService {
       if (filters?.limit) params.limit = filters.limit;
 
       const response = await apiClient.get<any>(this.baseUrl, params);
-      console.log("API response data:", response.data);
-
-      // 🧩 Chuẩn hoá dữ liệu trả về theo format mock
-      const mappedUsers = response.data.map((u: any) => ({
-        id: u.id,
-        name: u.fullName || u.name || "Unknown",
-        email: u.email,
-        phone: u.phone || "N/A",
-        role: u.roles?.[0]?.toLowerCase() || "user",
-        status: u.isActive ? "active" : "inactive",
-        joinedDate: u.createdAt,
-        lastLogin: u.lastLogin,
-        avatar: u.avatar || "",
-        location: u.location || "Unknown",
-        verified: u.emailConfirmed ?? false,
-        totalOrders: u.totalOrders || 0,
-        totalSpent: u.totalSpent || 0,
-        details: {
-          address: u.address || "",
-          dateOfBirth: u.dateOfBirth || "",
-          emergencyContact: u.emergencyContact || "",
-          preferences: {
-            notifications: true,
-            marketing: false,
-            twoFactor: !!u.emailConfirmed,
-          },
-          devices: u.devices || [],
-          lastIpAddress: u.lastIpAddress || "",
-          userAgent: u.userAgent || "",
-          accountHistory: [
-            {
-              action: "Account created",
-              date: u.createdAt,
-              ip: u.lastIpAddress || "0.0.0.0",
-            },
-            {
-              action: "Last login",
-              date: u.lastLogin,
-              ip: u.lastIpAddress || "0.0.0.0",
-            },
-          ],
-          orders: [],
-        },
-      }));
 
       return {
-        users: mappedUsers,
-        total: mappedUsers.length,
-        page: 1,
-        limit: mappedUsers.length,
-        totalPages: 1,
+        users: response.data.data.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          status: user.isActive ? "active" : "inactive",
+          role: user.roles[0],
+        })),
+        total: response.data.total,
+        page: response.data.page,
+        limit: response.data.limit,
+        totalPages: response.data.total,
       };
     } catch (error) {
-      console.log("API failed, using mock data");
+      console.log("API failed, using mock data", error);
       this.initializeCache();
       let users = this.readCache();
 

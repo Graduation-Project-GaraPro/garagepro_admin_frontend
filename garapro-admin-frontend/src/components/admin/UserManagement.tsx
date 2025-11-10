@@ -66,6 +66,7 @@ import {
 import { toast } from "sonner";
 import SendEmailDialog from "@/components/admin/users/SendEmailDialog";
 import ActivityDialog from "@/components/admin/users/ActivityDialog";
+import { match } from "assert";
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -121,57 +122,102 @@ const cleanupPortals = () => {
 };
 
 export function UserManagement() {
+  // State Management
   const [searchTerm, setSearchTerm] = useState("");
   const [users, setUsers] = useState<User[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [verifiedFilter, setVerifiedFilter] = useState("all");
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
-  const [isBulkActionDialogOpen, setIsBulkActionDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  // Loading States
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  // Dialog States
+  const [isBulkActionDialogOpen, setIsBulkActionDialogOpen] = useState(false);
   const [banDialogOpen, setBanDialogOpen] = useState(false);
   const [unbanDialogOpen, setUnbanDialogOpen] = useState(false);
-  const [banReason, setBanReason] = useState("");
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [activityDialogOpen, setActivityDialogOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
+
+  // Form States
+  const [banReason, setBanReason] = useState("");
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
+
+  // Error State
   const [error, setError] = useState<string | null>(null);
 
-  // Cleanup triệt để khi component unmount
+  // ============================================================================
+  // LIFECYCLE EFFECTS
+  // ============================================================================
+
   useEffect(() => {
-    return () => {
-      cleanupPortals();
-    };
+    return () => cleanupPortals();
   }, []);
 
-  const loadUsers = useCallback(async () => {
+  // Reset về page 1 khi thay đổi filters
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, roleFilter, verifiedFilter]);
+
+  // Load users khi các filters hoặc page thay đổi
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const filters: UserFilters = { page: currentPage, limit: 5 };
+        if (searchTerm) filters.search = searchTerm;
+        if (statusFilter !== "all") filters.status = statusFilter;
+        if (roleFilter !== "all") filters.role = roleFilter;
+        if (verifiedFilter === "verified") filters.verified = true;
+        if (verifiedFilter === "unverified") filters.verified = false;
+
+        const response = await userService.getUsers(filters);
+        setUsers(response.users);
+        setTotalPages(Math.ceil(response.total / 5));
+        setTotalUsers(response.total);
+      } catch (error) {
+        console.error("Failed to load users:", error);
+        setError("Failed to load users. Please try again later.");
+        toast.error("Failed to load users. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [currentPage, statusFilter, roleFilter, verifiedFilter, searchTerm]);
+
+  // ============================================================================
+  // DATA FETCHING
+  // ============================================================================
+
+  // Giữ loadUsers như một helper function (không dùng useCallback)
+  const loadUsers = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const filters: UserFilters = {
-        page: currentPage,
-        limit: 10,
-      };
-
+      const filters: UserFilters = { page: currentPage, limit: 5 };
       if (searchTerm) filters.search = searchTerm;
       if (statusFilter !== "all") filters.status = statusFilter;
       if (roleFilter !== "all") filters.role = roleFilter;
-      if (verifiedFilter !== "all") {
-        if (verifiedFilter === "verified") filters.verified = true;
-        if (verifiedFilter === "unverified") filters.verified = false;
-      }
+      if (verifiedFilter === "verified") filters.verified = true;
+      if (verifiedFilter === "unverified") filters.verified = false;
 
       const response = await userService.getUsers(filters);
-
       setUsers(response.users);
-      setTotalPages(response.totalPages);
+      setTotalPages(Math.ceil(response.total / 5));
       setTotalUsers(response.total);
     } catch (error) {
       console.error("Failed to load users:", error);
@@ -180,24 +226,7 @@ export function UserManagement() {
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, statusFilter, roleFilter, verifiedFilter, currentPage]);
-
-  useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
-
-  // Debounce search term
-  useEffect(() => {
-    const delayedSearch = setTimeout(() => {
-      if (currentPage !== 1) {
-        setCurrentPage(1);
-      } else {
-        loadUsers();
-      }
-    }, 300);
-
-    return () => clearTimeout(delayedSearch);
-  }, [searchTerm, currentPage, loadUsers]);
+  };
 
   const refreshUsers = async () => {
     setIsRefreshing(true);
@@ -374,7 +403,7 @@ export function UserManagement() {
 
   const getInitials = (name: string) => {
     return name
-      .split(" ")
+      .split("")
       .map((word) => word[0])
       .join("")
       .toUpperCase()
@@ -418,7 +447,7 @@ export function UserManagement() {
               <Edit className="h-4 w-4 mr-2" />
               Edit
             </Button> */}
-            {user.status === "banned" ? (
+            {user.status === "inactive" ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -609,7 +638,7 @@ export function UserManagement() {
             >
               <option value="all">All Status</option>
               <option value="active">Active</option>
-              <option value="banned">Banned</option>
+              <option value="inactive">Banned</option>
             </select>
             <select
               value={roleFilter}
@@ -701,9 +730,7 @@ export function UserManagement() {
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback>
-                          {getInitials(user.name)}
-                        </AvatarFallback>
+                        <AvatarFallback>{user.name}</AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="font-medium text-gray-900">
