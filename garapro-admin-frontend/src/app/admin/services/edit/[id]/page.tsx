@@ -19,6 +19,7 @@ export default function EditServicePage() {
       try {
         if (!id) return;
         const data = await serviceService.getServiceById(id);
+        console.log(data);
         if (!alive) return;
         setService(data);
       } catch (e) {

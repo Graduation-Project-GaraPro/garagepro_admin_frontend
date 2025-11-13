@@ -30,7 +30,12 @@ export const useServiceForm = (service?: Service) => {
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  // const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
+  const [selectedPartCategoryIds, setSelectedPartCategoryIds] = useState<string[]>(
+  // nếu service đang edit có sẵn categoryIds thì dùng, không thì []
+    (service as any)?.partCategoryIds ?? []
+  );
 
   const initParentDoneRef = useRef(false);
   const initSubDoneRef = useRef(false);
@@ -38,10 +43,7 @@ export const useServiceForm = (service?: Service) => {
   const initialServiceTypeId = service?.serviceType?.parentServiceCategoryId
     ? service?.serviceType?.id
     : service?.serviceType?.id ?? "";
-  // selection
-  const [selectedPartIds, setSelectedPartIds] = useState<string[]>(
-    service?.partIds ?? []
-  );
+  
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>(
     () => {
       const st = service?.serviceType;
@@ -98,34 +100,12 @@ export const useServiceForm = (service?: Service) => {
     return parent?.childCategories ?? [];
   }, [serviceCategories, selectedParentCategory]);
 
-  const allParts = useMemo(
-    () =>
-      partCategories.flatMap((cat) =>
-        cat.parts.map((p) => ({ ...p, categoryName: cat.categoryName }))
-      ),
-    [partCategories]
-  );
+  
 
-  const filteredParts = useMemo(() => {
-    const term = searchTerm.toLowerCase();
-    return allParts.filter((p) => {
-      const matchesTerm =
-        p.name.toLowerCase().includes(term) ||
-        p.categoryName.toLowerCase().includes(term);
-      const matchesCat =
-        selectedCategory === "all" || p.partCategoryId === selectedCategory;
-      return matchesTerm && matchesCat;
-    });
-  }, [allParts, searchTerm, selectedCategory]);
+  
 
-  const selectedParts = useMemo(
-    () => allParts.filter((p) => selectedPartIds.includes(p.id)),
-    [allParts, selectedPartIds]
-  );
-  const totalPartsPrice = useMemo(
-    () => selectedParts.reduce((t, p) => t + p.price, 0),
-    [selectedParts]
-  );
+  
+  
 
   // validation
   const inRange = (n: number, min: number, max: number) => n >= min && n <= max;
@@ -295,21 +275,31 @@ export const useServiceForm = (service?: Service) => {
     []
   );
 
-  const togglePartSelection = useCallback((id: string) => {
-    setSelectedPartIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+const filteredPartCategories = useMemo(
+  () => {
+    const term = searchTerm.toLowerCase().trim();
+    if (!term) return partCategories;
+    return partCategories.filter((cat) =>
+      cat.categoryName.toLowerCase().includes(term)
     );
-  }, []);
-  const removePart = useCallback(
-    (id: string) => {
-      const part = allParts.find((p) => p.id === id);
-      setSelectedPartIds((prev) => prev.filter((x) => x !== id));
-      toast.success("Part removed", {
-        description: `${part?.name} has been removed from this service.`,
-      });
-    },
-    [allParts]
+  },
+  [partCategories, searchTerm]
+);
+
+//  toggle chọn / bỏ chọn PartCategory
+const togglePartCategory = useCallback((id: string) => {
+  setSelectedPartCategoryIds((prev) =>
+    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
   );
+}, []);
+
+//  clear chỉ search, không còn filter category nữa
+const clearSearch = useCallback(() => {
+  setSearchTerm("");
+  toast.info("Filters cleared");
+}, []);
+
+
 
   const toggleBranch = useCallback(
     (branchId: string) => {
@@ -324,11 +314,7 @@ export const useServiceForm = (service?: Service) => {
     [formData.branchIds]
   );
 
-  const clearSearch = useCallback(() => {
-    setSearchTerm("");
-    setSelectedCategory("all");
-    toast.info("Filters cleared");
-  }, [setSearchTerm, setSelectedCategory]);
+  
 
   const handleBasePriceChange = (value: string) => {
     const raw = value.replace(/\./g, "");
@@ -360,8 +346,9 @@ export const useServiceForm = (service?: Service) => {
         basePrice: formData.basePrice,
         estimatedDuration: formData.estimatedDuration,
         isActive: formData.isActive,
+        isAdvanced: formData.isAdvanced,
         branchIds: formData.branchIds,
-        partIds: selectedPartIds,
+        partCategoryIds: selectedPartCategoryIds,
       };
       if (service) {
         await serviceService.updateService(service.id, payload);
@@ -416,14 +403,11 @@ export const useServiceForm = (service?: Service) => {
     // parts
     searchTerm,
     setSearchTerm,
-    selectedCategory,
-    setSelectedCategory,
-    filteredParts,
-    selectedPartIds,
-    togglePartSelection,
-    removePart,
-    selectedParts,
-    totalPartsPrice,
+    
+    filteredPartCategories,
+    selectedPartCategoryIds,
+    togglePartCategory,
+
     clearSearch,
     // validations
     isDescriptionValid,

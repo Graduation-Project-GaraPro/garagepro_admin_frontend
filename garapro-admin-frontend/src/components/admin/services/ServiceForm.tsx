@@ -132,18 +132,11 @@ export default function ServiceForm({ service, isReady = true }: { service?: any
             <PartsPicker
                 partCategories={vm.partCategories}
                 searchTerm={vm.searchTerm}
-                setSearchTerm={vm.setSearchTerm}                 // OK: setState từ useState là stable
-                selectedCategory={vm.selectedCategory}
-                setSelectedCategory={vm.setSelectedCategory}     // OK: Select onValueChange(string)
-                filteredParts={vm.filteredParts}
-                selectedPartIds={vm.selectedPartIds}
-                togglePartSelection={vm.togglePartSelection}
-                removePart={vm.removePart}
-                selectedParts={vm.selectedParts}
-                totalPartsPrice={vm.totalPartsPrice}
+                setSearchTerm={vm.setSearchTerm}
+                filteredPartCategories={vm.filteredPartCategories}
+                selectedPartCategoryIds={vm.selectedPartCategoryIds}
+                togglePartCategory={vm.togglePartCategory}
                 clearSearch={vm.clearSearch}
-                formatCurrency={vm.formatCurrency}
-                formatNumber={vm.formatNumber}
               />
             <BranchesPicker
               branches={vm.branches}

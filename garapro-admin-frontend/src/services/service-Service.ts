@@ -1,3 +1,7 @@
+import { PartCategory } from '@/services/service-Service';
+import { PartCategory } from '@/services/service-Service';
+import { PartCategory } from '@/services/service-Service';
+import { PartCategory } from '@/services/service-Service';
 // services/service-Service.ts
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api';
@@ -92,7 +96,14 @@ export interface ApiService {
     updatedAt: string | null;
   };
   branches: ApiBranch[];
-  parts?: any[];
+  partCategories?: PartCategoryWithParts[];
+}
+
+interface PartCategoryWithParts
+{
+  partCategoryId : string ,
+  categoryName: string,
+  parts:ApiPart[]
 }
 
 interface ApiBranch {
@@ -145,7 +156,7 @@ interface CreateServiceRequest {
   isActive: boolean;
   isAdvanced: boolean;
   branchIds: string[];
-  partIds: string[];
+  partCategoryIds: string[];
 }
 
 interface PaginatedResponse {
@@ -269,8 +280,8 @@ export const serviceService = {
         isAdvanced: item.isAdvanced,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
-        parts: item.parts || [],
-        partIds: item.parts?.map((part: any) => part.partId) || []
+        parts: item.partCategories || [],
+        partCategoryIds: item.partCategories?.map((PartCategory: any) => PartCategory.PartCategoryId) || []
       }));
       
     } catch (error) {
@@ -354,7 +365,7 @@ export const serviceService = {
       }
       
       const item: ApiService = await response.json();
-      
+      console.log("item", item);
       return {
         id: item.serviceId,
         name: item.serviceName,
@@ -388,7 +399,7 @@ export const serviceService = {
         isAdvanced: item.isAdvanced,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
-        partIds: item.parts?.map((part: any) => part.partId) || []
+        partCategoryIds: item.partCategories?.map((partCategory: any) => partCategory.partCategoryId) || []
       };
       
     } catch (error) {
@@ -562,7 +573,7 @@ export const serviceService = {
         isActive: serviceData.isActive,
         isAdvanced: serviceData.isAdvanced || false,
         branchIds: serviceData.branchIds || [],
-        partIds: serviceData.partIds || []
+        partCategoryIds: serviceData.partCategoryIds || []
       };
 
       const response = await authenticatedFetch(`${API_BASE_URL}/Services/${id}`, {
