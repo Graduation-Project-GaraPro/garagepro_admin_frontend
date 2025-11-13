@@ -30,6 +30,7 @@ type Props = {
   selectedPartCategoryIds: string[];
   togglePartCategory: (id: string) => void;
   clearSearch: () => void;
+  isAdvanced: boolean;      
 };
 
 function PartsPicker({
@@ -40,6 +41,7 @@ function PartsPicker({
   selectedPartCategoryIds,
   togglePartCategory,
   clearSearch,
+  isAdvanced,               
 }: Props) {
   console.log("PartsPicker render");
 
@@ -116,12 +118,12 @@ function PartsPicker({
                     >
                       <div className="flex-1 flex items-center gap-3">
                         <div
-                          className={`w-4 h-4 border-2 flex items-center justify-center rounded ${
-                            isSelected
-                              ? "bg-primary border-primary"
-                              : "border-muted-foreground"
-                          }`}
-                        />
+                            className={`w-4 h-4 border-2 flex items-center justify-center ${
+                              isAdvanced ? "rounded" : "rounded-full"
+                            } ${
+                              isSelected ? "bg-primary border-primary" : "border-muted-foreground"
+                            }`}
+                          />
                         <div>
                           <p className="font-medium text-sm">
                             {cat.categoryName}
@@ -209,7 +211,7 @@ function areEqual(prev: Props, next: Props) {
   check("togglePartCategory");
   check("setSearchTerm");
   check("clearSearch");
-
+  check("isAdvanced");
   if (diffs.length) {
     console.log("%c[PartsPicker] props changed:", "color:orange", diffs);
     return false; // có thay đổi -> cho re-render

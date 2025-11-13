@@ -287,11 +287,34 @@ const filteredPartCategories = useMemo(
 );
 
 //  toggle chọn / bỏ chọn PartCategory
-const togglePartCategory = useCallback((id: string) => {
-  setSelectedPartCategoryIds((prev) =>
-    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-  );
-}, []);
+const togglePartCategory = useCallback(
+  (id: string) => {
+    setSelectedPartCategoryIds((prev) => {
+      if (formData.isAdvanced) {
+        // ✅ Advanced: cho chọn nhiều
+        return prev.includes(id)
+          ? prev.filter((x) => x !== id)
+          : [...prev, id];
+      }
+
+      // ✅ Không advanced: chỉ 1 category
+      if (prev.includes(id)) {
+        // click lại cái đang chọn -> bỏ chọn hết
+        return [];
+      }
+      // chọn mới -> chỉ giữ đúng id này
+      return [id];
+    });
+  },
+  [formData.isAdvanced]
+);
+
+useEffect(() => {
+  if (!formData.isAdvanced && selectedPartCategoryIds.length > 1) {
+    setSelectedPartCategoryIds((prev) => (prev.length ? [prev[0]] : []));
+  }
+}, [formData.isAdvanced, selectedPartCategoryIds.length]);
+
 
 //  clear chỉ search, không còn filter category nữa
 const clearSearch = useCallback(() => {

@@ -130,14 +130,15 @@ export default function ServiceForm({ service, isReady = true }: { service?: any
           {/* right column */}
           <div className="space-y-6">
             <PartsPicker
-                partCategories={vm.partCategories}
-                searchTerm={vm.searchTerm}
-                setSearchTerm={vm.setSearchTerm}
-                filteredPartCategories={vm.filteredPartCategories}
-                selectedPartCategoryIds={vm.selectedPartCategoryIds}
-                togglePartCategory={vm.togglePartCategory}
-                clearSearch={vm.clearSearch}
-              />
+              partCategories={vm.partCategories}
+              searchTerm={vm.searchTerm}
+              setSearchTerm={vm.setSearchTerm}
+              filteredPartCategories={vm.filteredPartCategories}
+              selectedPartCategoryIds={vm.selectedPartCategoryIds}
+              togglePartCategory={vm.togglePartCategory}
+              clearSearch={vm.clearSearch}
+              isAdvanced={vm.formData.isAdvanced}   
+            />
             <BranchesPicker
               branches={vm.branches}
               branchIds={vm.formData.branchIds}
