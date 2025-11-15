@@ -232,6 +232,8 @@ export default function BranchDetailPage() {
             </p>
           </CardContent>
         </Card>
+        
+
       </div>
 
       {/* Branch Information */}
@@ -262,6 +264,7 @@ export default function BranchDetailPage() {
                   {branch.updatedAt ? new Date(branch.updatedAt).toLocaleDateString() : 'Never'}
                 </div>
               </div>
+              
             </div>
 
             <div>
@@ -273,7 +276,8 @@ export default function BranchDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Contact & Location */}
+       <div className="space-y-6">
+           {/* Contact & Location */}
         <Card>
           <CardHeader>
             <CardTitle>Contact & Location</CardTitle>
@@ -286,7 +290,7 @@ export default function BranchDetailPage() {
                 <div className="font-medium">Address</div>
                 <div className="text-sm text-muted-foreground">
                   {branch.street}<br />
-                  {branch.comune}, {branch.province}<br />
+                  {branch.commune}, {branch.province}<br />
                   
                 </div>
               </div>
@@ -313,6 +317,33 @@ export default function BranchDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+{/* Operational Settings - THÊM CARD MỚI */}
+        <Card>
+      <CardHeader>
+        <CardTitle>Operational Settings</CardTitle>
+        <CardDescription>Scheduling & capacity</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Arrival Window:</span>
+            <Badge variant="outline">{branch.arrivalWindowMinutes} min</Badge>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Max Bookings/Window:</span>
+            <Badge variant="outline">{branch.maxBookingsPerWindow}</Badge>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Max Concurrent WIP:</span>
+            <Badge variant="outline">{branch.maxConcurrentWip}</Badge>
+          </div>
+        </div>
+      </CardContent>
+        </Card>
+
+       </div>
+
       </div>
 
       {/* Services by Category */}

@@ -1,6 +1,6 @@
 // hooks/admin/branches/useBranch.ts
 import { useState, useEffect ,useCallback} from 'react'
-import { branchService, CreateBranchRequest, UpdateBranchRequest, Service, User, ServiceCategory, Province, District, Ward } from '@/services/branch-service'
+import { branchService, CreateBranchRequest, UpdateBranchRequest, Service, User, ServiceCategory} from '@/services/branch-service'
 export const useBranchData = () => {
    const [managers, setManagers] = useState<User[]>([])
   const [technicians, setTechnicians] = useState<User[]>([])
@@ -17,21 +17,7 @@ export const useBranchData = () => {
         setLoading(true)
         setError(null)
 
-        // const [
-        //   managersData, 
-        //   techniciansData, 
-        //   managersWithoutBranchData, 
-        //   techniciansWithoutBranchData, 
-        //   categoriesData,
-        //   parentCategoriesData
-        // ] = await Promise.all([
-        //   branchService.getManagers(),
-        //   branchService.getTechnicians(),
-        //   branchService.getManagersWithoutBranch(),
-        //   branchService.getTechniciansWithoutBranch(),
-        //   branchService.getServiceCategories(),
-        //   branchService.getParentServiceCategoriesForFilter()
-        // ])
+        
 
       const managersData = await branchService.getManagers()
       const techniciansData = await branchService.getTechnicians()
@@ -77,76 +63,7 @@ export const useBranchData = () => {
 }
 
 // hooks/admin/branches/useBranch.ts
-export const useLocationData = () => {
-  const [provinces, setProvinces] = useState<Province[]>([])
-  const [districts, setDistricts] = useState<District[]>([])
-  const [wards, setWards] = useState<Ward[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const loadProvinces = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await branchService.getProvinces()
-      setProvinces(data)
-      return data
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to load provinces'
-      setError(msg)
-      return []
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  const loadDistricts = useCallback(async (provinceCode: string) => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await branchService.getDistricts(provinceCode)
-      setDistricts(data)
-      setWards([])
-      return data
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to load districts'
-      setError(msg)
-      return []
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  const loadWards = useCallback(async (districtCode: string) => {
-    try {
-      setLoading(true)
-      setError(null)
-      const data = await branchService.getWards(districtCode)
-      setWards(data)
-      return data
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to load wards'
-      setError(msg)
-      return []
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadProvinces()
-  }, [loadProvinces])
-
-  return {
-    provinces,
-    districts,
-    wards,
-    loading,
-    error,
-    loadDistricts,
-    loadWards
-  }
-}
 
 
 export const useFormValidation = (formData: CreateBranchRequest, shouldValidate: boolean) => {
@@ -207,7 +124,7 @@ export const validateForm = (formData: CreateBranchRequest): Record<string, stri
   }
 
   // Validate commune
-  if (!formData.comune?.trim()) {
+  if (!formData.commune?.trim()) {
     errors.comune = 'Commune is required'
   }
 

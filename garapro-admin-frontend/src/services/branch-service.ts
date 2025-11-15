@@ -19,6 +19,9 @@ export interface GarageBranch {
   services: Service[]
   staffs: Staff[]
   operatingHours: OperatingHour[]
+  arrivalWindowMinutes: number
+  maxBookingsPerWindow: number
+  maxConcurrentWip: number
 }
 
 export interface CreateBranchRequest {
@@ -32,6 +35,9 @@ export interface CreateBranchRequest {
   serviceIds: string[]
   staffIds: string[]
   operatingHours: OperatingHour[]
+  arrivalWindowMinutes: number
+  maxBookingsPerWindow: number
+  maxConcurrentWip: number
 }
 
 export interface UpdateBranchRequest {
@@ -48,6 +54,9 @@ export interface UpdateBranchRequest {
   serviceIds: string[]
   staffIds: string[]
   operatingHours: OperatingHour[]
+  arrivalWindowMinutes: number
+  maxBookingsPerWindow: number
+  maxConcurrentWip: number
 }
 
 export interface Service {
@@ -135,23 +144,20 @@ export interface GetBranchesResponse {
   pageSize: number,
   totalPages: number
 }
-
-export interface Province {
-  code: string
-  name: string
+export interface ImportErrorDetail {
+  sheetName: string
+  rowNumber?: number | null
+  columnName?: string | null
+  message: string
+  errorCode?: string | null
 }
 
-export interface District {
-  code: string
-  name: string
-  provinceCode: string
+export interface ImportResult {
+  success: boolean
+  message: string
+  errors?: ImportErrorDetail[]
 }
 
-export interface Ward {
-  code: string
-  name: string
-  districtCode: string
-}
 class BranchService {
   private baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
   private dbUrl = '/data/db.json'
@@ -409,10 +415,7 @@ class BranchService {
     await this.bulkDeleteBranchesApi(ids)
   }
 
-  // Helper methods for UI
-  getFullAddress(branch: GarageBranch): string {
-    return `${branch.street}, ${branch.ward}, ${branch.district}, ${branch.city}`
-  }
+  
 
   getManagerInfo(staffs: Staff[]): { name: string; email: string } {
     const manager = staffs.find(staff => 
@@ -442,51 +445,48 @@ class BranchService {
     return days[dayOfWeek - 1] || 'Unknown'
   }
 
-   async getProvinces(): Promise<Province[]> {
-    try {
-      const response = await fetch(this.dbUrl)
-      if (!response.ok) throw new Error('Failed to load DB')
-      const data = await response.json()
-    console.log("data",data)
-      return data.province || []
-    } catch (error) {
-      console.error('Failed to fetch provinces:', error)
-      // fallback tĩnh
-      return [
-        { code: '79', name: 'Thành phố Hồ Chí Minh' },
-        { code: '01', name: 'Thành phố Hà Nội' },
-        { code: '48', name: 'Thành phố Đà Nẵng' },
-        { code: '31', name: 'Thành phố Hải Phòng' },
-        { code: '92', name: 'Thành phố Cần Thơ' }
-      ]
-    }
+ async importMasterData(file: File): Promise<ImportResult> {
+  const token = this.getAuthToken()
+  if (!token) {
+    throw new Error('Authentication required')
   }
 
-  async getDistricts(provinceCode: string): Promise<District[]> {
-    try {
-      const response = await fetch(this.dbUrl)
-      if (!response.ok) throw new Error('Failed to load DB')
-      const data = await response.json()
-      const districts: District[] = data.districts || []
-      return districts.filter(d => d.provinceCode === provinceCode)
-    } catch (error) {
-      console.error('Failed to fetch districts:', error)
-      return []
-    }
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(`${this.baseURL}/MasterImport/excel`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`, // KHÔNG set Content-Type ở đây
+    },
+    body: formData,
+  })
+
+  const text = await response.text()
+
+  let raw: any = {}
+  try {
+    raw = JSON.parse(text)
+  } catch {
+    raw = {}
   }
 
-  async getWards(districtCode: string): Promise<Ward[]> {
-    try {
-      const response = await fetch(this.dbUrl)
-      if (!response.ok) throw new Error('Failed to load DB')
-      const data = await response.json()
-      const wards: Ward[] = data.wards || []
-      return wards.filter(w => w.districtCode === districtCode)
-    } catch (error) {
-      console.error('Failed to fetch wards:', error)
-      return []
-    }
+  const normalized: ImportResult = {
+    success: raw.success ?? raw.Success ?? response.ok,
+    message: raw.message ?? raw.Message ?? (text || (response.ok ? 'Import completed.' : 'Import failed.')),
+    errors: raw.errors ?? raw.Errors ?? [],
   }
+
+  console.log('📥 Import API raw:', raw)
+  console.log('✅ Import normalized:', normalized)
+
+  if (!response.ok || !normalized.success) {
+    throw normalized
+  }
+
+  return normalized
+}
+
 }
 
 export const branchService = new BranchService()

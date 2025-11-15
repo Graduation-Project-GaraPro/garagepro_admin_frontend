@@ -16,6 +16,9 @@ export type BasicField =
   | 'commune'
   | 'province'
   | 'description'
+  | 'arrivalWindowMinutes'
+  | 'maxBookingsPerWindow'
+  | 'maxConcurrentWip'
 
 interface BasicInfoSectionProps {
   branchName: string
@@ -25,6 +28,9 @@ interface BasicInfoSectionProps {
   commune: string
   province: string
   description: string
+  arrivalWindowMinutes: number
+  maxBookingsPerWindow: number
+  maxConcurrentWip: number
   errors: Record<string, string>
   onChange: (field: BasicField, value: string) => void
 }
@@ -33,7 +39,9 @@ interface BasicInfoSectionProps {
 const useDebouncedCallback = (cb: (...args: any[]) => void, delay = 250) => {
   const t = useRef<number | null>(null)
   const saved = useRef(cb)
-  useEffect(() => { saved.current = cb }, [cb])
+  useEffect(() => {
+    saved.current = cb
+  }, [cb])
 
   return useCallback((...args: any[]) => {
     if (t.current) window.clearTimeout(t.current)
@@ -45,10 +53,19 @@ const useDebouncedCallback = (cb: (...args: any[]) => void, delay = 250) => {
 const TextFields = memo(function TextFields({
   values,
   errors,
-  onImmediate,      // gọi onBlur
-  onDebounced,      // gọi onChange(debounced)
+  onImmediate,
+  onDebounced,
 }: {
-  values: { branchName: string; street: string; phoneNumber: string; email: string; description: string }
+  values: {
+    branchName: string
+    street: string
+    phoneNumber: string
+    email: string
+    description: string
+    arrivalWindowMinutes: number
+    maxBookingsPerWindow: number
+    maxConcurrentWip: number
+  }
   errors: Record<string, string>
   onImmediate: (field: string, value: string) => void
   onDebounced: (field: string, value: string) => void
@@ -59,7 +76,6 @@ const TextFields = memo(function TextFields({
     (field: keyof typeof values) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       const v = e.target.value
-      // update UI nhanh không block; debounce gọi parent sau
       startTransition(() => onDebounced(field, v))
     }
 
@@ -78,9 +94,6 @@ const TextFields = memo(function TextFields({
         />
         {errors.branchName && <p className="text-sm text-red-500">{errors.branchName}</p>}
       </div>
-
-      {/* Street */}
-      
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Phone */}
@@ -113,6 +126,62 @@ const TextFields = memo(function TextFields({
         </div>
       </div>
 
+      {/* Arrival Window */}
+      <div className="space-y-2">
+        <Label htmlFor="arrivalWindowMinutes">Arrival Window (minutes) *</Label>
+        <Input
+          id="arrivalWindowMinutes"
+          type="number"
+          min="30"
+          step="30"
+          value={values.arrivalWindowMinutes}
+          onChange={onChange('arrivalWindowMinutes')}
+          onBlur={(e) => onImmediate('arrivalWindowMinutes', e.target.value)}
+          placeholder="30"
+          className={errors.arrivalWindowMinutes ? 'border-red-500' : ''}
+        />
+        {errors.arrivalWindowMinutes && (
+          <p className="text-sm text-red-500">{errors.arrivalWindowMinutes}</p>
+        )}
+        <p className="text-xs text-muted-foreground">Must be multiple of 30</p>
+      </div>
+
+      {/* Max Bookings Per Window */}
+      <div className="space-y-2">
+        <Label htmlFor="maxBookingsPerWindow">Max Bookings/Window *</Label>
+        <Input
+          id="maxBookingsPerWindow"
+          type="number"
+          min="1"
+          value={values.maxBookingsPerWindow}
+          onChange={onChange('maxBookingsPerWindow')}
+          onBlur={(e) => onImmediate('maxBookingsPerWindow', e.target.value)}
+          placeholder="6"
+          className={errors.maxBookingsPerWindow ? 'border-red-500' : ''}
+        />
+        {errors.maxBookingsPerWindow && (
+          <p className="text-sm text-red-500">{errors.maxBookingsPerWindow}</p>
+        )}
+      </div>
+
+      {/* Max Concurrent WIP */}
+      <div className="space-y-2">
+        <Label htmlFor="maxConcurrentWip">Max Concurrent WIP *</Label>
+        <Input
+          id="maxConcurrentWip"
+          type="number"
+          min="1"
+          value={values.maxConcurrentWip}
+          onChange={onChange('maxConcurrentWip')}
+          onBlur={(e) => onImmediate('maxConcurrentWip', e.target.value)}
+          placeholder="8"
+          className={errors.maxConcurrentWip ? 'border-red-500' : ''}
+        />
+        {errors.maxConcurrentWip && (
+          <p className="text-sm text-red-500">{errors.maxConcurrentWip}</p>
+        )}
+      </div>
+
       {/* Description */}
       <div className="space-y-2">
         <Label htmlFor="description">Description</Label>
@@ -129,6 +198,7 @@ const TextFields = memo(function TextFields({
         </p>
       </div>
 
+      {/* Street */}
       <div className="space-y-2">
         <Label htmlFor="street">Street Address *</Label>
         <Input
@@ -141,8 +211,6 @@ const TextFields = memo(function TextFields({
         />
         {errors.street && <p className="text-sm text-red-500">{errors.street}</p>}
       </div>
-
-      {/* {isTyping && <div className="text-xs text-muted-foreground">Updating…</div>} */}
     </>
   )
 })
@@ -165,11 +233,10 @@ const LocationFields = memo(function LocationFields({
   selectedCommuneCode: string
   loadingProvinces: boolean
   loadingCommunes: boolean
-  errors: Record<string, string>
+  errors: { province?: string; commune?: string }
   onProvinceChange: (provinceCode: string) => void
   onCommuneChange: (communeCode: string) => void
 }) {
-  // Memo các option để không map lại mỗi lần gõ ở text
   const provinceOptions = useMemo(
     () =>
       provinces.map((p) => (
@@ -195,7 +262,11 @@ const LocationFields = memo(function LocationFields({
       {/* Province */}
       <div className="space-y-2">
         <Label htmlFor="province">Province *</Label>
-        <Select value={selectedProvinceCode} onValueChange={onProvinceChange} disabled={loadingProvinces}>
+        <Select
+          value={selectedProvinceCode}
+          onValueChange={onProvinceChange}
+          disabled={loadingProvinces}
+        >
           <SelectTrigger className={errors.province ? 'border-red-500' : ''}>
             {loadingProvinces && provinces.length === 0 ? (
               <div className="flex items-center gap-2">
@@ -226,7 +297,9 @@ const LocationFields = memo(function LocationFields({
                 <span>Loading...</span>
               </div>
             ) : (
-              <SelectValue placeholder={selectedProvinceCode ? 'Select Commune' : 'Select Province First'} />
+              <SelectValue
+                placeholder={selectedProvinceCode ? 'Select Commune' : 'Select Province First'}
+              />
             )}
           </SelectTrigger>
           <SelectContent>{communeOptions}</SelectContent>
@@ -246,12 +319,14 @@ function BasicInfoSectionImpl({
   commune,
   province,
   description,
+  arrivalWindowMinutes,
+  maxBookingsPerWindow,
+  maxConcurrentWip,
   errors,
   onChange,
 }: BasicInfoSectionProps) {
   const serviceRef = useRef(new LocationService())
 
-  // location state
   const [provinces, setProvinces] = useState<Province[]>([])
   const [communes, setCommunes] = useState<Commune[]>([])
   const [loadingProvinces, setLoadingProvinces] = useState(false)
@@ -260,61 +335,82 @@ function BasicInfoSectionImpl({
   const [selectedCommuneCode, setSelectedCommuneCode] = useState('')
   const initializedRef = useRef(false)
 
+  // NEW: lỗi location lấy từ DB (province/commune không khớp db.json)
+  const [provinceDbError, setProvinceDbError] = useState<string | null>(null)
+  const [communeDbError, setCommuneDbError] = useState<string | null>(null)
+
   // load provinces once
   useEffect(() => {
-    let alive = true
-    ;(async () => {
-      setLoadingProvinces(true)
-      try {
-        const data = await serviceRef.current.getProvinces()
-        if (alive) setProvinces(data)
-      } catch (e) {
-        console.error('Failed to load provinces:', e)
-      } finally {
-        if (alive) setLoadingProvinces(false)
-      }
-    })()
-    return () => {
-      alive = false
+  let alive = true
+  ;(async () => {
+    setLoadingProvinces(true)
+    try {
+      const data = await serviceRef.current.getProvinces()
+      if (alive) setProvinces(data)
+    } catch (e) {
+      console.error('Failed to load provinces:', e)
+      // NEW: if loading province fails, consider initialization complete to avoid infinite skeleton
+      if (alive) setProvinceDbError('Unable to load province/city list from address file.')
+    } finally {
+      if (alive) setLoadingProvinces(false)
     }
-  }, [])
+  })()
+  return () => {
+    alive = false
+  }
+}, [])
 
-  // initialize from props province/comune once data ready
+  // initialize from props province/commune once data ready
   useEffect(() => {
-    if (initializedRef.current || provinces.length === 0) return
+  if (initializedRef.current || provinces.length === 0) return
 
-    ;(async () => {
-      if (!province) {
-        initializedRef.current = true
-        return
-      }
-      const foundProvince = provinces.find(
-        (p) => p.name === province || p.name.toLowerCase().includes(province.toLowerCase())
+  ;(async () => {
+    if (!province) {
+      initializedRef.current = true
+      return
+    }
+
+    const foundProvince = provinces.find(
+      (p) => p.name === province || p.name.toLowerCase().includes(province.toLowerCase())
+    )
+
+    if (!foundProvince) {
+      // NEW: province in branch DB does not exist in current address db.json
+      setProvinceDbError(
+        'Province value in branch database was not found in current address data.'
       )
-      if (!foundProvince) {
-        initializedRef.current = true
-        return
-      }
+      initializedRef.current = true
+      return
+    }
 
-      setSelectedProvinceCode(foundProvince.idProvince)
-      setLoadingCommunes(true)
-      try {
-        const communesData = await serviceRef.current.getCommunes(foundProvince.idProvince)
-        setCommunes(communesData)
-        if (commune) {
-          const foundCommune = communesData.find(
-            (c) => c.name === commune || c.name.toLowerCase().includes(commune.toLowerCase())
+    setSelectedProvinceCode(foundProvince.idProvince)
+    setLoadingCommunes(true)
+    try {
+      const communesData = await serviceRef.current.getCommunes(foundProvince.idProvince)
+      setCommunes(communesData)
+
+      if (commune) {
+        const foundCommune = communesData.find(
+          (c) => c.name === commune || c.name.toLowerCase().includes(commune.toLowerCase())
+        )
+        if (foundCommune) {
+          setSelectedCommuneCode(foundCommune.idCommune)
+        } else {
+          // NEW: commune in branch DB does not exist in current address db.json
+          setCommuneDbError(
+            'Commune value in branch database was not found in current address data.'
           )
-          if (foundCommune) setSelectedCommuneCode(foundCommune.idCommune)
         }
-      } catch (e) {
-        console.error('Failed to load communes:', e)
-      } finally {
-        setLoadingCommunes(false)
-        initializedRef.current = true
       }
-    })()
-  }, [provinces, province, commune])
+    } catch (e) {
+      console.error('Failed to load communes:', e)
+      setCommuneDbError('Unable to load ward/commune list from address file.')
+    } finally {
+      setLoadingCommunes(false)
+      initializedRef.current = true
+    }
+  })()
+}, [provinces, province, commune])
 
   /* province change */
   const handleProvinceChange = useCallback(
@@ -322,6 +418,10 @@ function BasicInfoSectionImpl({
       if (provinceCode === selectedProvinceCode) return
       const foundProvince = provinces.find((p) => p.idProvince === provinceCode)
       if (!foundProvince) return
+
+      // NEW: user chọn lại -> clear lỗi từ DB
+      setProvinceDbError(null)
+      setCommuneDbError(null)
 
       setSelectedProvinceCode(provinceCode)
       setSelectedCommuneCode('')
@@ -334,6 +434,7 @@ function BasicInfoSectionImpl({
         setCommunes(communesData)
       } catch (e) {
         console.error('Failed to load communes:', e)
+        setCommuneDbError('Không thể tải danh sách phường/xã từ file địa chỉ.')
       } finally {
         setLoadingCommunes(false)
       }
@@ -347,21 +448,30 @@ function BasicInfoSectionImpl({
       if (communeCode === selectedCommuneCode) return
       const foundCommune = communes.find((c) => c.idCommune === communeCode)
       if (!foundCommune) return
+
+      // NEW: user chọn lại -> clear lỗi từ DB
+      setCommuneDbError(null)
+
       setSelectedCommuneCode(communeCode)
       if (commune !== foundCommune.name) onChange('commune', foundCommune.name)
     },
     [communes, selectedCommuneCode, commune, onChange]
   )
 
-  /* debounce push to parent for text fields */
   const debouncedPush = useDebouncedCallback((field: string, value: string) => {
-    onChange(field, value)
+    onChange(field as BasicField, value)
   }, 250)
 
-  const onImmediate = useCallback((field: string, value: string) => onChange(field, value), [onChange])
-  const onDebounced = useCallback((field: string, value: string) => debouncedPush(field, value), [debouncedPush])
+  const onImmediate = useCallback(
+    (field: string, value: string) => onChange(field as BasicField, value),
+    [onChange]
+  )
+  const onDebounced = useCallback(
+    (field: string, value: string) => debouncedPush(field, value),
+    [debouncedPush]
+  )
 
-  // Skeleton during first init with province prop
+  // Skeleton trong lúc init location từ DB
   if (!initializedRef.current && provinces.length > 0 && province) {
     return (
       <Card>
@@ -377,6 +487,10 @@ function BasicInfoSectionImpl({
     )
   }
 
+  // Gộp lỗi validate từ parent + lỗi DB mismatch
+  const provinceError = errors.province || provinceDbError || ''
+  const communeError = errors.commune || communeDbError || ''
+
   return (
     <Card>
       <CardHeader>
@@ -385,21 +499,31 @@ function BasicInfoSectionImpl({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* TEXT FIELDS — tách riêng để gõ không làm render lại options */}
         <TextFields
-          values={{ branchName, street, phoneNumber, email, description }}
+          values={{
+            branchName,
+            street,
+            phoneNumber,
+            email,
+            description,
+            arrivalWindowMinutes,
+            maxBookingsPerWindow,
+            maxConcurrentWip,
+          }}
           errors={{
             branchName: errors.branchName,
             street: errors.street,
             phoneNumber: errors.phoneNumber,
             email: errors.email,
             description: errors.description,
+            arrivalWindowMinutes: errors.arrivalWindowMinutes,
+            maxBookingsPerWindow: errors.maxBookingsPerWindow,
+            maxConcurrentWip: errors.maxConcurrentWip,
           }}
           onImmediate={onImmediate}
           onDebounced={onDebounced}
         />
 
-        {/* LOCATION — render nặng được tách và memo */}
         <LocationFields
           provinces={provinces}
           communes={communes}
@@ -407,7 +531,7 @@ function BasicInfoSectionImpl({
           selectedCommuneCode={selectedCommuneCode}
           loadingProvinces={loadingProvinces}
           loadingCommunes={loadingCommunes}
-          errors={{ province: errors.province, commune: errors.commune }}
+          errors={{ province: provinceError, commune: communeError }}
           onProvinceChange={handleProvinceChange}
           onCommuneChange={handleCommuneChange}
         />
@@ -427,6 +551,9 @@ export const BasicInfoSection = memo(
     prev.commune === next.commune &&
     prev.province === next.province &&
     prev.description === next.description &&
+    prev.arrivalWindowMinutes === next.arrivalWindowMinutes &&
+    prev.maxBookingsPerWindow === next.maxBookingsPerWindow &&
+    prev.maxConcurrentWip === next.maxConcurrentWip &&
     prev.errors.branchName === next.errors.branchName &&
     prev.errors.phoneNumber === next.errors.phoneNumber &&
     prev.errors.email === next.errors.email &&
@@ -434,5 +561,8 @@ export const BasicInfoSection = memo(
     prev.errors.commune === next.errors.commune &&
     prev.errors.province === next.errors.province &&
     prev.errors.description === next.errors.description &&
+    prev.errors.arrivalWindowMinutes === next.errors.arrivalWindowMinutes &&
+    prev.errors.maxBookingsPerWindow === next.errors.maxBookingsPerWindow &&
+    prev.errors.maxConcurrentWip === next.errors.maxConcurrentWip &&
     prev.onChange === next.onChange
 )
