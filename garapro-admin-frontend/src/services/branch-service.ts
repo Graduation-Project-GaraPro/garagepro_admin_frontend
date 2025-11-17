@@ -207,7 +207,7 @@ class BranchService {
       if (response.status === 403) {
         console.log(' Access denied');
         if (typeof window !== 'undefined') {
-          window.location.href = '/access-denied';
+          // window.location.href = '/access-denied';
         }
         throw new Error('Access denied: You do not have permission to access this resource.');
       }

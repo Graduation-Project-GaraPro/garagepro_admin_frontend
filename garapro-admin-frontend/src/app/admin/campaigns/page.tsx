@@ -45,6 +45,7 @@ import {
   PromotionalCampaign,
 } from "@/services/campaign-service";
 import Link from "next/link";
+import { usePermissionContext } from '@/contexts/permission-context'
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<PromotionalCampaign[]>([]);
@@ -56,6 +57,15 @@ export default function CampaignsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+
+
+  const { hasAnyPermission } = usePermissionContext()
+
+  const canCreate = hasAnyPermission('PROMO_CREATE')
+  const canEdit   = hasAnyPermission('PROMO_UPDATE')
+  const canDelete = hasAnyPermission('PROMO_DELETE')
+  const canToggle = hasAnyPermission('PROMO_TOGGLE')
+
   // Pagination state
   const [pagination, setPagination] = useState({
     page: 1,
@@ -440,20 +450,25 @@ export default function CampaignsPage() {
         <div className="flex items-center gap-2">
           {selectedIds.length > 0 && (
             <>
-              <Button variant="outline" onClick={bulkActivate}>
-                <Play className="mr-1 h-4 w-4" /> Activate ({selectedIds.length}
-                )
-              </Button>
-              <Button variant="outline" onClick={bulkDeactivate}>
-                <Pause className="mr-1 h-4 w-4" /> Deactivate (
-                {selectedIds.length})
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setConfirmBulkDelete(true)}
-              >
-                Delete ({selectedIds.length})
-              </Button>
+              {canToggle && (
+                  <Button variant="outline" onClick={bulkActivate}>
+                    <Play className="mr-1 h-4 w-4" /> Activate (
+                    {selectedIds.length})
+                  </Button>
+                ) && (
+                  <Button variant="outline" onClick={bulkDeactivate}>
+                    <Pause className="mr-1 h-4 w-4" /> Deactivate (
+                    {selectedIds.length})
+                  </Button>
+                )}
+              {canDelete && (
+                <Button
+                  variant="destructive"
+                  onClick={() => setConfirmBulkDelete(true)}
+                >
+                  Delete ({selectedIds.length})
+                </Button>
+              )}
               <div className="w-px h-6 bg-gray-200 mx-1" />
             </>
           )}
@@ -471,12 +486,14 @@ export default function CampaignsPage() {
           >
             <Download className="mr-2 h-4 w-4" /> Excel
           </Button>
-          <Link href="/admin/campaigns/create">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Campaign
-            </Button>
-          </Link>
+          {canCreate && (
+            <Link href="/admin/campaigns/create">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Campaign
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -620,11 +637,14 @@ export default function CampaignsPage() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Link href={`/admin/campaigns/${campaign.id}/edit`}>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                          {canEdit && (
+                              <Link href={`/admin/campaigns/${campaign.id}/edit`}>
+                                <Button variant="ghost" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </Link>
+
+                          )}
                           <Link
                             href={`/admin/campaigns/${campaign.id}/analytics`}
                           >
@@ -641,14 +661,17 @@ export default function CampaignsPage() {
                           >
                             {campaign.isActive ? "Deactivate" : "Activate"}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(campaign.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canDelete && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(campaign.id)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

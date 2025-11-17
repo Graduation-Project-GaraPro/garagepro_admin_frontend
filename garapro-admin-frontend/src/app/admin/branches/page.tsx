@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { branchService, GarageBranch } from '@/services/branch-service'
 import Link from 'next/link'
 import { toast } from 'sonner'
-
+import { usePermissionContext } from '@/contexts/permission-context'
 export default function BranchesPage() {
    const [branches, setBranches] = useState<GarageBranch[]>([])
   const [loading, setLoading] = useState(true)
@@ -22,13 +22,19 @@ export default function BranchesPage() {
   const [cityFilter, setCityFilter] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-
+  const { hasAnyPermission } = usePermissionContext()
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [totalCount, setTotalCount] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
+
+
+  const canCreate = hasAnyPermission('BRANCH_CREATE')
+  const canEdit   = hasAnyPermission('BRANCH_UPDATE')
+  const canDelete = hasAnyPermission('BRANCH_DELETE')
+  const canToggle = hasAnyPermission('BRANCH_STATUS_TOGGLE')
 
   useEffect(() => {
     loadBranches()
@@ -260,9 +266,15 @@ export default function BranchesPage() {
         <div className="flex items-center gap-2">
           {selectedIds.length > 0 && (
             <>
-              <Button variant="outline" onClick={bulkActivate}><Play className="mr-1 h-4 w-4" /> Activate ({selectedIds.length})</Button>
-              <Button variant="outline" onClick={bulkDeactivate}><Pause className="mr-1 h-4 w-4" /> Deactivate ({selectedIds.length})</Button>
-              <Button variant="destructive" onClick={bulkDelete}>Delete ({selectedIds.length})</Button>
+              {canToggle && (
+                  <Button variant="outline" onClick={bulkActivate}><Play className="mr-1 h-4 w-4" /> Activate ({selectedIds.length})</Button>   
+              )
+              && (<Button variant="outline" onClick={bulkDeactivate}><Pause className="mr-1 h-4 w-4" /> Deactivate ({selectedIds.length})</Button>)
+              }
+              {canDelete && (
+                <Button variant="destructive" onClick={bulkDelete}>Delete ({selectedIds.length})</Button>
+
+              )}
               <div className="w-px h-6 bg-gray-200 mx-1" />
             </>
           )}
@@ -272,12 +284,16 @@ export default function BranchesPage() {
           <Button variant="outline" onClick={() => handleExport('excel')} disabled={isExporting}>
             <Download className="mr-2 h-4 w-4" /> Excel
           </Button>
-          <Link href="/admin/branches/create">
+
+          {canCreate && (
+            <Link href="/admin/branches/create">
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               Create Branch
             </Button>
           </Link>
+          )}
+          
         </div>
       </div>
 
@@ -566,26 +582,35 @@ export default function BranchesPage() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Link href={`/admin/branches/${branch.branchId}/edit`}>
-                            <Button variant="ghost" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleStatusToggle(branch.branchId, branch.isActive)}
-                          >
-                            {branch.isActive ? 'Deactivate' : 'Activate'}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDelete(branch.branchId)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canEdit && (
+                              <Link href={`/admin/branches/${branch.branchId}/edit`}>
+                              <Button variant="ghost" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          )}
+                          
+                          {canToggle && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleStatusToggle(branch.branchId, branch.isActive)}
+                                >
+                                  {branch.isActive ? 'Deactivate' : 'Activate'}
+                                </Button>
+                          )}
+                          
+                          {canDelete && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(branch.branchId)}
+                                className="text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                          )}
+                          
                         </div>
                       </TableCell>
                     </TableRow>

@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { usePermissionContext } from '@/contexts/permission-context'
 
 interface ServiceDetailProps {
   serviceId: string;
@@ -58,7 +59,13 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
   const router = useRouter();
   const [service, setService] = useState<ApiService | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const {hasAnyPermission} = usePermissionContext();
 
+
+  
+  const canEdit   = hasAnyPermission('SERVICE_UPDATE')
+  const canDelete = hasAnyPermission('SERVICE_DELETE')
+  const canToggle = hasAnyPermission('SERVICE_STATUS_TOGGLE')
   // ✅ state quản lý category nào đang expand
   const [expandedCategoryIds, setExpandedCategoryIds] = useState<string[]>([]);
 
@@ -148,12 +155,16 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
             <p className="text-muted-foreground">{service.description}</p>
           </div>
         </div>
-        <Button asChild>
-          <Link href={`/admin/services/edit/${service.serviceId}`}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Service
-          </Link>
-        </Button>
+        {canEdit && (
+
+            <Button asChild>
+            <Link href={`/admin/services/edit/${service.serviceId}`}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Service
+            </Link>
+          </Button>
+
+        )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -408,12 +419,7 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
         <Button variant="outline" asChild>
           <Link href="/admin/services">Back to List</Link>
         </Button>
-        <Button asChild>
-          <Link href={`/admin/services/edit/${service.serviceId}`}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Service
-          </Link>
-        </Button>
+        
       </div>
     </div>
   );

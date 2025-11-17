@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { OnlineUserProvider } from "@/constants/OnlineUserProvider";
 import { RepairOrderHubProvider } from "@/constants/RepairOrderHubProvider";
 import { AuthProvider } from "@/contexts/auth-context";
+import { PermissionProvider } from "@/contexts/permission-context"; // 👈 THÊM DÒNG NÀY
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,10 +34,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          <OnlineUserProvider>
-            <RepairOrderHubProvider>{children}</RepairOrderHubProvider>
-          </OnlineUserProvider>
-          <Toaster />
+          {/* 👇 Bọc PermissionProvider bên trong AuthProvider để dùng useAuth */}
+          <PermissionProvider>
+            <OnlineUserProvider>
+              <RepairOrderHubProvider>{children}</RepairOrderHubProvider>
+            </OnlineUserProvider>
+            <Toaster />
+          </PermissionProvider>
         </AuthProvider>
       </body>
     </html>

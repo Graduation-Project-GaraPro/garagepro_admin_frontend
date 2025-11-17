@@ -60,31 +60,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createUserFromStoredData = async (): Promise<User | null> => {
-    try {
-      const userId = authService.getCurrentUserId();
-      const email = authService.getCurrentUserEmail();
-      
-      console.log('🔍 Creating user from stored data:', { userId, email });
-      
-      if (!userId || !email) {
-        console.log('❌ Missing user data in storage');
-        return null;
-      }
+  try {
+    const userId = authService.getCurrentUserId();
+    const email = authService.getCurrentUserEmail();
+    const roles = authService.getCurrentUserRoles(); // 👈 THÊM
 
-      // Mặc định roles là ['User'], hoặc lấy từ token nếu có
-      // Trong thực tế, bạn có thể decode JWT token để lấy roles
-      const userData: User = {
-        userId,
-        email,
-        roles: ['Admin'] // Tạm thời hardcode, sau này có thể decode từ token
-      };
+    console.log('🔍 Creating user from stored data:', { userId, email, roles });
 
-      return userData;
-    } catch (error) {
-      console.error('❌ createUserFromStoredData error:', error);
+    if (!userId || !email) {
+      console.log(' Missing user data in storage');
       return null;
     }
-  };
+
+    const userData: User = {
+      userId,
+      email,
+      roles: roles.length ? roles : ['User'], // fallback nhẹ
+    };
+
+    return userData;
+  } catch (error) {
+    console.error(' createUserFromStoredData error:', error);
+    return null;
+  }
+};
 
   const login = async (loginData: any) => {
     try {

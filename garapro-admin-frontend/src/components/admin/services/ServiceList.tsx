@@ -54,7 +54,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import  ServiceCategoryDialog from '@/components/admin/services/ServiceCategoryDialog'
-import { Part } from '@/types/service';
+import { usePermissionContext } from '@/contexts/permission-context'
+
 
 // Currency formatting function
 const formatCurrency = (amount: number): string => {
@@ -125,9 +126,13 @@ export default function ServiceList() {
   const [bulkActionDialogOpen, setBulkActionDialogOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
   const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
-  
+  const {hasAnyPermission} = usePermissionContext();
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
+  const canCreate = hasAnyPermission('SERVICE_CREATE')
+  const canEdit   = hasAnyPermission('SERVICE_UPDATE')
+  const canDelete = hasAnyPermission('SERVICE_DELETE')
+  const canToggle = hasAnyPermission('SERVICE_STATUS_TOGGLE')
 
   // Selection states
   const [selectedServices, setSelectedServices] = useState<Set<string>>(new Set());
@@ -421,7 +426,7 @@ export default function ServiceList() {
   const hasSelection = selectedCount > 0;
 
   return (
-    <div className="space-y-6">    
+    <div className="space-y-6">
       {/* Category management */}
       <div className="flex items-center justify-between">
         <div>
@@ -431,74 +436,111 @@ export default function ServiceList() {
           </p>
         </div>
         <>
-        <div className="flex items-center space-x-1">
-      {hasSelection && (
-  <>
-    {/* Chỉ hiển thị Activate nếu có ít nhất 1 service đang inactive */}
-    {getSelectedServices().some(service => !service.isActive) && (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => handleBulkStatusUpdate(true)}
-        disabled={isBulkAction}
-      >
-        <Play className="mr-1 h-4 w-4" />
-        Activate ({selectedCount})
-      </Button>
-    )}
+          <div className="flex items-center space-x-1">
+            {hasSelection && (
+              <>
+                {canToggle && (
+                  <>
+                    {/* Chỉ hiển thị Activate nếu có ít nhất 1 service đang inactive */}
+                    {getSelectedServices().some(
+                      (service) => !service.isActive
+                    ) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleBulkStatusUpdate(true)}
+                        disabled={isBulkAction}
+                      >
+                        <Play className="mr-1 h-4 w-4" />
+                        Activate (
+                        {
+                          getSelectedServices().filter(
+                            (service) => !service.isActive
+                          ).length
+                        }
+                        )
+                      </Button>
+                    )}
 
-    {/* Chỉ hiển thị Deactivate nếu có ít nhất 1 service đang active */}
-    {getSelectedServices().some(service => service.isActive) && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleBulkStatusUpdate(false)}
-          disabled={isBulkAction}
-        >
-          <Pause className="mr-1 h-4 w-4" />
-          Deactivate ({selectedCount})
-        </Button>
-      )}
+                    {/* Chỉ hiển thị Deactivate nếu có ít nhất 1 service đang active */}
+                    {getSelectedServices().some(
+                      (service) => service.isActive
+                    ) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleBulkStatusUpdate(false)}
+                        disabled={isBulkAction}
+                      >
+                        <Pause className="mr-1 h-4 w-4" />
+                        Deactivate (
+                        {
+                          getSelectedServices().filter(
+                            (service) => service.isActive
+                          ).length
+                        }
+                        )
+                      </Button>
+                    )}
 
-      {/* Hiển thị Toggle Advance với label thông minh */}
-      {getSelectedServices().some(service => !service.isAdvanced) && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBulkAdvanceToggle(true)}
-                disabled={isBulkAction}
-              >
-                <Zap className="mr-1 h-4 w-4" />
-                Set Advance ({selectedCount})
-              </Button>
+                    {/* Hiển thị Set Advance nếu có ít nhất 1 service không phải advanced */}
+                    {getSelectedServices().some(
+                      (service) => !service.isAdvanced
+                    ) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleBulkAdvanceToggle(true)}
+                        disabled={isBulkAction}
+                      >
+                        <Zap className="mr-1 h-4 w-4" />
+                        Set Advance (
+                        {
+                          getSelectedServices().filter(
+                            (service) => !service.isAdvanced
+                          ).length
+                        }
+                        )
+                      </Button>
+                    )}
+
+                    {/* Hiển thị Remove Advance nếu có ít nhất 1 service là advanced */}
+                    {getSelectedServices().some(
+                      (service) => service.isAdvanced
+                    ) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleBulkAdvanceToggle(false)}
+                        disabled={isBulkAction}
+                      >
+                        <Zap className="mr-1 h-4 w-4" />
+                        Remove Advance (
+                        {
+                          getSelectedServices().filter(
+                            (service) => service.isAdvanced
+                          ).length
+                        }
+                        )
+                      </Button>
+                    )}
+                  </>
+                )}
+
+                {canDelete && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={isBulkAction}
+                  >
+                    <Trash2 className="mr-1 h-4 w-4" />
+                    Delete ({selectedCount})
+                  </Button>
+                )}
+              </>
             )}
-
-            {getSelectedServices().some(service => service.isAdvanced) && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleBulkAdvanceToggle(false)}
-                disabled={isBulkAction}
-              >
-                <Zap className="mr-1 h-4 w-4" />
-                Remove Advance ({selectedCount})
-              </Button>
-            )}
-
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleBulkDelete}
-              disabled={isBulkAction}
-            >
-              <Trash2 className="mr-1 h-4 w-4" />
-              Delete ({selectedCount})
-            </Button>
-          </>
-      )}
           </div>
-
-        
         </>
         <div className="flex items-center gap-2">
           {/* Thêm nút Manage Categories */}
@@ -506,15 +548,18 @@ export default function ServiceList() {
             <FolderTree className="mr-2 h-4 w-4" />
             Manage Categories
           </Button>
-          <Button asChild>
-            <Link href="/admin/services/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Service
-            </Link>
-          </Button>
+
+          {canCreate && (
+            <Button asChild>
+              <Link href="/admin/services/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Service
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
-      
+
       {/* Filters */}
       <Card>
         <CardHeader>
@@ -556,55 +601,70 @@ export default function ServiceList() {
             </div>
 
             {/* Main Category Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Main Category</label>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All categories" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    {serviceCategories.filter(cat => cat.isActive).map((category) => (
-                      <SelectItem key={category.serviceCategoryId} value={category.serviceCategoryId}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Main Category</label>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {serviceCategories
+                    .filter((cat) => cat.isActive)
+                    .map((category) => (
+                      <SelectItem
+                        key={category.serviceCategoryId}
+                        value={category.serviceCategoryId}
+                      >
                         {category.categoryName}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Sub Category Filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Sub Category</label>
-              <Select 
-                value={subCategoryFilter} 
+              <Select
+                value={subCategoryFilter}
                 onValueChange={setSubCategoryFilter}
-                disabled={categoryFilter === 'all' || availableSubCategories.length === 0}
+                disabled={
+                  categoryFilter === "all" ||
+                  availableSubCategories.length === 0
+                }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={
-                    categoryFilter === 'all' 
-                      ? "Select main category first" 
-                      : availableSubCategories.length === 0
-                      ? "No subcategories"
-                      : "All subcategories"
-                  } />
+                  <SelectValue
+                    placeholder={
+                      categoryFilter === "all"
+                        ? "Select main category first"
+                        : availableSubCategories.length === 0
+                        ? "No subcategories"
+                        : "All subcategories"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Subcategories</SelectItem>
-                  {availableSubCategories.filter(subCat => subCat.isActive).map((subCategory) => (
-                    <SelectItem key={subCategory.serviceCategoryId} value={subCategory.serviceCategoryId}>
-                      {subCategory.categoryName}
-                    </SelectItem>
-                  ))}
+                  {availableSubCategories
+                    .filter((subCat) => subCat.isActive)
+                    .map((subCategory) => (
+                      <SelectItem
+                        key={subCategory.serviceCategoryId}
+                        value={subCategory.serviceCategoryId}
+                      >
+                        {subCategory.categoryName}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium invisible">Actions</label>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={clearFilters}
                 className="w-full"
               >
@@ -646,7 +706,9 @@ export default function ServiceList() {
                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
                 <div>
                   <p className="text-lg font-medium">Loading services</p>
-                  <p className="text-sm text-muted-foreground">Please wait while we load your services</p>
+                  <p className="text-sm text-muted-foreground">
+                    Please wait while we load your services
+                  </p>
                 </div>
               </div>
             </div>
@@ -674,107 +736,118 @@ export default function ServiceList() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                      {services.map((service) => (
-                        <TableRow key={service.id} className="group">
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedServices.has(service.id)}
-                              onCheckedChange={() => toggleServiceSelection(service.id)}
-                              aria-label={`Select ${service.name}`}
-                            />
-                          </TableCell>
+                    {services.map((service) => (
+                      <TableRow key={service.id} className="group">
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedServices.has(service.id)}
+                            onCheckedChange={() =>
+                              toggleServiceSelection(service.id)
+                            }
+                            aria-label={`Select ${service.name}`}
+                          />
+                        </TableCell>
 
-                          <TableCell className="font-medium max-w-[250px]">
-                            <div>
-                              <p className="font-semibold truncate">{service.name}</p>
-                              {service.description && (
-                                <p className="text-sm text-muted-foreground line-clamp-1">
-                                  {service.description}
-                                </p>
-                              )}
-                            </div>
-                          </TableCell>
+                        <TableCell className="font-medium max-w-[250px]">
+                          <div>
+                            <p className="font-semibold truncate">
+                              {service.name}
+                            </p>
+                            {service.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-1">
+                                {service.description}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
 
-                          <TableCell className="max-w-[150px] truncate">
-                            <Badge variant="outline" className="text-xs truncate max-w-full">
-                              {service.serviceType?.name || "Uncategorized"}
-                            </Badge>
-                          </TableCell>
+                        <TableCell className="max-w-[150px] truncate">
+                          <Badge
+                            variant="outline"
+                            className="text-xs truncate max-w-full"
+                          >
+                            {service.serviceType?.name || "Uncategorized"}
+                          </Badge>
+                        </TableCell>
 
-                          <TableCell className="whitespace-nowrap">
-                            <div className="flex items-center text-sm">
-                              <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
-                              {service.estimatedDuration} min
-                            </div>
-                          </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center text-sm">
+                            <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
+                            {service.estimatedDuration} min
+                          </div>
+                        </TableCell>
 
-                          <TableCell className="whitespace-nowrap">
-                            <div className="flex items-center text-sm font-medium">
-                              
-                              {formatCurrency(service.basePrice)}
-                            </div>
-                          </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center text-sm font-medium">
+                            {formatCurrency(service.basePrice)}
+                          </div>
+                        </TableCell>
 
-                          <TableCell className="whitespace-nowrap">
-                            <div className="flex items-center text-sm">
-                              <MapPin className="mr-1 h-4 w-4 text-muted-foreground" />
-                              {service.branchIds.length} branch
-                              {service.branchIds.length !== 1 ? "es" : ""}
-                            </div>
-                          </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center text-sm">
+                            <MapPin className="mr-1 h-4 w-4 text-muted-foreground" />
+                            {service.branchIds.length} branch
+                            {service.branchIds.length !== 1 ? "es" : ""}
+                          </div>
+                        </TableCell>
 
-                          <TableCell className="whitespace-nowrap">
-                            <Badge
-                              variant={service.isActive ? "default" : "secondary"}
-                              className={
-                                service.isActive
-                                  ? "bg-green-100 text-green-800 hover:bg-green-100"
-                                  : ""
-                              }
+                        <TableCell className="whitespace-nowrap">
+                          <Badge
+                            variant={service.isActive ? "default" : "secondary"}
+                            className={
+                              service.isActive
+                                ? "bg-green-100 text-green-800 hover:bg-green-100"
+                                : ""
+                            }
+                          >
+                            {service.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell className="whitespace-nowrap">
+                          <Badge
+                            variant={service.isAdvanced ? "default" : "outline"}
+                            className={
+                              service.isAdvanced
+                                ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                                : ""
+                            }
+                          >
+                            {service.isAdvanced ? "Advance" : "Regular"}
+                          </Badge>
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-1">
+                            <Button variant="outline" size="icon" asChild>
+                              <Link href={`/admin/services/view/${service.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            {canEdit && (
+                                <Button variant="outline" size="icon" asChild>
+                                  <Link href={`/admin/services/edit/${service.id}`}>
+                                    <Edit className="h-4 w-4" />
+                                  </Link>
+                                </Button>
+
+                            )}
+                            {canDelete && (
+                                <Button
+                              variant="destructive"
+                              size="icon"
+                              onClick={() => handleDeleteClick(service)}
+                              disabled={isDeleting}
                             >
-                              {service.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                          </TableCell>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
 
-                          <TableCell className="whitespace-nowrap">
-                            <Badge
-                              variant={service.isAdvanced ? "default" : "outline"}
-                              className={
-                                service.isAdvanced
-                                  ? "bg-blue-100 text-blue-800 hover:bg-blue-100"
-                                  : ""
-                              }
-                            >
-                              {service.isAdvanced ? "Advance" : "Regular"}
-                            </Badge>
-                          </TableCell>
-
-                          <TableCell className="text-right">
-                            <div className="flex justify-end space-x-1">
-                              <Button variant="outline" size="icon" asChild>
-                                <Link href={`/admin/services/view/${service.id}`}>
-                                  <Eye className="h-4 w-4" />
-                                </Link>
-                              </Button>
-                              <Button variant="outline" size="icon" asChild>
-                                <Link href={`/admin/services/edit/${service.id}`}>
-                                  <Edit className="h-4 w-4" />
-                                </Link>
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="icon"
-                                onClick={() => handleDeleteClick(service)}
-                                disabled={isDeleting}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
                 </Table>
               </div>
 
@@ -786,7 +859,9 @@ export default function ServiceList() {
                   </span>
                   <Select
                     value={pagination.pageSize.toString()}
-                    onValueChange={(value) => handlePageSizeChange(Number(value))}
+                    onValueChange={(value) =>
+                      handlePageSizeChange(Number(value))
+                    }
                     disabled={isLoading}
                   >
                     <SelectTrigger className="w-20">
@@ -817,44 +892,61 @@ export default function ServiceList() {
                     <Button
                       variant="outline"
                       className="h-8 w-8 p-0"
-                      onClick={() => handlePageChange(pagination.pageNumber - 1)}
+                      onClick={() =>
+                        handlePageChange(pagination.pageNumber - 1)
+                      }
                       disabled={!pagination.hasPrevious || isLoading}
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    
+
                     {/* Page numbers */}
                     {pagination.totalPages > 0 && (
                       <div className="flex items-center space-x-1">
-                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                          // Tính toán trang bắt đầu để luôn hiển thị 5 trang (nếu có)
-                          let startPage = Math.max(1, pagination.pageNumber - 2);
-                          if (pagination.totalPages - startPage < 4) {
-                            startPage = Math.max(1, pagination.totalPages - 4);
+                        {Array.from(
+                          { length: Math.min(5, pagination.totalPages) },
+                          (_, i) => {
+                            // Tính toán trang bắt đầu để luôn hiển thị 5 trang (nếu có)
+                            let startPage = Math.max(
+                              1,
+                              pagination.pageNumber - 2
+                            );
+                            if (pagination.totalPages - startPage < 4) {
+                              startPage = Math.max(
+                                1,
+                                pagination.totalPages - 4
+                              );
+                            }
+
+                            const pageNum = startPage + i;
+                            if (pageNum > pagination.totalPages) return null;
+
+                            return (
+                              <Button
+                                key={pageNum}
+                                variant={
+                                  pagination.pageNumber === pageNum
+                                    ? "default"
+                                    : "outline"
+                                }
+                                className="h-8 w-8 p-0 text-xs"
+                                onClick={() => handlePageChange(pageNum)}
+                                disabled={isLoading}
+                              >
+                                {pageNum}
+                              </Button>
+                            );
                           }
-                          
-                          const pageNum = startPage + i;
-                          if (pageNum > pagination.totalPages) return null;
-                          
-                          return (
-                            <Button
-                              key={pageNum}
-                              variant={pagination.pageNumber === pageNum ? "default" : "outline"}
-                              className="h-8 w-8 p-0 text-xs"
-                              onClick={() => handlePageChange(pageNum)}
-                              disabled={isLoading}
-                            >
-                              {pageNum}
-                            </Button>
-                          );
-                        })}
+                        )}
                       </div>
                     )}
-                    
+
                     <Button
                       variant="outline"
                       className="h-8 w-8 p-0"
-                      onClick={() => handlePageChange(pagination.pageNumber + 1)}
+                      onClick={() =>
+                        handlePageChange(pagination.pageNumber + 1)
+                      }
                       disabled={!pagination.hasNext || isLoading}
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -863,7 +955,10 @@ export default function ServiceList() {
                       variant="outline"
                       className="hidden h-8 w-8 p-0 lg:flex"
                       onClick={() => handlePageChange(pagination.totalPages)}
-                      disabled={pagination.pageNumber === pagination.totalPages || isLoading}
+                      disabled={
+                        pagination.pageNumber === pagination.totalPages ||
+                        isLoading
+                      }
                     >
                       <ChevronsRight className="h-4 w-4" />
                     </Button>
@@ -878,10 +973,9 @@ export default function ServiceList() {
                 <div>
                   <p className="text-lg font-medium">No services found</p>
                   <p className="text-muted-foreground">
-                    {pagination.totalCount === 0 
+                    {pagination.totalCount === 0
                       ? "Get started by creating your first service."
-                      : "Try adjusting your search or filters."
-                    }
+                      : "Try adjusting your search or filters."}
                   </p>
                 </div>
                 {pagination.totalCount === 0 && (
@@ -899,87 +993,93 @@ export default function ServiceList() {
       </Card>
 
       {/* Single Delete Confirmation Dialog */}
-      <AlertDialog 
-          open={deleteDialogOpen} 
-          onOpenChange={(open) => {
-            setDeleteDialogOpen(open);
-            if (!open) {
-              // Reset deleting state when dialog closes (including when cancel is clicked)
-              setIsDeleting(false);
-              setServiceToDelete(null);
-            }
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the service
-                <span className="font-semibold"> {serviceToDelete?.name}</span> and remove it from our servers.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteConfirm}
-                disabled={isDeleting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Delete Service
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) {
+            // Reset deleting state when dialog closes (including when cancel is clicked)
+            setIsDeleting(false);
+            setServiceToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              service
+              <span className="font-semibold">
+                {" "}
+                {serviceToDelete?.name}
+              </span>{" "}
+              and remove it from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Service
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bulk Delete Confirmation Dialog */}
-      <AlertDialog 
-          open={bulkActionDialogOpen} 
-          onOpenChange={(open) => {
-            setBulkActionDialogOpen(open);
-            if (!open) {
-              // Reset deleting state when dialog closes
-              setIsDeleting(false);
-              setBulkAction(null);
-              setIsBulkAction(false);
-            }
-          }}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete{" "}
-                <span className="font-semibold">{bulkAction?.services.length} services</span>:
-                <ul className="mt-2 max-h-32 overflow-y-auto border rounded-md p-2">
-                  {bulkAction?.services.map(service => (
-                    <li key={service.id} className="text-sm py-1">
-                      • {service.name}
-                    </li>
-                  ))}
-                </ul>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteConfirm}
-                disabled={isDeleting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Delete {bulkAction?.services.length} Services
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+      <AlertDialog
+        open={bulkActionDialogOpen}
+        onOpenChange={(open) => {
+          setBulkActionDialogOpen(open);
+          if (!open) {
+            // Reset deleting state when dialog closes
+            setIsDeleting(false);
+            setBulkAction(null);
+            setIsBulkAction(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete{" "}
+              <span className="font-semibold">
+                {bulkAction?.services.length} services
+              </span>
+              :
+              <ul className="mt-2 max-h-32 overflow-y-auto border rounded-md p-2">
+                {bulkAction?.services.map((service) => (
+                  <li key={service.id} className="text-sm py-1">
+                    • {service.name}
+                  </li>
+                ))}
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete {bulkAction?.services.length} Services
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-        
-        <ServiceCategoryDialog 
-          open={categoryDialogOpen}
-          onOpenChange={setCategoryDialogOpen}
-        />
+      <ServiceCategoryDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
+      />
     </div>
-    
   );
 }

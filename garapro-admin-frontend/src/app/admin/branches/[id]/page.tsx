@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { branchService, GarageBranch, ServiceCategory } from '@/services/branch-service'
 import { toast } from 'sonner'
+import { usePermissionContext } from '@/contexts/permission-context'
 
 export default function BranchDetailPage() {
   const params = useParams()
@@ -16,6 +17,12 @@ export default function BranchDetailPage() {
   const [branch, setBranch] = useState<GarageBranch | null>(null)
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [loading, setLoading] = useState(true)
+  const { hasAnyPermission } = usePermissionContext()
+
+   const canEdit   = hasAnyPermission('BRANCH_UPDATE')
+    const canDelete = hasAnyPermission('BRANCH_DELETE')
+    const canToggle = hasAnyPermission('BRANCH_STATUS_TOGGLE')
+
 
   useEffect(() => {
     const loadData = async () => {
@@ -167,14 +174,18 @@ export default function BranchDetailPage() {
         </div>
         
         <div className="flex gap-2">
-            <Link href={`/admin/branches/${branch.branchId}/edit`}>
-              <Button variant="outline" size="sm">
-                <Edit className="h-4 w-4 mr-2" /> Edit
-              </Button>
-            </Link>
-            <Button variant="destructive" size="sm" onClick={handleDelete}>
+           {canEdit && 
+            ( <Link href={`/admin/branches/${branch.branchId}/edit`}>
+                <Button variant="outline" size="sm">
+                  <Edit className="h-4 w-4 mr-2" /> Edit
+                </Button>
+              </Link>
+            )}
+
+
+           {canDelete && ( <Button variant="destructive" size="sm" onClick={handleDelete}>
               <Trash2 className="h-4 w-4 mr-2" /> Delete
-            </Button>
+            </Button>)}
         </div>
         
       </div>

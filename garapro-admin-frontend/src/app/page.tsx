@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/login/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermissionContext } from "@/contexts/permission-context";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Eye, EyeOff, Phone, Lock, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { findFirstAccessibleAdminRoute } from "@/configs/admin-routes";
 
 interface LoginFormData {
   phoneNumber: string;
@@ -36,17 +37,52 @@ export default function LoginPage() {
   const [activeTab, setActiveTab] = useState("phone");
 
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { loaded: permLoaded, hasAnyPermission } = usePermissionContext();
+
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/admin";
+
+  // If user tried to access a protected page before login, we store it in ?redirect=
+  const redirectParam = searchParams.get("redirect");
   const sessionExpired = searchParams.get("session") === "expired";
 
-  // ✅ Redirect nếu đã đăng nhập
+  // 🔁 Redirect after successful login:
+  // 1. If there is `redirect` in query → go there
+  // 2. Otherwise, after permissions are loaded → go to first accessible admin route
+  // 3. If no admin permissions at all → /access-denied
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      router.push(redirect);
+    // Still checking auth, do nothing
+    if (authLoading) return;
+
+    // Not logged in → stay on login page
+    if (!isAuthenticated) return;
+
+    // If redirect param exists, use it and ignore other logic
+    if (redirectParam) {
+      router.replace(redirectParam);
+      return;
     }
-  }, [isAuthenticated, authLoading, router, redirect]);
+
+    // If permissions are not loaded yet, wait until permLoaded = true
+    if (!permLoaded) return;
+
+    // Find first admin route the user can access
+    const firstRoute = findFirstAccessibleAdminRoute(hasAnyPermission);
+    console.log("firstRoute",firstRoute)
+    if (firstRoute) {
+      router.replace(firstRoute);
+    } else {
+      // User has no admin permissions at all
+      router.replace("/access-denied");
+    }
+  }, [
+    authLoading,
+    isAuthenticated,
+    permLoaded,
+    redirectParam,
+    hasAnyPermission,
+    router,
+  ]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -83,21 +119,22 @@ export default function LoginPage() {
 
       console.log("✅ Phone login success:", result);
 
-      //localStorage.setItem("authtoken", result.token);
-      // Redirect sẽ được xử lý tự động trong useEffect
-      router.push("/admin");
+      // ❌ Do NOT push /admin here.
+      // ✅ Redirect is handled in the useEffect above once auth + permissions are ready.
     } catch (err: any) {
       console.error("❌ Phone login failed:", err);
 
-      let errorMessage = "Đăng nhập thất bại";
+      let errorMessage = "Login failed";
 
-      // Xử lý lỗi cụ thể
       if (err.message?.includes("User not found")) {
-        errorMessage = "Số điện thoại không tồn tại";
+        errorMessage = "Phone number does not exist";
       } else if (err.message?.includes("Invalid login attempt")) {
-        errorMessage = "Sai mật khẩu";
+        errorMessage = "Incorrect password";
       } else if (err.message?.includes("Account is temporarily locked")) {
-        errorMessage = "Tài khoản tạm thời bị khóa do đăng nhập sai nhiều lần";
+        errorMessage =
+          "Your account is temporarily locked due to multiple failed login attempts";
+      } else if (err.message?.includes("Account is disabled")) {
+        errorMessage = "Your account has been disabled";
       } else if (err.message) {
         errorMessage = err.message;
       }
@@ -114,7 +151,7 @@ export default function LoginPage() {
     if (errors.general) setErrors((prev) => ({ ...prev, general: "" }));
   };
 
-  // ✅ Loading khi đang check auth
+  // ⏳ Still checking auth state → show loading
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -126,7 +163,7 @@ export default function LoginPage() {
     );
   }
 
-  // ✅ Đã đăng nhập thì redirect
+  // ✅ Already logged in → just show a transition state
   if (isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -269,32 +306,6 @@ export default function LoginPage() {
           </Tabs>
 
           <Separator />
-
-          {/* <div className="text-center space-y-3">
-            <div className="text-sm text-gray-600">
-              Don&apos;t have an account?{" "}
-              <Link href="/register">
-                <Button
-                  variant="link"
-                  className="p-0 text-blue-600 hover:text-blue-800 font-medium"
-                  type="button"
-                >
-                  Register now
-                </Button>
-              </Link>
-            </div>
-
-            <Link href="/">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-gray-600 hover:text-gray-800"
-                type="button"
-              >
-                ← Back to homepage
-              </Button>
-            </Link>
-          </div> */}
         </CardContent>
       </Card>
     </div>
