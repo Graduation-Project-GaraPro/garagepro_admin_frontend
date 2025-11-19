@@ -62,11 +62,19 @@ import {
   RefreshCw,
   Loader2,
   AlertTriangle,
+  Loader,
+  LoaderPinwheel,
 } from "lucide-react";
 import { toast } from "sonner";
 import SendEmailDialog from "@/components/admin/users/SendEmailDialog";
 import ActivityDialog from "@/components/admin/users/ActivityDialog";
 import { match } from "assert";
+import AddUserDialog from "./users/CreateUserDialog";
+import CreateUserDialog from "./users/CreateUserDialog";
+import { set } from "date-fns";
+import { is } from "date-fns/locale";
+import { LoadingSkeleton } from "./branches/LoadingStates";
+import { LoadableContext } from "next/dist/shared/lib/loadable-context.shared-runtime";
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -133,6 +141,7 @@ export function UserManagement() {
 
   // Loading States
   const [isLoading, setIsLoading] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -151,6 +160,8 @@ export function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
+
+  const [openAdd, setOpenAdd] = useState(false);
 
   // Error State
   const [error, setError] = useState<string | null>(null);
@@ -235,6 +246,9 @@ export function UserManagement() {
     toast.success("Users refreshed successfully.");
   };
 
+  // =====================
+  // Update handleBanUser
+  // =====================
   const handleBanUser = async (user: User) => {
     if (!banReason.trim()) {
       toast.error("Please provide a reason for banning this user.");
@@ -242,26 +256,48 @@ export function UserManagement() {
     }
 
     try {
+      setIsPageLoading(true);
       await userService.banUser(user.id, banReason);
+
+      // Update local state để UI thay đổi ngay
+      setUsers((prev) =>
+        prev.map((x) => (x.id === user.id ? { ...x, status: "inactive" } : x))
+      );
+
       setBanDialogOpen(false);
       setBanReason("");
       setSelectedUser(null);
-      await loadUsers();
-      toast.success(`${user.name} has been banned successfully.`);
+
+      toast.success(`${user.fullName} has been banned.`);
     } catch (error) {
-      toast.error("Failed to ban user. Please try again.");
+      console.error("Failed to ban user:", error);
+      toast.error("Failed to ban user.");
+    } finally {
+      // luôn reset loading
+      setIsPageLoading(false);
     }
   };
 
+  // =======================
+  // Update handleUnbanUser
+  // =======================
   const handleUnbanUser = async (user: User) => {
     try {
+      setIsPageLoading(true);
       await userService.unbanUser(user.id);
+
       setUnbanDialogOpen(false);
       setSelectedUser(null);
+
+      // reload danh sách (nếu cần)
       await loadUsers();
-      toast.success(`${user.name} has been unbanned successfully.`);
+
+      toast.success(`${user.fullName} has been unbanned successfully.`);
     } catch (error) {
+      console.error("Failed to unban user:", error);
       toast.error("Failed to unban user. Please try again.");
+    } finally {
+      setIsPageLoading(false);
     }
   };
 
@@ -272,7 +308,7 @@ export function UserManagement() {
     try {
       await userService.changeUserRole(user.id, newRole);
       await loadUsers();
-      toast.success(`${user.name}'s role has been changed to ${newRole}.`);
+      toast.success(`${user.fullName}'s role has been changed to ${newRole}.`);
     } catch (error) {
       toast.error("Failed to change user role. Please try again.");
     }
@@ -401,9 +437,16 @@ export function UserManagement() {
     }
   };
 
+  if (isPageLoading) {
+    return (
+      <div className={`flex items-center justify-center`}>
+        <Loader2 className={`animate-spin`} size={24} />
+      </div>
+    );
+  }
   const getInitials = (name: string) => {
     return name
-      .split("")
+      .split(" ")
       .map((word) => word[0])
       .join("")
       .toUpperCase()
@@ -425,12 +468,12 @@ export function UserManagement() {
           <div className="flex items-center space-x-4">
             <Avatar className="h-16 w-16">
               <AvatarFallback className="text-lg">
-                {getInitials(user.name)}
+                {user.fullName}
               </AvatarFallback>
             </Avatar>
             <div>
               <h3 className="text-xl font-semibold text-gray-900">
-                {user.name}
+                {user.fullName}
               </h3>
               <p className="text-sm text-gray-500">{user.email}</p>
               <div className="flex items-center space-x-2 mt-1">
@@ -508,11 +551,15 @@ export function UserManagement() {
                   <span className="text-sm text-gray-600">Phone</span>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-900">{user.phone}</span>
+                  <span className="text-sm text-gray-900">
+                    {user.phoneNumber}
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleCopyToClipboard(user.phone, "phone")}
+                    onClick={() =>
+                      handleCopyToClipboard(user.phoneNumber, "phone")
+                    }
                     className="h-6 w-6 p-0"
                   >
                     {copiedField === "phone" ? (
@@ -540,7 +587,7 @@ export function UserManagement() {
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Joined Date</span>
                 <span className="text-sm text-gray-900">
-                  {new Date(user.joinedDate).toLocaleDateString()}
+                  {new Date(user.createdAt).toLocaleDateString()}
                 </span>
               </div>
 
@@ -551,19 +598,17 @@ export function UserManagement() {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              {/* <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Total Orders</span>
                 <span className="text-sm text-gray-900">
                   {user.totalOrders}
                 </span>
-              </div>
+              </div> */}
 
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              {/* <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm text-gray-600">Total Spent</span>
-                <span className="text-sm text-gray-900">
-                  ${user.totalSpent.toFixed(2)}
-                </span>
-              </div>
+                <span className="text-sm text-gray-900">56</span>
+              </div> */}
             </div>
           </div>
         </div>
@@ -653,6 +698,14 @@ export function UserManagement() {
           </div>
         </CardContent>
       </Card>
+      {/* Thêm nút Add User */}
+      <Button onClick={() => setOpenAdd(true)}>Add User</Button>
+
+      <CreateUserDialog
+        open={openAdd}
+        onClose={() => setOpenAdd(false)}
+        onSuccess={loadUsers}
+      />
 
       {/* Error Message */}
       {error && (
@@ -730,11 +783,11 @@ export function UserManagement() {
                   <TableCell>
                     <div className="flex items-center space-x-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback>{user.name}</AvatarFallback>
+                        <AvatarFallback>{user.fullName}</AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="font-medium text-gray-900">
-                          {user.name}
+                          {user.fullName}
                         </div>
                         <div className="text-sm text-gray-500">
                           {user.email}
@@ -754,7 +807,7 @@ export function UserManagement() {
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-gray-500">
-                    {new Date(user.joinedDate).toLocaleDateString()}
+                    {new Date(user.createdAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell className="text-sm text-gray-500">
                     {new Date(user.lastLogin).toLocaleDateString()}
@@ -880,8 +933,8 @@ export function UserManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Ban User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to ban {selectedUser?.name}? Please provide
-              a reason for the ban.
+              Are you sure you want to ban {selectedUser?.fullName}? Please
+              provide a reason for the ban.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="my-4">

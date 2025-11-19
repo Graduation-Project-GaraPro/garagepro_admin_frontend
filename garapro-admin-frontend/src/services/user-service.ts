@@ -1,15 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ro } from "date-fns/locale";
 import { apiClient } from "./api-client";
+import { create } from "domain";
 
 export interface User {
   id: number;
-  name: string;
+  fullName: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
-  phone: string;
+  createdAt: Date;
+  phoneNumber: string;
   role: "user" | "admin" | "manager";
   status: "active" | "inactive";
-  joinedDate: string;
+
   lastLogin: string;
   avatar: string;
   location: string;
@@ -126,9 +130,12 @@ class UserService {
       return {
         users: response.data.data.map((user: any) => ({
           id: user.id,
-          name: user.name,
+          fullName: user.fullName,
+          phoneNumber: user.phoneNumber,
+          createdAt: new Date(user.createdAt),
           email: user.email,
           status: user.isActive ? "active" : "inactive",
+          verified: user.verified,
           role: user.roles[0],
         })),
         total: response.data.total,
@@ -146,9 +153,9 @@ class UserService {
         const q = filters.search.toLowerCase();
         users = users.filter(
           (u) =>
-            u.name.toLowerCase().includes(q) ||
+            u.fullName.toLowerCase().includes(q) ||
             u.email.toLowerCase().includes(q) ||
-            u.phone.includes(q)
+            u.phoneNumber.includes(q)
         );
       }
       if (filters?.role) {
@@ -159,14 +166,6 @@ class UserService {
       }
       if (filters?.verified !== undefined) {
         users = users.filter((u) => u.verified === filters.verified);
-      }
-      if (filters?.dateRange) {
-        users = users.filter((u) => {
-          const joinDate = new Date(u.joinedDate);
-          const start = new Date(filters.dateRange!.start);
-          const end = new Date(filters.dateRange!.end);
-          return joinDate >= start && joinDate <= end;
-        });
       }
 
       // Apply pagination

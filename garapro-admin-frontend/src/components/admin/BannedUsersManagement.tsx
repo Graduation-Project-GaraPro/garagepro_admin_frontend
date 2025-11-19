@@ -118,15 +118,25 @@ export function BannedUsersManagement() {
   const confirmUnban = async () => {
     if (!selectedUser) return;
     try {
+      setLoading(true);
       await userService.unbanUser(selectedUser.id);
 
       setUsers((prev) => prev.filter((u) => u.id !== selectedUser.id));
       setIsUnbanDialogOpen(false);
       setSelectedUser(null);
+      setLoading(false);
     } catch (err) {
       console.error(err);
     }
   };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="animate-spin h-10 w-10 border-4 border-gray-300 border-t-blue-600 rounded-full"></div>
+        <span className="ml-3 text-gray-600 text-lg">Loading...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
