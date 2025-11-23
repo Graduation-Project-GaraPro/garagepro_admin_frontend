@@ -1,14 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { ro } from "date-fns/locale";
 import { apiClient } from "./api-client";
+import { create } from "domain";
 
 export interface User {
   id: number;
-  name: string;
+  fullName: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
-  phone: string;
+  createdAt: Date;
+  phoneNumber: string;
   role: "user" | "admin" | "manager";
   status: "active" | "inactive";
-  joinedDate: string;
+
   lastLogin: string;
   avatar: string;
   location: string;
@@ -121,60 +126,25 @@ class UserService {
       if (filters?.limit) params.limit = filters.limit;
 
       const response = await apiClient.get<any>(this.baseUrl, params);
-      console.log("API response data:", response.data);
-
-      // 🧩 Chuẩn hoá dữ liệu trả về theo format mock
-      const mappedUsers = response.data.map((u: any) => ({
-        id: u.id,
-        name: u.fullName || u.name || "Unknown",
-        email: u.email,
-        phone: u.phone || "N/A",
-        role: u.roles?.[0]?.toLowerCase() || "user",
-        status: u.isActive ? "active" : "inactive",
-        joinedDate: u.createdAt,
-        lastLogin: u.lastLogin,
-        avatar: u.avatar || "",
-        location: u.location || "Unknown",
-        verified: u.emailConfirmed ?? false,
-        totalOrders: u.totalOrders || 0,
-        totalSpent: u.totalSpent || 0,
-        details: {
-          address: u.address || "",
-          dateOfBirth: u.dateOfBirth || "",
-          emergencyContact: u.emergencyContact || "",
-          preferences: {
-            notifications: true,
-            marketing: false,
-            twoFactor: !!u.emailConfirmed,
-          },
-          devices: u.devices || [],
-          lastIpAddress: u.lastIpAddress || "",
-          userAgent: u.userAgent || "",
-          accountHistory: [
-            {
-              action: "Account created",
-              date: u.createdAt,
-              ip: u.lastIpAddress || "0.0.0.0",
-            },
-            {
-              action: "Last login",
-              date: u.lastLogin,
-              ip: u.lastIpAddress || "0.0.0.0",
-            },
-          ],
-          orders: [],
-        },
-      }));
 
       return {
-        users: mappedUsers,
-        total: mappedUsers.length,
-        page: 1,
-        limit: mappedUsers.length,
-        totalPages: 1,
+        users: response.data.data.map((user: any) => ({
+          id: user.id,
+          fullName: user.fullName,
+          phoneNumber: user.phoneNumber,
+          createdAt: new Date(user.createdAt),
+          email: user.email,
+          status: user.isActive ? "active" : "inactive",
+          verified: user.verified,
+          role: user.roles[0],
+        })),
+        total: response.data.total,
+        page: response.data.page,
+        limit: response.data.limit,
+        totalPages: response.data.total,
       };
     } catch (error) {
-      console.log("API failed, using mock data");
+      console.log("API failed, using mock data", error);
       this.initializeCache();
       let users = this.readCache();
 
@@ -183,9 +153,9 @@ class UserService {
         const q = filters.search.toLowerCase();
         users = users.filter(
           (u) =>
-            u.name.toLowerCase().includes(q) ||
+            u.fullName.toLowerCase().includes(q) ||
             u.email.toLowerCase().includes(q) ||
-            u.phone.includes(q)
+            u.phoneNumber.includes(q)
         );
       }
       if (filters?.role) {
@@ -196,14 +166,6 @@ class UserService {
       }
       if (filters?.verified !== undefined) {
         users = users.filter((u) => u.verified === filters.verified);
-      }
-      if (filters?.dateRange) {
-        users = users.filter((u) => {
-          const joinDate = new Date(u.joinedDate);
-          const start = new Date(filters.dateRange!.start);
-          const end = new Date(filters.dateRange!.end);
-          return joinDate >= start && joinDate <= end;
-        });
       }
 
       // Apply pagination
