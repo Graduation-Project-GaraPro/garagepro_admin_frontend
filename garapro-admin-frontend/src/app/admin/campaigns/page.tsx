@@ -46,6 +46,9 @@ import {
 } from "@/services/campaign-service";
 import Link from "next/link";
 import { usePermissionContext } from '@/contexts/permission-context'
+import * as signalR from '@microsoft/signalr'
+import type { PromotionAppliedNotificationDto } from '@/services/campaign-service'
+import { authService } from '@/services/authService'
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<PromotionalCampaign[]>([]);
@@ -73,6 +76,8 @@ export default function CampaignsPage() {
     totalCount: 0,
     totalPages: 0,
   });
+
+  const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
 
   const loadCampaigns = useCallback(
     async (
@@ -114,6 +119,67 @@ export default function CampaignsPage() {
   useEffect(() => {
     loadCampaigns(1, pagination.limit); // Reset to page 1 when filters change
   }, [loadCampaigns]);
+
+
+  useEffect(() => {
+    
+    const hubBase = process.env.NEXT_PUBLIC_HUB_BASE_URL || '';
+    const hubUrl = `${hubBase}/hubs/promotions`;
+
+    const conn = new signalR.HubConnectionBuilder()
+      .withUrl(hubUrl, {
+        accessTokenFactory: () => authService.getToken() ?? '',
+      })
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
+
+    setConnection(conn);
+
+    return () => {
+      conn.stop().catch(() => {});
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!connection) return;
+
+    let isMounted = true;
+
+    const startConnection = async () => {
+      try {
+        await connection.start();
+        console.log(' Connected to PromotionalHub');
+
+        // Join dashboard group 
+        await connection.invoke('JoinDashboard');
+
+        // Listen for promotion usage
+        connection.on('PromotionAppliedToQuotation', (payload: PromotionAppliedNotificationDto) => {
+          if (!isMounted) return;
+
+          console.log('PromotionAppliedToQuotation:', payload);
+
+          
+          loadCampaigns(pagination.page, pagination.limit);
+
+          
+          toast.success('A promotion was just used', {
+            description: `Quotation ${payload.quotationId} applied ${payload.services.length} promotion(s).`,
+          });
+        });
+      } catch (err) {
+        console.error('Error connecting to PromotionalHub:', err);
+      }
+    };
+
+    startConnection();
+
+    return () => {
+      isMounted = false;
+      connection.off('PromotionAppliedToQuotation');
+    };
+  }, [connection, loadCampaigns, pagination.page, pagination.limit]);
 
   const handleSearch = () => {
     loadCampaigns(1, pagination.limit); // Reset to page 1 when searching
