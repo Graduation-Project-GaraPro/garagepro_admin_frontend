@@ -271,6 +271,10 @@ export const routePermissionRules: RoutePermissionRule[] = [
     pattern: /^\/admin\/campaigns\/?$/,
     permissions: ["PROMO_VIEW"],
   },
+  {
+  pattern: /^\/admin\/campaigns\/[^\/]+\/analytics\/?$/,
+  permissions: ["PROMO_VIEW"],
+  },
   // /admin/campaign/create - CREATE
   {
     pattern: /^\/admin\/campaigns\/create\/?$/,

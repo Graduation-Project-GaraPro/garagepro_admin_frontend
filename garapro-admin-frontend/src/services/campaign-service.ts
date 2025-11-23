@@ -1,4 +1,4 @@
-import { VoucherUsageDto } from './campaign-service';
+
 // services/campaign-service.ts
 export interface PromotionalCampaign {
   id: string;
@@ -144,27 +144,32 @@ export interface Service {
 }
 export interface CampaignAnalytics {
   totalUsage: number;
-  revenueGenerated: number;
-  averageOrderValue: number;
   topCustomers: Array<{
     customerId: string;
     customerName: string;
     usageCount: number;
-    totalSpent: number;
   }>;
   usageByDate: Array<{
     date: string;
     usageCount: number;
-    revenue: number;
   }>;
   servicePerformance: Array<{
     serviceId: string;
     serviceName: string;
     usageCount: number;
-    revenue: number;
   }>;
-  conversionRate: number;
-  redemptionRate: number;
+}
+
+export interface PromotionAppliedServiceDto {
+  quotationServiceId: string;
+  appliedPromotionId: string | null;
+  promotionName?: string | null;
+}
+
+export interface PromotionAppliedNotificationDto {
+  quotationId: string;
+  userId: string;
+  services: PromotionAppliedServiceDto[];
 }
 
 import { authService } from "@/services/authService"
@@ -209,16 +214,16 @@ private async authenticatedFetch(url: string, options: RequestInit = {}, retryCo
       headers,
     });
 
-    console.log('📡 Response status:', response.status);
+    console.log(' Response status:', response.status);
 
     // Token expired - try to refresh and retry
     if (response.status === 401 && retryCount === 0) {
-      console.log('🔄 Token expired, attempting refresh...');
+      console.log(' Token expired, attempting refresh...');
       try {
         await authService.handleTokenRefresh();
         return this.authenticatedFetch(url, options, retryCount + 1);
       } catch (refreshError) {
-        console.log('❌ Token refresh failed');
+        console.log(' Token refresh failed');
         throw new Error('Session expired. Please login again.');
       }
     }
@@ -253,7 +258,7 @@ private async authenticatedFetch(url: string, options: RequestInit = {}, retryCo
 
     return response;
   } catch (error) {
-    console.log('💥 Request failed:', error);
+    console.log(' Request failed:', error);
     if (error instanceof Error && error.message.includes('Authentication required')) {
       if (typeof window !== 'undefined') {
         window.location.href = '/';
@@ -514,100 +519,49 @@ private getNumericDiscountType(discountTypeString: string): number {
 }
 
   async getCampaignAnalytics(campaignId: string): Promise<CampaignAnalytics> {
-    const response = await this.authenticatedFetch(`${this.baseURL}/${campaignId}/analytics`);
-    const analytics = await response.json();
-    
-    return {
-      totalUsage: analytics.totalUsage || 0,
-      revenueGenerated: analytics.revenueGenerated || 0,
-      averageOrderValue: analytics.averageOrderValue || 0,
-      topCustomers: analytics.topCustomers || [],
-      usageByDate: analytics.usageByDate || [],
-      servicePerformance: analytics.servicePerformance || [],
-      conversionRate: analytics.conversionRate || 0,
-      redemptionRate: analytics.redemptionRate || 0
-    };
-  }
+  const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${campaignId}/analytics`);
+  const analytics = await response.json();
+
+  return {
+    totalUsage: analytics.totalUsage || 0,
+    topCustomers: analytics.topCustomers || [],
+    usageByDate: analytics.usageByDate || [],
+    servicePerformance: analytics.servicePerformance || [],
+  };
+}
 
   async getCampaignAnalyticsMock(campaignId: string): Promise<CampaignAnalytics> {
-    // Giả lập dữ liệu analytics cho demo
-    const mockAnalytics: CampaignAnalytics = {
-      totalUsage: Math.floor(Math.random() * 500) + 100,
-      revenueGenerated: Math.floor(Math.random() * 50000) + 10000,
-      averageOrderValue: Math.floor(Math.random() * 200) + 50,
-      topCustomers: [
-        {
-          customerId: 'cust-001',
-          customerName: 'John Smith',
-          usageCount: 15,
-          totalSpent: 2500
-        },
-        {
-          customerId: 'cust-002',
-          customerName: 'Sarah Johnson',
-          usageCount: 12,
-          totalSpent: 1800
-        },
-        {
-          customerId: 'cust-003',
-          customerName: 'Mike Davis',
-          usageCount: 8,
-          totalSpent: 1200
-        },
-        {
-          customerId: 'cust-004',
-          customerName: 'Emily Wilson',
-          usageCount: 6,
-          totalSpent: 900
-        },
-        {
-          customerId: 'cust-005',
-          customerName: 'David Brown',
-          usageCount: 5,
-          totalSpent: 750
-        }
-      ],
-      usageByDate: Array.from({ length: 30 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - (29 - i));
-        return {
-          date: date.toISOString().split('T')[0],
-          usageCount: Math.floor(Math.random() * 10) + 1,
-          revenue: Math.floor(Math.random() * 500) + 100
-        };
-      }),
-      servicePerformance: [
-        {
-          serviceId: 'svc-001',
-          serviceName: 'Oil Change',
-          usageCount: 45,
-          revenue: 6750
-        },
-        {
-          serviceId: 'svc-002',
-          serviceName: 'Brake Service',
-          usageCount: 32,
-          revenue: 9600
-        },
-        {
-          serviceId: 'svc-003',
-          serviceName: 'Tire Rotation',
-          usageCount: 28,
-          revenue: 2240
-        },
-        {
-          serviceId: 'svc-004',
-          serviceName: 'AC Service',
-          usageCount: 15,
-          revenue: 3750
-        }
-      ],
-      conversionRate: 0.15,
-      redemptionRate: 0.08
-    };
+  const mockAnalytics: CampaignAnalytics = {
+    totalUsage: Math.floor(Math.random() * 500) + 50,
 
-    return mockAnalytics;
-  }
+    topCustomers: [
+      { customerId: 'cust-001', customerName: 'John Smith', usageCount: 15 },
+      { customerId: 'cust-002', customerName: 'Sarah Johnson', usageCount: 12 },
+      { customerId: 'cust-003', customerName: 'Mike Davis', usageCount: 8 },
+      { customerId: 'cust-004', customerName: 'Emily Wilson', usageCount: 6 },
+      { customerId: 'cust-005', customerName: 'David Brown', usageCount: 5 }
+    ],
+
+    usageByDate: Array.from({ length: 30 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (29 - i));
+      return {
+        date: date.toISOString().split("T")[0],
+        usageCount: Math.floor(Math.random() * 10) + 1,
+      };
+    }),
+
+    servicePerformance: [
+      { serviceId: 'svc-001', serviceName: 'Oil Change', usageCount: 45 },
+      { serviceId: 'svc-002', serviceName: 'Brake Service', usageCount: 32 },
+      { serviceId: 'svc-003', serviceName: 'Tire Rotation', usageCount: 28 },
+      { serviceId: 'svc-004', serviceName: 'AC Service', usageCount: 15 }
+    ]
+  };
+
+  return mockAnalytics;
+}
+
 }
 
 export const campaignService = new CampaignService();
