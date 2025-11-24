@@ -1,13 +1,14 @@
-import { PartCategory } from '@/services/service-Service';
-import { PartCategory } from '@/services/service-Service';
-import { PartCategory } from '@/services/service-Service';
-import { PartCategory } from '@/services/service-Service';
 // services/service-Service.ts
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api';
-import { authService } from "@/services/authService"
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api';
 
-// Types (giữ nguyên)
+import { authService } from '@/services/authService';
+
+// =======================
+// Domain Types
+// =======================
+
 export interface Service {
   id: string;
   name: string;
@@ -24,6 +25,7 @@ export interface Service {
   updatedAt: string | null;
   parts?: PartService[];
   partIds?: string[];
+  partCategoryIds?: string[];
 }
 
 export interface ServiceType {
@@ -31,7 +33,7 @@ export interface ServiceType {
   name: string;
   description: string;
   isActive: boolean;
-  parentServiceCategoryId:string
+  parentServiceCategoryId?: string;
 }
 
 export interface Branch {
@@ -40,13 +42,11 @@ export interface Branch {
   phoneNumber: string;
   email: string;
   street: string;
-  ward: string;
-  district: string;
-  city: string;
+  province: string;
+  commune: string;
   description: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string | null;
+  
 }
 
 export interface Part {
@@ -72,7 +72,10 @@ export interface PartService {
   price: number;
 }
 
-// API Request/Response Interfaces (giữ nguyên)
+// =======================
+// API DTOs
+// =======================
+
 export interface ApiService {
   serviceId: string;
   serviceCategoryId: string;
@@ -85,25 +88,20 @@ export interface ApiService {
   isAdvanced: boolean;
   createdAt: string;
   updatedAt: string | null;
-  serviceCategory: {
-    serviceCategoryId: string;
-    categoryName: string;
-    serviceTypeId: string;
-    parentServiceCategoryId: string | null;
-    description: string;
-    isActive: boolean;
-    createdAt: string;
-    updatedAt: string | null;
-  };
+  serviceCategory: ApiServiceCategory;
   branches: ApiBranch[];
   partCategories?: PartCategoryWithParts[];
 }
 
-interface PartCategoryWithParts
-{
-  partCategoryId : string ,
-  categoryName: string,
-  parts:ApiPart[]
+// dùng thêm type này cho các nơi trả về phần `parts` phẳng
+type ApiServiceWithParts = ApiService & {
+  parts?: ApiPart[];
+};
+
+interface PartCategoryWithParts {
+  partCategoryId: string;
+  categoryName: string;
+  parts: ApiPart[];
 }
 
 interface ApiBranch {
@@ -112,13 +110,11 @@ interface ApiBranch {
   phoneNumber: string;
   email: string;
   street: string;
-  ward: string;
-  district: string;
-  city: string;
+  province: string;
+  commune: string;
   description: string;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string | null;
+  
 }
 
 interface ApiServiceCategory {
@@ -159,15 +155,15 @@ interface CreateServiceRequest {
   partCategoryIds: string[];
 }
 
-interface PaginatedResponse {
+interface PaginatedResponse<T> {
   pageNumber: number;
   pageSize: number;
   totalCount: number;
   totalPages: number;
-  data: Service[];
+  data: T[];
 }
 
-interface ServiceFilterParams {
+export interface ServiceFilterParams {
   searchTerm?: string;
   status?: string;
   serviceTypeId?: string;
@@ -175,115 +171,157 @@ interface ServiceFilterParams {
   pageSize: number;
 }
 
-const getAuthToken =  (): string | null => {
+// =======================
+// Auth helper
+// =======================
+
+const getAuthToken = (): string | null => {
   return authService.getToken();
-  // return await authService.getValidToken();
+  // hoặc dùng: return await authService.getValidToken();
 };
 
-// Helper function for making authenticated requests
-const authenticatedFetch = async (url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> => {
-  try {
-    const token = getAuthToken();
-     if (!token) {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-        throw new Error('Authentication required');
-      }
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    };
+// Helper function cho fetch có auth + refresh token
+const authenticatedFetch = async (
+  url: string,
+  options: RequestInit = {},
+  retryCount = 0
+): Promise<Response> => {
+  const token = getAuthToken();
 
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+  if (!token) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
     }
+    throw new Error('Authentication required');
+  }
 
-    const response = await fetch(url, {
-      ...options,
-      headers,
-    });
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+    Authorization: `Bearer ${token}`,
+  };
 
-    // Token expired - try to refresh and retry
-    if (response.status === 401 && retryCount === 0) {
-      try {
-        await authService.handleTokenRefresh();
-        return authenticatedFetch(url, options, retryCount + 1);
-      } catch (refreshError) {
-        throw new Error('Session expired. Please login again.');
-      }
-    }
-     if (response.status === 403) {
-      console.log('🚫 Access denied');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/access-denied';
-      }
-      window.location.href = '/access-denied';
-      throw new Error('Access denied: You do not have permission to access this resource.');
-    }
+  const response = await fetch(url, {
+    ...options,
+    headers,
+  });
 
-    if (!response.ok) {
-      const errorText = await response.json();
-      console.log("error Test",errorText)
-      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText.detail || errorText.message }`);
-    }
-
-    return response;
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('Authentication required')) {
+  // Token hết hạn → refresh 1 lần
+  if (response.status === 401 && retryCount === 0) {
+    try {
+      await authService.handleTokenRefresh();
+      return authenticatedFetch(url, options, retryCount + 1);
+    } catch {
       if (typeof window !== 'undefined') {
         window.location.href = '/';
       }
+      throw new Error('Session expired. Please login again.');
     }
-    throw error;
   }
+
+  // Không có quyền
+  if (response.status === 403) {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/access-denied';
+    }
+    throw new Error(
+      'Access denied: You do not have permission to access this resource.'
+    );
+  }
+
+  if (!response.ok) {
+    let message = `HTTP error! status: ${response.status}`;
+    try {
+      const errorBody = await response.json();
+      message += `, message: ${
+        errorBody.detail || errorBody.message || 'Unknown error'
+      }`;
+    } catch {
+      // ignore parse error
+    }
+    throw new Error(message);
+  }
+
+  return response;
 };
 
+// =======================
+// Mapping helpers
+// =======================
+
+const mapApiBranchToBranch = (item: ApiBranch): Branch => ({
+  id: item.branchId,
+  name: item.branchName,
+  phoneNumber: item.phoneNumber,
+  email: item.email,
+  street: item.street,
+  province: item.province,
+  commune: item.commune,
+  description: item.description,
+  isActive: item.isActive,
+  
+});
+
+const mapApiServiceToService = (
+  item: ApiService | ApiServiceWithParts
+): Service => ({
+  id: item.serviceId,
+  name: item.serviceName,
+  description: item.description,
+  basePrice: item.price,
+  estimatedDuration: item.estimatedDuration,
+  isActive: item.isActive,
+  serviceType: {
+    id: item.serviceCategory?.serviceCategoryId || '',
+    name: item.serviceCategory?.categoryName || 'Uncategorized',
+    description: item.serviceCategory?.description || '',
+    isActive: item.serviceCategory?.isActive ?? false,
+    parentServiceCategoryId: item.serviceCategory?.parentServiceCategoryId ?? undefined,
+  },
+  branchIds: item.branches?.map((b) => b.branchId) || [],
+  branches: item.branches?.map(mapApiBranchToBranch) || [],
+  serviceStatus: item.serviceStatus,
+  isAdvanced: item.isAdvanced,
+  createdAt: item.createdAt,
+  updatedAt: item.updatedAt,
+  // phần này tùy backend bạn:
+  // - Nếu API trả về parts phẳng → dùng item.parts
+  // - Nếu chỉ có partCategories → chỉ lưu id
+  parts:
+    'parts' in item && item.parts
+      ? item.parts.map<PartService>((p) => ({
+          partId: p.partId,
+          quantity: 1,
+          price: p.price,
+          part: {
+            id: p.partId,
+            name: p.name,
+            description: p.description || '',
+            price: p.price,
+            stock: p.stock,
+            isActive: true,
+          },
+        }))
+      : undefined,
+  partIds:
+    'parts' in item && item.parts
+      ? item.parts.map((p) => p.partId)
+      : undefined,
+  partCategoryIds: item.partCategories?.map((pc) => pc.partCategoryId) || [],
+});
+
+// =======================
 // Service functions
+// =======================
+
 export const serviceService = {
   // Get all services
   async getServices(): Promise<Service[]> {
     try {
       const response = await authenticatedFetch(`${API_BASE_URL}/Services`);
-      
       const data: ApiService[] = await response.json();
-      
-      return data.map((item): Service => ({
-        id: item.serviceId,
-        name: item.serviceName,
-        description: item.description,
-        basePrice: item.price,
-        estimatedDuration: item.estimatedDuration,
-        isActive: item.isActive,
-        serviceType: {
-          id: item.serviceCategory?.serviceCategoryId || '',
-          name: item.serviceCategory?.categoryName || 'Uncategorized',
-          description: item.serviceCategory?.description || '',
-          isActive: item.serviceCategory?.isActive || false
-        },
-        branchIds: item.branches?.map((branch) => branch.branchId) || [],
-        branches: item.branches?.map(branch => ({
-          id: branch.branchId,
-          name: branch.branchName,
-          phoneNumber: branch.phoneNumber,
-          email: branch.email,
-          street: branch.street,
-          ward: branch.ward,
-          district: branch.district,
-          city: branch.city,
-          description: branch.description,
-          isActive: branch.isActive,
-          createdAt: branch.createdAt,
-          updatedAt: branch.updatedAt
-        })) || [],
-        serviceStatus: item.serviceStatus,
-        isAdvanced: item.isAdvanced,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        parts: item.partCategories || [],
-        partCategoryIds: item.partCategories?.map((PartCategory: any) => PartCategory.PartCategoryId) || []
-      }));
-      
+
+      return data.map(mapApiServiceToService);
     } catch (error) {
       console.error('Error fetching services:', error);
       throw error;
@@ -291,138 +329,68 @@ export const serviceService = {
   },
 
   // Get services with pagination
-  async getServicesWithPagination(params: ServiceFilterParams): Promise<PaginatedResponse> {
+  async getServicesWithPagination(
+    params: ServiceFilterParams
+  ): Promise<PaginatedResponse<Service>> {
     try {
       const queryParams = new URLSearchParams();
-      
+
       if (params.searchTerm) queryParams.append('searchTerm', params.searchTerm);
       if (params.status) queryParams.append('status', params.status);
-      if (params.serviceTypeId) queryParams.append('serviceTypeId', params.serviceTypeId);
-      queryParams.append('pageNumber', params.pageNumber.toString());
-      queryParams.append('pageSize', params.pageSize.toString());
+      if (params.serviceTypeId)
+        queryParams.append('serviceTypeId', params.serviceTypeId);
+      queryParams.append('pageNumber', String(params.pageNumber));
+      queryParams.append('pageSize', String(params.pageSize));
 
-      const response = await authenticatedFetch(`${API_BASE_URL}/Services/paged?${queryParams}`);
-      
-      const data: PaginatedResponse = await response.json();
-      console.log(data);
-      console.log(queryParams);
+      const response = await authenticatedFetch(
+        `${API_BASE_URL}/Services/paged?${queryParams.toString()}`
+      );
 
-      // Map the API response data to Service objects
-      const services: Service[] = data.data.map((item: any): Service => ({
-        id: item.serviceId,
-        name: item.serviceName,
-        description: item.description,
-        basePrice: item.price,
-        estimatedDuration: item.estimatedDuration,
-        isActive: item.isActive,
-        serviceType: {
-          id: item.serviceCategory?.serviceCategoryId || '',
-          name: item.serviceCategory?.categoryName || 'Uncategorized',
-          description: item.serviceCategory?.description || '',
-          isActive: item.serviceCategory?.isActive || false
-        },
-        branchIds: item.branches?.map((branch: any) => branch.branchId) || [],
-        branches: item.branches?.map((branch: any) => ({
-          id: branch.branchId,
-          name: branch.branchName,
-          phoneNumber: branch.phoneNumber,
-          email: branch.email,
-          street: branch.street,
-          ward: branch.ward,
-          district: branch.district,
-          city: branch.city,
-          description: branch.description,
-          isActive: branch.isActive,
-          createdAt: branch.createdAt,
-          updatedAt: branch.updatedAt
-        })) || [],
-        serviceStatus: item.serviceStatus,
-        isAdvanced: item.isAdvanced,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        parts: item.parts || [],
-        partIds: item.parts?.map((part: any) => part.partId) || []
-      }));
+      const rawData: PaginatedResponse<ApiServiceWithParts> =
+        await response.json();
+
+      const services = rawData.data.map(mapApiServiceToService);
 
       return {
-        ...data,
-        data: services
+        ...rawData,
+        data: services,
       };
-      
     } catch (error) {
       console.error('Error fetching services with pagination:', error);
       throw error;
     }
   },
 
-  // Get service by ID
+  // Get service by ID (domain Service)
   async getServiceById(id: string): Promise<Service | null> {
     try {
       const response = await authenticatedFetch(`${API_BASE_URL}/Services/${id}`);
-      
+
       if (response.status === 404) {
         return null;
       }
-      
+
       const item: ApiService = await response.json();
-      console.log("item", item);
-      return {
-        id: item.serviceId,
-        name: item.serviceName,
-        description: item.description,
-        basePrice: item.price,
-        estimatedDuration: item.estimatedDuration,
-        isActive: item.isActive,
-        serviceType: {
-          id: item.serviceCategory?.serviceCategoryId || '',
-          name: item.serviceCategory?.categoryName || 'Uncategorized',
-          description: item.serviceCategory?.description || '',
-          isActive: item.serviceCategory?.isActive || false,
-          parentServiceCategoryId: item.serviceCategory.parentServiceCategoryId|| ''
-        },
-        branchIds: item.branches?.map((branch) => branch.branchId) || [],
-        branches: item.branches?.map(branch => ({
-          id: branch.branchId,
-          name: branch.branchName,
-          phoneNumber: branch.phoneNumber,
-          email: branch.email,
-          street: branch.street,
-          ward: branch.ward,
-          district: branch.district,
-          city: branch.city,
-          description: branch.description,
-          isActive: branch.isActive,
-          createdAt: branch.createdAt,
-          updatedAt: branch.updatedAt
-        })) || [],
-        serviceStatus: item.serviceStatus,
-        isAdvanced: item.isAdvanced,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-        partCategoryIds: item.partCategories?.map((partCategory: any) => partCategory.partCategoryId) || []
-      };
-      
+      return mapApiServiceToService(item);
     } catch (error) {
       console.error('Error fetching service:', error);
       throw error;
     }
   },
 
-  // Get service by ID for details
+  // Get service by ID for details (raw API)
   async getServiceByIdForDetails(id: string): Promise<ApiService | null> {
     try {
       const response = await authenticatedFetch(`${API_BASE_URL}/Services/${id}`);
-      
+
       if (response.status === 404) {
         return null;
       }
 
-      // Trả về nguyên dữ liệu JSON từ API
       const item: ApiService = await response.json();
       return item;
-
     } catch (error) {
-      console.error("Error fetching service by id:", error);
+      console.error('Error fetching service by id:', error);
       throw error;
     }
   },
@@ -430,17 +398,19 @@ export const serviceService = {
   // Get all service categories (types)
   async getServiceTypes(): Promise<ServiceType[]> {
     try {
-      const response = await authenticatedFetch(`${API_BASE_URL}/ServiceCategories`);
-      
+      const response = await authenticatedFetch(
+        `${API_BASE_URL}/ServiceCategories`
+      );
+
       const data: ApiServiceCategory[] = await response.json();
-      
+
       return data.map((item): ServiceType => ({
         id: item.serviceCategoryId,
         name: item.categoryName,
         description: item.description,
-        isActive: item.isActive
+        isActive: item.isActive,
+        parentServiceCategoryId: item.parentServiceCategoryId ?? undefined,
       }));
-      
     } catch (error) {
       console.error('Error fetching service categories:', error);
       throw error;
@@ -449,63 +419,69 @@ export const serviceService = {
 
   async getParentCategories(): Promise<any[]> {
     try {
-      const response = await authenticatedFetch(`${API_BASE_URL}/ServiceCategories/parents`);
-      const data = await response.json();
-      return data;
+      const response = await authenticatedFetch(
+        `${API_BASE_URL}/ServiceCategories/parents`
+      );
+      return response.json();
     } catch (error) {
       console.error('Error fetching parent categories:', error);
       throw error;
     }
   },
+
   // Get all branches
   async getBranches(): Promise<Branch[]> {
-    try {
-      const response = await authenticatedFetch(`${API_BASE_URL}/Branch`);
+  try {
+    const response = await authenticatedFetch(
+      `${API_BASE_URL}/Branch/GetAllBranchesBasis`
+    );
+
+    const data: any[] = await response.json();
+
+    return data.map((item) => ({
+      id: item.branchId,
+      name: item.branchName,
+      phoneNumber: item.phoneNumber,
+      email: item.email,
+      street: item.street,
+      province: item.province,
+      commune: item.commune,
+      description: item.description,
+      isActive: item.isActive
       
-      const data: any = await response.json();
-      
-      return data.branches.map((item: ApiBranch): Branch => ({
-        id: item.branchId,
-        name: item.branchName,
-        phoneNumber: item.phoneNumber,
-        email: item.email,
-        street: item.street,
-        ward: item.ward,
-        district: item.district,
-        city: item.city,
-        description: item.description,
-        isActive: item.isActive,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt
-      }));
-      
-    } catch (error) {
-      console.error('Error fetching branches:', error);
-      throw error;
-    }
-  },
+    }));
+  } catch (error) {
+    console.error("Error fetching branches:", error);
+    throw error;
+  }
+},
 
   // Get all part categories with parts
   async getPartCategories(): Promise<PartCategory[]> {
     try {
-      const response = await authenticatedFetch(`${API_BASE_URL}/PartCategories`);
-      
+      const response = await authenticatedFetch(
+        `${API_BASE_URL}/PartCategories`
+      );
+
       const data: ApiPartCategory[] = await response.json();
-      
-      return data.map((category): PartCategory => ({
-        partCategoryId: category.partCategoryId,
-        categoryName: category.categoryName,
-        parts: category.parts.map((part): Part => ({
-          id: part.partId,
-          name: part.name,
-          description: part.description || '',
-          price: part.price,
-          stock: part.stock,
-          isActive: true,
-          partCategoryId: category.partCategoryId
-        }))
-      }));
-      
+
+      return data.map(
+        (category): PartCategory => ({
+          partCategoryId: category.partCategoryId,
+          categoryName: category.categoryName,
+          parts: category.parts.map(
+            (part): Part => ({
+              id: part.partId,
+              name: part.name,
+              description: part.description || '',
+              price: part.price,
+              stock: part.stock,
+              isActive: true,
+              partCategoryId: category.partCategoryId,
+            })
+          ),
+        })
+      );
     } catch (error) {
       console.error('Error fetching part categories:', error);
       throw error;
@@ -516,13 +492,7 @@ export const serviceService = {
   async getParts(): Promise<Part[]> {
     try {
       const categories = await this.getPartCategories();
-      const allParts: Part[] = [];
-      
-      categories.forEach(category => {
-        allParts.push(...category.parts);
-      });
-      
-      return allParts;
+      return categories.flatMap((c) => c.parts || []);
     } catch (error) {
       console.error('Error fetching parts:', error);
       return [];
@@ -535,24 +505,22 @@ export const serviceService = {
       const requestData: CreateServiceRequest = {
         serviceCategoryId: serviceData.serviceTypeId,
         serviceName: serviceData.name,
-        serviceStatus: "Active",
+        serviceStatus: 'Active',
         description: serviceData.description,
         price: serviceData.basePrice,
         estimatedDuration: serviceData.estimatedDuration,
         isActive: serviceData.isActive,
-        isAdvanced: false,
+        isAdvanced: serviceData.isAdvanced ,
         branchIds: serviceData.branchIds || [],
-        partIds: serviceData.partIds || []
+        partCategoryIds: serviceData.partCategoryIds || serviceData.partIds || [],
       };
-
-      const response = await authenticatedFetch(`${API_BASE_URL}/Services`, {
+      console.log(requestData)
+      await authenticatedFetch(`${API_BASE_URL}/Services`, {
         method: 'POST',
         body: JSON.stringify(requestData),
       });
-      
-      // Chỉ trả về true nếu thành công, không cần parse response
+
       return true;
-      
     } catch (error) {
       console.error('Error creating service:', error);
       throw error;
@@ -562,28 +530,26 @@ export const serviceService = {
   // Update service
   async updateService(id: string, serviceData: any): Promise<boolean> {
     try {
-      console.log(serviceData);
       const requestData: CreateServiceRequest = {
         serviceCategoryId: serviceData.serviceTypeId,
         serviceName: serviceData.name,
-        serviceStatus: serviceData.serviceStatus || "Active",
+        serviceStatus: serviceData.serviceStatus || 'Active',
         description: serviceData.description,
         price: serviceData.basePrice,
         estimatedDuration: serviceData.estimatedDuration,
         isActive: serviceData.isActive,
         isAdvanced: serviceData.isAdvanced || false,
         branchIds: serviceData.branchIds || [],
-        partCategoryIds: serviceData.partCategoryIds || []
+        partCategoryIds: serviceData.partCategoryIds ,
       };
 
-      const response = await authenticatedFetch(`${API_BASE_URL}/Services/${id}`, {
+      console.log(requestData)
+      await authenticatedFetch(`${API_BASE_URL}/Services/${id}`, {
         method: 'PUT',
         body: JSON.stringify(requestData),
       });
-      
-      // Chỉ trả về true nếu thành công, không cần parse response
+
       return true;
-      
     } catch (error) {
       console.error('Error updating service:', error);
       throw error;
@@ -591,12 +557,18 @@ export const serviceService = {
   },
 
   // Bulk update service status
-  async bulkUpdateServiceStatus(serviceIds: string[], isActive: boolean): Promise<void> {
+  async bulkUpdateServiceStatus(
+    serviceIds: string[],
+    isActive: boolean
+  ): Promise<void> {
     try {
-      const response = await authenticatedFetch(`${API_BASE_URL}/services/bulk-update-status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ serviceIds, isActive: isActive }),
-      });
+      await authenticatedFetch(
+        `${API_BASE_URL}/services/bulk-update-status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ serviceIds, isActive }),
+        }
+      );
     } catch (error) {
       console.error('Error bulk updating service status:', error);
       throw error;
@@ -604,12 +576,18 @@ export const serviceService = {
   },
 
   // Bulk update advance status for multiple services
-  async bulkUpdateServiceAdvanceStatus(serviceIds: string[], isAdvance: boolean): Promise<void> {
+  async bulkUpdateServiceAdvanceStatus(
+    serviceIds: string[],
+    isAdvance: boolean
+  ): Promise<void> {
     try {
-      const response = await authenticatedFetch(`${API_BASE_URL}/services/bulk-update-advance-status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ serviceIds, isAdvanced: isAdvance }),
-      });
+      await authenticatedFetch(
+        `${API_BASE_URL}/services/bulk-update-advance-status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ serviceIds, isAdvanced: isAdvance }),
+        }
+      );
     } catch (error) {
       console.error('Error bulk updating service advance status:', error);
       throw error;
@@ -619,10 +597,10 @@ export const serviceService = {
   // Delete service
   async deleteService(id: string): Promise<boolean> {
     try {
-      const response = await authenticatedFetch(`${API_BASE_URL}/Services/${id}`, {
+      await authenticatedFetch(`${API_BASE_URL}/Services/${id}`, {
         method: 'DELETE',
       });
-      
+
       return true;
     } catch (error) {
       console.error('Error deleting service:', error);
@@ -630,9 +608,15 @@ export const serviceService = {
     }
   },
 
-  // Add part to service (legacy method - now handled in main request)
-  async addPartToService(serviceId: string, partId: string, quantity: number): Promise<boolean> {
-    console.warn('addPartToService is deprecated. Parts should be included in the main service request.');
+  // Legacy: Add part to service (để lại cho đủ interface)
+  async addPartToService(
+    _serviceId: string,
+    _partId: string,
+    _quantity: number
+  ): Promise<boolean> {
+    console.warn(
+      'addPartToService is deprecated. Parts should be included in the main service request.'
+    );
     return true;
-  }
+  },
 };

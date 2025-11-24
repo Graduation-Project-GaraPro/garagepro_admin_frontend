@@ -172,13 +172,7 @@ export const adminMenuItems: AdminMenuItem[] = [
         href: "/admin/branches",
         requiredPermissions: ["BRANCH_VIEW"],
         showInMenu: true,
-      },
-      {
-        title: "Create Branch",
-        href: "/admin/branches/create",
-        requiredPermissions: ["BRANCH_CREATE"],
-        showInMenu: true,
-      },
+      }
     ],
   },
   {
@@ -193,13 +187,8 @@ export const adminMenuItems: AdminMenuItem[] = [
         href: "/admin/services",
         requiredPermissions: ["SERVICE_VIEW"],
         showInMenu: true,
-      },
-      {
-        title: "Create Service",
-        href: "/admin/services/create",
-        requiredPermissions: ["SERVICE_CREATE"],
-        showInMenu: true,
-      },
+      }
+      
     ],
   },
 ];

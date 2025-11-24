@@ -28,6 +28,7 @@ export default function AdminLayout({
   // Tìm rule cho route hiện tại
   const matchedRule = routePermissionRules.find(rule => rule.pattern.test(pathname))
 
+  console.log("matchedRule", matchedRule)
   // Tính quyền truy cập
   const hasAccess = (() => {
     if (!isAuthenticated) return false
