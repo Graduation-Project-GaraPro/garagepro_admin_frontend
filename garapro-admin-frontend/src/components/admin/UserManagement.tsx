@@ -318,7 +318,7 @@ export function UserManagement() {
     try {
       await userService.verifyUser(user.id);
       await loadUsers();
-      toast.success(`${user.name} has been verified successfully.`);
+      toast.success(`${user.fullName} has been verified successfully.`);
     } catch (error) {
       toast.error("Failed to verify user. Please try again.");
     }
@@ -972,7 +972,7 @@ export function UserManagement() {
           <AlertDialogHeader>
             <AlertDialogTitle>Unban User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to unban {selectedUser?.name}? This will
+              Are you sure you want to unban {selectedUser?.fullName}? This will
               restore their account access.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1013,7 +1013,7 @@ export function UserManagement() {
               Ban Selected Users
             </Button>
             <Button
-              variant="outoutline"
+              variant="outline"
               className="w-full justify-start"
               onClick={() => handleBulkAction("unban")}
             >
