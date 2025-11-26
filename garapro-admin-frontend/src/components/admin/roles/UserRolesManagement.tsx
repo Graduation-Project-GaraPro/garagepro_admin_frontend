@@ -122,8 +122,17 @@ const fetchRolesWithUserCounts = useCallback(async () => {
   }
 
   const handleEditRole = (role: Role) => {
-    setSelectedRole(role)
-    setIsEditDialogOpen(true)
+    if (role.name.toLowerCase() === 'customer') {
+    
+    setSelectedRoleForView(role)
+    setIsViewDetailsDialogOpen(true)
+
+    toast.info('Customer role is view-only and cannot be edited.')
+    return
+  }
+
+  setSelectedRole(role)
+  setIsEditDialogOpen(true)
   }
 
   const handleViewDetails = async (role: Role) => {
@@ -313,7 +322,9 @@ const fetchRolesWithUserCounts = useCallback(async () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">User Roles Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            User Roles Management
+          </h1>
           <p className="text-muted-foreground">
             Manage user roles and permissions across the system
           </p>
@@ -346,7 +357,6 @@ const fetchRolesWithUserCounts = useCallback(async () => {
             onEdit={handleEditRole}
             onView={handleViewDetails}
             onDelete={handleDeleteRole}
-            
           />
         </CardContent>
       </Card>
@@ -356,37 +366,31 @@ const fetchRolesWithUserCounts = useCallback(async () => {
         isCreateOpen={isCreateDialogOpen}
         onCreateClose={handleCreateClose}
         onCreateSubmit={handleCreateSubmit}
-        
         // Edit dialog
         isEditOpen={isEditDialogOpen}
         selectedRole={selectedRole}
         onEditClose={handleEditClose}
         onEditSubmit={handleEditSubmit}
-        
         // View dialog
         isViewOpen={isViewDetailsDialogOpen}
-        usersWithRoleCount={usersWithRoleCount}
         selectedRoleForView={selectedRoleForView}
+        usersWithRoleCount={usersWithRoleCount}
         onViewClose={handleViewClose}
-        
         // Delete dialog
         isDeleteOpen={isDeleteDialogOpen}
         selectedRoleForDelete={selectedRoleForDelete}
         onDeleteClose={handleDeleteClose}
         onDeleteConfirm={handleDeleteConfirm}
-        
         // Duplicate dialog
         isDuplicateOpen={isDuplicateDialogOpen}
         selectedRoleForDuplicate={selectedRoleForDuplicate}
         onDuplicateClose={handleDuplicateClose}
         onDuplicateSubmit={handleDuplicateSubmit}
-        
         // View Users dialog
         isViewUsersOpen={isViewUsersDialogOpen}
         onViewUsersClose={handleViewUsersClose}
         usersWithRole={usersWithRole}
         loadingUsers={loadingUsers}
-        
         // Data
         permissions={permissions}
         onViewUsers={handleViewUsers}
@@ -394,5 +398,5 @@ const fetchRolesWithUserCounts = useCallback(async () => {
         loading={operationLoading || permissionsLoading}
       />
     </div>
-  )
+  );
 }

@@ -132,9 +132,9 @@ export function AdminHeader() {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => window.location.href = '/login'}
+              onClick={() => window.location.href = '/'}
             >
-              Đăng nhập
+              Login
             </Button>
           </div>
         </div>
@@ -213,53 +213,13 @@ export function AdminHeader() {
         {/* Left side */}
         <div className="flex items-center space-x-4">
           <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-          {/* CHỈ HIỂN THỊ KHI ĐÃ ĐĂNG NHẬP */}
-          {isAuthenticated && (
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefreshData}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Refreshing...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </>
-                )}
-              </Button>
-              
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Export
-              </Button>
-              
-              <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Import
-              </Button>
-            </div>
-          )}
+          
         </div>
 
         {/* Right side - CHỈ HIỂN THỊ KHI ĐÃ ĐĂNG NHẬP */}
         {isAuthenticated && (
           <div className="flex items-center space-x-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search..."
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+           
 
             {/* Notifications */}
             <Dialog open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
@@ -305,75 +265,8 @@ export function AdminHeader() {
               </DialogContent>
             </Dialog>
 
-            {/* Settings */}
-            <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <Settings className="h-5 w-5" />
-                </Button>
-              </DialogTrigger>
-              
-              <DialogContent className="max-w-md w-full">
-                <DialogHeader>
-                  <DialogTitle>System Settings</DialogTitle>
-                  <DialogDescription>
-                    Configure system-wide settings and preferences
-                  </DialogDescription>
-                </DialogHeader>
-                
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-900">Quick Actions</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="outline" size="sm">
-                        <Database className="h-4 w-4 mr-2" />
-                        Database
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Server className="h-4 w-4 mr-2" />
-                        Server
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Globe className="h-4 w-4 mr-2" />
-                        Domains
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Shield className="h-4 w-4 mr-2" />
-                        Security
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-900">System Status</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
-                        <span className="text-sm text-green-800">System Online</span>
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-blue-50 rounded-lg">
-                        <span className="text-sm text-blue-800">Database Connected</span>
-                        <CheckCircle className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-yellow-50 rounded-lg">
-                        <span className="text-sm text-yellow-800">Memory Usage: 78%</span>
-                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsSettingsOpen(false)}>
-                    Close
-                  </Button>
-                  <Button>
-                    <Settings className="h-4 w-4 mr-2" />
-                    Open Settings
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            
+            
 
             {/* User Menu - CHỈ HIỂN THỊ KHI ĐÃ ĐĂNG NHẬP */}
             <DropdownMenu>
@@ -402,14 +295,7 @@ export function AdminHeader() {
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  <span>Analytics</span>
-                </DropdownMenuItem>
+                
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />

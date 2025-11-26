@@ -27,6 +27,7 @@ import FormActions from "@/components/admin/services/service-form/FormActions";
 export default function ServiceForm({ service, isReady = true }: { service?: any; isReady?: boolean }) {
   const vm = useServiceForm(service);
 
+  console.log("form", vm.formData)
   if (!isReady || vm.isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">

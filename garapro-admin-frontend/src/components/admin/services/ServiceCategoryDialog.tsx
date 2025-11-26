@@ -259,89 +259,108 @@ const loadAvailableParentCategories = async (currentCategoryId: string | null) =
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.categoryName.trim()) {
-      toast.error('Validation Error', {
-        description: 'Category name is required.'
+      toast.error("Validation Error", {
+        description: "Category name is required.",
       });
       return;
     }
-      // Thêm validate description
-    if (!formData.description.trim() || formData.description.trim().length < 10) {
-      toast.error('Validation Error', {
-        description: 'Description is required and must be at least 10 characters.'
+
+    if (
+      !formData.description.trim() ||
+      formData.description.trim().length < 10
+    ) {
+      toast.error("Validation Error", {
+        description:
+          "Description is required and must be at least 10 characters.",
       });
       return;
     }
 
     try {
       setIsSubmitting(true);
-      
+
       const requestData: CreateServiceCategoryRequest = {
         categoryName: formData.categoryName.trim(),
         description: formData.description.trim(),
         isActive: formData.isActive,
-        ...(formData.parentServiceCategoryId && formData.parentServiceCategoryId !== 'no-parent' && { 
-          parentServiceCategoryId: formData.parentServiceCategoryId 
-        }),
+        ...(formData.parentServiceCategoryId &&
+          formData.parentServiceCategoryId !== "no-parent" && {
+            parentServiceCategoryId: formData.parentServiceCategoryId,
+          }),
       };
 
       if (editingCategory) {
-        // Update existing category
+        // Update
         const updateRequest: UpdateServiceCategoryRequest = {
           ...requestData,
           serviceCategoryId: editingCategory.serviceCategoryId,
         };
-        
-        const response = await fetch(`${API_BASE_URL}/ServiceCategories/${editingCategory.serviceCategoryId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(updateRequest),
-        });
+
+        const response = await fetch(
+          `${API_BASE_URL}/ServiceCategories/${editingCategory.serviceCategoryId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(updateRequest),
+          }
+        );
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({})); 
-          console.error('Update failed:', errorData);
-          throw new Error(errorData.detail || errorData.message || response.statusText || 'Unknown error');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.detail ||
+              errorData.message ||
+              response.statusText ||
+              "Unknown error"
+          );
         }
 
-        toast.success('Category updated successfully');
+        toast.success("Category updated successfully");
       } else {
-        // Create new category
+        // Create
         const response = await fetch(`${API_BASE_URL}/ServiceCategories`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestData),
         });
 
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({})); 
-          console.error('Create failed:', errorData);
-          throw new Error(errorData.detail || errorData.message || response.statusText || 'Unknown error');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(
+            errorData.detail ||
+              errorData.message ||
+              response.statusText ||
+              "Unknown error"
+          );
         }
 
-        toast.success('Category created successfully');
+        toast.success("Category created successfully");
       }
 
-      // Reset form and reload
+      // Reset form + reset touchedFields ở đây
       setEditingCategory(null);
       setFormData({
-        categoryName: '',
-        parentServiceCategoryId: 'no-parent',
-        description: '',
+        categoryName: "",
+        parentServiceCategoryId: "no-parent",
+        description: "",
         isActive: true,
       });
-      loadCategories();
-      
-    } catch (error: any) {
-      console.error('Error saving category:', error);
-      toast.error(`Failed to ${editingCategory ? 'update' : 'create'} category`, {
-        description: error.message || 'Please try again later.'
+      setTouchedFields({
+        categoryName: false,
+        description: false,
       });
+
+      loadCategories();
+    } catch (error: any) {
+      console.error("Error saving category:", error);
+      toast.error(
+        `Failed to ${editingCategory ? "update" : "create"} category`,
+        {
+          description: error.message || "Please try again later.",
+        }
+      );
     } finally {
       setIsSubmitting(false);
     }

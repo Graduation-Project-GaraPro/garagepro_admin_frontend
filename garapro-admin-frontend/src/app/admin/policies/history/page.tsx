@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Eye, Calendar, User, RotateCcw } from 'lucide-react';
+import { RefreshCw, Eye, Calendar, User, RotateCcw, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   historyChangePolicyService, 
@@ -234,9 +234,7 @@ export default function AuditHistoryPage() {
                       <div className="flex-1">
                         <CardTitle className="text-lg flex items-center gap-2">
                           {audit.changeSummary}
-                          <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200">
-                            Policy: {audit.policyId.slice(0, 8)}...
-                          </Badge>
+                         
                         </CardTitle>
                         <CardDescription className="flex flex-wrap items-center gap-4 mt-2">
                           <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-xs">

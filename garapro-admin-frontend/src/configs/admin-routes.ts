@@ -35,7 +35,7 @@ export const adminMenuItems: AdminMenuItem[] = [
     icon: LayoutDashboard,
     requiredPermissions: [
       "USER_VIEW",
-      "BOOKING_VIEW",
+      "VIEW_STAT",
       "BRANCH_VIEW",
       "SERVICE_VIEW",
       "PROMO_VIEW",
@@ -101,31 +101,31 @@ export const adminMenuItems: AdminMenuItem[] = [
     title: "Statistics",
     href: "/admin/statistics",
     icon: BarChart3,
-    requiredPermissions: ["BOOKING_VIEW"],
+    requiredPermissions: ["VIEW_STAT"],
     showInMenu: true,
     submenu: [
       {
         title: "Overview",
         href: "/admin/statistics",
-        requiredPermissions: ["BOOKING_VIEW"],
+        requiredPermissions: ["VIEW_STAT"],
         showInMenu: true,
       },
       {
         title: "Advanced Analytics",
         href: "/admin/statistics/advanced",
-        requiredPermissions: ["BOOKING_VIEW"],
+        requiredPermissions: ["VIEW_STAT"],
         showInMenu: true,
       },
       {
         title: "Real-time Analytics",
         href: "/admin/statistics/realtime",
-        requiredPermissions: ["BOOKING_VIEW"],
+        requiredPermissions: ["VIEW_STAT"],
         showInMenu: true,
       },
       {
         title: "Revenue Reports",
         href: "/admin/financial-reports",
-        requiredPermissions: ["BOOKING_VIEW", "BOOKING_MANAGE"],
+        requiredPermissions: ["VIEW_STAT"],
         showInMenu: true,
       },
     ],
@@ -172,13 +172,7 @@ export const adminMenuItems: AdminMenuItem[] = [
         href: "/admin/branches",
         requiredPermissions: ["BRANCH_VIEW"],
         showInMenu: true,
-      },
-      {
-        title: "Create Branch",
-        href: "/admin/branches/create",
-        requiredPermissions: ["BRANCH_CREATE"],
-        showInMenu: true,
-      },
+      }
     ],
   },
   {
@@ -193,21 +187,14 @@ export const adminMenuItems: AdminMenuItem[] = [
         href: "/admin/services",
         requiredPermissions: ["SERVICE_VIEW"],
         showInMenu: true,
-      },
-      {
-        title: "Create Service",
-        href: "/admin/services/create",
-        requiredPermissions: ["SERVICE_CREATE"],
-        showInMenu: true,
-      },
+      }
+      
     ],
   },
 ];
 
-/**
- * ROUTE PERMISSION RULES – dùng cho AdminLayout guard
- * ❌ Không auto-generate, viết tay cho rõ.
- */
+
+
 export const routePermissionRules: RoutePermissionRule[] = [
   // ===== DASHBOARD =====
   {
@@ -251,11 +238,11 @@ export const routePermissionRules: RoutePermissionRule[] = [
   // ===== STATISTICS / REPORTS =====
   {
     pattern: /^\/admin\/statistics(\/.*)?$/,
-    permissions: ["BOOKING_VIEW"],
+    permissions: ["VIEW_STAT"],
   },
   {
     pattern: /^\/admin\/financial-reports(\/.*)?$/,
-    permissions: ["BOOKING_VIEW", "BOOKING_MANAGE"],
+    permissions: ["VIEW_STAT"]
   },
 
   // ===== LOGS =====
@@ -292,6 +279,12 @@ export const routePermissionRules: RoutePermissionRule[] = [
   },
 
   // ===== BRANCHES =====
+  // /admin/branches/import
+  {
+    pattern: /^\/admin\/branches\/import\/?$/,
+    permissions: ["BRANCH_IMPORT_EXCEL"],
+    
+  },
   // LIST
   {
     pattern: /^\/admin\/branches\/?$/,
@@ -312,6 +305,7 @@ export const routePermissionRules: RoutePermissionRule[] = [
     pattern: /^\/admin\/branches\/[^\/]+\/?$/,
     permissions: ["BRANCH_VIEW"],
   },
+  
 
   // ===== SERVICES =====
   // LIST

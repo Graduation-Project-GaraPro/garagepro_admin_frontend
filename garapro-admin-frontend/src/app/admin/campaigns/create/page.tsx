@@ -367,12 +367,18 @@ export default function CreateCampaignPage() {
   }
 
   // Minimum Order (cho phép rỗng/0)
-  if (
-    touchedFields.minimumOrderValue &&
-    formData.minimumOrderValue !== undefined &&
-    formData.minimumOrderValue < 0
-  ) {
-    newErrors.minimumOrderValue = "Minimum order value cannot be negative";
+  if (touchedFields.minimumOrderValue) {
+    const mov = formData.minimumOrderValue ?? 0;
+
+    if (mov !== 0) {
+      if (mov < 1000) {
+        newErrors.minimumOrderValue =
+          "Minimum order value must be ≥ 1.000đ (or Empty)";
+      } else if (mov % 1000 !== 0) {
+        newErrors.minimumOrderValue =
+          "Minimum order value must be (1.000, 2.000, 3.000...)";
+      }
+    }
   }
 
   // Maximum Discount (chỉ áp dụng khi percentage)

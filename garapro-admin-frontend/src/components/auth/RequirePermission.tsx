@@ -24,7 +24,7 @@ export function RequirePermission({
   if (logic === 'any') {
     allowed = hasAnyPermission(...permissions)
   } else {
-    // nếu hiện tại context chưa có hasAllPermissions thì có thể tự implement trong context
+    
     allowed = hasPermission
       ? hasPermission(...permissions)
       : permissions.every(p => hasAnyPermission(p))

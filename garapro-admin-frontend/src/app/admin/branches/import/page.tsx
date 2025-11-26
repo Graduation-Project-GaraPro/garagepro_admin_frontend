@@ -36,56 +36,71 @@ export default function BranchImportPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null
     setSelectedFileName(file?.name ?? null)
+
+    // Đổi file khác → reset lại
     setResult(null)
     setErrors(null)
     setCurrentStep(1)
   }
 
   const handleImport = async () => {
-  const file = fileInputRef.current?.files?.[0]
+    const file = fileInputRef.current?.files?.[0]
 
-  if (!file) {
-    toast.error('Please select an Excel file before importing.')
-    return
-  }
-
-  setIsImporting(true)
-  setResult(null)
-  setErrors(null)
-  setCurrentStep(2)
-
-  try {
-    const res = await branchService.importMasterData(file)
-    setResult(res)
-    setErrors(res.errors || null)
-    setCurrentStep(3)
-
-    toast.success('Master data imported successfully', {
-      description: res.message,
-    })
-  } catch (err: any) {
-    console.log('❌ Import error object:', err)
-
-    if (err && typeof err === 'object' && 'success' in err) {
-      const r = err as ImportResult
-      setResult(r)
-      setErrors(r.errors || null)
-      setCurrentStep(3)
-
-      toast.error('Import failed', {
-        description: r.message,
-      })
-    } else {
-      toast.error('Import failed', {
-        description: err instanceof Error ? err.message : 'Unknown error occurred.',
-      })
-      setCurrentStep(3)
+    if (!file) {
+      toast.error('Please select an Excel file before importing.')
+      setCurrentStep(1)
+      return
     }
-  } finally {
-    setIsImporting(false)
-  }
-}
 
+    setIsImporting(true)
+    setResult(null)
+    setErrors(null)
+    // Bắt đầu import → step 2
+    setCurrentStep(2)
+
+    try {
+      const res = await branchService.importMasterData(file)
+      setResult(res)
+      setErrors(res.errors || null)
+
+      if (res.success) {
+        // Thành công → step 3
+        setCurrentStep(3)
+        toast.success('Master data imported successfully', {
+          description: res.message,
+        })
+      } else {
+        // Lỗi từ server nhưng không throw → vẫn ở step 2
+        setCurrentStep(2)
+        toast.error('Import failed', {
+          description: res.message,
+        })
+      }
+    } catch (err: any) {
+      console.log('❌ Import error object:', err)
+
+      if (err && typeof err === 'object' && 'success' in err) {
+        const r = err as ImportResult
+        setResult(r)
+        setErrors(r.errors || null)
+
+        // Lỗi → step 2
+        setCurrentStep(2)
+
+        toast.error('Import failed', {
+          description: r.message,
+        })
+      } else {
+        // Lỗi không có format ImportResult → vẫn coi là step 2
+        setCurrentStep(2)
+        toast.error('Import failed', {
+          description: err instanceof Error ? err.message : 'Unknown error occurred.',
+        })
+      }
+    } finally {
+      setIsImporting(false)
+    }
+  }
 
   const getStepStatus = (stepId: number) => {
     if (currentStep > stepId) return 'completed'
@@ -120,6 +135,10 @@ export default function BranchImportPage() {
               const status = getStepStatus(step.id)
               const isLast = index === steps.length - 1
 
+              // Nếu đang lỗi và đang ở step 2 → tô đỏ step 2
+              const isErrorStep =
+                result && result.success === false && step.id === 2 && currentStep === 2
+
               return (
                 <div key={step.id} className="flex items-center gap-2 flex-1">
                   <div className="flex flex-col items-center flex-1">
@@ -129,6 +148,7 @@ export default function BranchImportPage() {
                         status === 'completed' && 'bg-emerald-50 border-emerald-500 text-emerald-700',
                         status === 'current' && 'bg-primary text-primary-foreground border-primary',
                         status === 'upcoming' && 'bg-muted text-muted-foreground border-muted-foreground/40',
+                        isErrorStep && 'bg-red-50 border-red-500 text-red-700',
                       ]
                         .filter(Boolean)
                         .join(' ')}
@@ -168,10 +188,6 @@ export default function BranchImportPage() {
               <p>
                 Each sheet must keep the original header names. If any sheet or header is wrong, the
                 import will fail and no data will be saved.
-              </p>
-              <p className="text-xs">
-                Put the template file into <code>/public/templates/master_import_template_full.xlsx</code>{' '}
-                and adjust the link below if needed.
               </p>
             </div>
           </div>
@@ -247,28 +263,27 @@ export default function BranchImportPage() {
               <CardTitle className="text-base">
                 {result.success ? 'Import completed successfully' : 'Import failed'}
               </CardTitle>
-              <CardDescription>{result.message} ec</CardDescription>
+              <CardDescription>{result.message}</CardDescription>
             </div>
           </CardHeader>
           <CardContent>
             {!result.success && errors && errors.length > 0 && (
-                    <div className="mt-2">
-                    <p className="text-sm font-medium mb-2">Error details</p>
-                    <div className="max-h-64 overflow-auto rounded-md border bg-muted p-2 text-xs space-y-1">
-                        {errors.map((err, idx) => (
-                        <div key={idx} className="flex gap-2">
-                            <span className="text-red-500">•</span>
-                            <span>
-                            [{err.sheetName}
-                            {err.rowNumber ? ` - row ${err.rowNumber}` : ''}
-                            {err.columnName ? ` - ${err.columnName}` : ''}]: {err.message}
-                            </span>
-                        </div>
-                        ))}
+              <div className="mt-2">
+                <p className="text-sm font-medium mb-2">Error details</p>
+                <div className="max-h-64 overflow-auto rounded-md border bg-muted p-2 text-xs space-y-1">
+                  {errors.map((err, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <span className="text-red-500">•</span>
+                      <span>
+                        [{err.sheetName}
+                        {err.rowNumber ? ` - row ${err.rowNumber}` : ''}
+                        {err.columnName ? ` - ${err.columnName}` : ''}]: {err.message}
+                      </span>
                     </div>
-                    </div>
-                )}
-                
+                  ))}
+                </div>
+              </div>
+            )}
 
             {result.success && (
               <div className="mt-4">

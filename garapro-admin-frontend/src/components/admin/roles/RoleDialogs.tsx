@@ -18,7 +18,7 @@ import { Role, PermissionCategory, Permission } from '@/services/role-service'
 import { useRoleValidation } from '@/hooks/admin/roles/useRoles'
 
 interface RoleDialogsProps {
-  // Create dialog
+  
   // Create dialog
   isCreateOpen: boolean
   onCreateClose: () => void
@@ -26,7 +26,7 @@ interface RoleDialogsProps {
     name: string; 
     description: string; 
     permissionIds: string[];
-    isDefault: boolean;
+    
   }) => void
   
   // Edit dialog
@@ -37,12 +37,13 @@ interface RoleDialogsProps {
     name: string; 
     description: string; 
     permissionIds: string[];
-    isDefault: boolean;
+    
   }) => void
   
   // View dialog
   isViewOpen: boolean
   selectedRoleForView: Role | null
+  usersWithRoleCount: number
   onViewClose: () => void
   
   // Delete dialog
@@ -82,6 +83,7 @@ export const RoleDialogs = ({
   onEditSubmit,
   isViewOpen,
   selectedRoleForView,
+   usersWithRoleCount,
   onViewClose,
   isDeleteOpen,
   selectedRoleForDelete,
@@ -94,7 +96,6 @@ export const RoleDialogs = ({
   isViewUsersOpen,
   onViewUsersClose,
   usersWithRole,
-  usersWithRoleCount,
   loadingUsers,
   permissions,
   onViewUsers,        
@@ -136,39 +137,43 @@ export const RoleDialogs = ({
       category.permissions.map(permission => permission.id)
     )
   }
+  const isCustomerRole =
+    selectedRoleForView?.name?.toLowerCase() === "customer" ||
+    selectedRole?.name?.toLowerCase() === "customer";
+
+  const isEditDisabled =
+    loading || selectedRole?.isDefault || isCustomerRole
 
   // Update edit form when selected role changes
   useEffect(() => {
-    if (selectedRole && isEditOpen) {
-      const allPermissionIds = getAllPermissionIds(selectedRole)
-      setEditForm({
-        id: selectedRole.id,
-        name: selectedRole.name,
-        description: selectedRole.description,
-        permissionIds: allPermissionIds,
-        isDefault: selectedRole.isDefault
-      })
-    }
-  }, [selectedRole, isEditOpen])
+  if (selectedRole && isEditOpen) {
+    const allPermissionIds = getAllPermissionIds(selectedRole)
+    setEditForm({
+      id: selectedRole.id,
+      name: selectedRole.name,
+      description: selectedRole.description,
+      permissionIds: allPermissionIds
+    })
+  }
+}, [selectedRole, isEditOpen])
 
   // Reset forms when dialogs close
   useEffect(() => {
-    if (!isCreateOpen) {
-      setCreateForm({ name: '', description: '', permissionIds: [], isDefault: false })
-      setShouldValidateCreate(false)
-    }
-  }, [isCreateOpen])
+  if (!isCreateOpen) {
+    setCreateForm({ name: '', description: '', permissionIds: [] })
+    setShouldValidateCreate(false)
+  }
+}, [isCreateOpen])
 
   useEffect(() => {
-    if (!isEditOpen) {
-      // Only reset form if edit dialog was not opened from quick action
-      if (editOpenedFrom !== 'quick-action') {
-        setEditForm({ roleId: '', name: '', description: '', permissionIds: [], isDefault: false })
-      }
-      setShouldValidateEdit(false)
-      setEditOpenedFrom(null)
+  if (!isEditOpen) {
+    if (editOpenedFrom !== 'quick-action') {
+      setEditForm({ roleId: '', name: '', description: '', permissionIds: [] })
     }
-  }, [isEditOpen, editOpenedFrom])
+    setShouldValidateEdit(false)
+    setEditOpenedFrom(null)
+  }
+}, [isEditOpen, editOpenedFrom])
 
   useEffect(() => {
     if (!isDuplicateOpen) {
@@ -201,29 +206,109 @@ export const RoleDialogs = ({
     }
   }, [duplicateName, onDuplicateSubmit])
 
-  const togglePermission = useCallback((permissionId: string, currentPermissions: string[]) => {
-    if (currentPermissions.includes(permissionId)) {
-      return currentPermissions.filter(p => p !== permissionId)
-    } else {
-      return [...currentPermissions, permissionId]
+
+  
+const handleCreateClearCategory = useCallback((category: PermissionCategory) => {
+  setShouldValidateCreate(true)
+  setCreateForm(prev => {
+    const idsToRemove = new Set(category.permissions.map(p => p.id))
+    return {
+      ...prev,
+      permissionIds: prev.permissionIds.filter(id => !idsToRemove.has(id))
     }
-  }, [])
+  })
+}, [])
 
-  const handleCreatePermissionToggle = useCallback((permissionId: string) => {
+
+const handleEditClearCategory = useCallback((category: PermissionCategory) => {
+  setShouldValidateEdit(true)
+  setEditForm(prev => {
+    const idsToRemove = new Set(category.permissions.map(p => p.id))
+    return {
+      ...prev,
+      permissionIds: prev.permissionIds.filter(id => !idsToRemove.has(id))
+    }
+  })
+}, [])
+  const handleCreatePermissionToggle = useCallback(
+  (category: PermissionCategory, permission: Permission) => {
     setShouldValidateCreate(true)
-    setCreateForm(prev => ({
-      ...prev,
-      permissionIds: togglePermission(permissionId, prev.permissionIds)
-    }))
-  }, [togglePermission])
 
-  const handleEditPermissionToggle = useCallback((permissionId: string) => {
-    setShouldValidateEdit(true)
-    setEditForm(prev => ({
-      ...prev,
-      permissionIds: togglePermission(permissionId, prev.permissionIds)
-    }))
-  }, [togglePermission])
+    setCreateForm(prev => {
+      const currentIds = prev.permissionIds
+      const isChecked = currentIds.includes(permission.id)
+
+      const defaultPermission = category.permissions.find(p => p.isDefault)
+
+      if (isChecked) {
+        // Đang cố tắt permission
+        if (permission.isDefault) {
+          // Nếu còn quyền khác trong category đang bật => không cho tắt default
+          const hasOtherSelected = category.permissions
+            .filter(p => p.id !== permission.id)
+            .some(p => currentIds.includes(p.id))
+
+          if (hasOtherSelected) {
+            // giữ nguyên, không đổi state
+            return prev
+          }
+        }
+
+        // Tắt bình thường
+        const newIds = currentIds.filter(id => id !== permission.id)
+        return { ...prev, permissionIds: newIds }
+      } else {
+        // Bật permission
+        let newIds = [...currentIds, permission.id]
+
+        // Đảm bảo default permission cũng được bật
+        if (defaultPermission && !newIds.includes(defaultPermission.id)) {
+          newIds.push(defaultPermission.id)
+        }
+
+        return { ...prev, permissionIds: newIds }
+      }
+    })
+  },
+  []
+)
+
+ const handleEditPermissionToggle = useCallback(
+   (category: PermissionCategory, permission: Permission) => {
+     setShouldValidateEdit(true);
+
+     setEditForm((prev) => {
+       const currentIds = prev.permissionIds;
+       const isChecked = currentIds.includes(permission.id);
+
+       const defaultPermission = category.permissions.find((p) => p.isDefault);
+
+       if (isChecked) {
+         if (permission.isDefault) {
+           const hasOtherSelected = category.permissions
+             .filter((p) => p.id !== permission.id)
+             .some((p) => currentIds.includes(p.id));
+
+           if (hasOtherSelected) {
+             return prev;
+           }
+         }
+
+         const newIds = currentIds.filter((id) => id !== permission.id);
+         return { ...prev, permissionIds: newIds };
+       } else {
+         let newIds = [...currentIds, permission.id];
+
+         if (defaultPermission && !newIds.includes(defaultPermission.id)) {
+           newIds.push(defaultPermission.id);
+         }
+
+         return { ...prev, permissionIds: newIds };
+       }
+     });
+   },
+   []
+ );
 
   // Handlers for Quick Actions buttons
   const handleViewUsersClick = useCallback(() => {
@@ -258,28 +343,42 @@ export const RoleDialogs = ({
                   id="create-role-name"
                   value={createForm.name}
                   onChange={(e) => {
-                    setCreateForm(prev => ({ ...prev, name: e.target.value }))
-                    if (!shouldValidateCreate) setShouldValidateCreate(true)
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }));
+                    if (!shouldValidateCreate) setShouldValidateCreate(true);
                   }}
                   placeholder="Enter role name"
-                  className={createErrors.name ? 'border-red-500' : ''}
+                  className={createErrors.name ? "border-red-500" : ""}
                 />
-                {createErrors.name && <p className="text-sm text-red-500 mt-1">{createErrors.name}</p>}
+                {createErrors.name && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {createErrors.name}
+                  </p>
+                )}
               </div>
-              
+
               <div>
                 <Label htmlFor="create-role-description">Description *</Label>
                 <Input
                   id="create-role-description"
                   value={createForm.description}
                   onChange={(e) => {
-                    setCreateForm(prev => ({ ...prev, description: e.target.value }))
-                    if (!shouldValidateCreate) setShouldValidateCreate(true)
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }));
+                    if (!shouldValidateCreate) setShouldValidateCreate(true);
                   }}
                   placeholder="Enter role description"
-                  className={createErrors.description ? 'border-red-500' : ''}
+                  className={createErrors.description ? "border-red-500" : ""}
                 />
-                {createErrors.description && <p className="text-sm text-red-500 mt-1">{createErrors.description}</p>}
+                {createErrors.description && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {createErrors.description}
+                  </p>
+                )}
               </div>
 
               {/* THÊM isDefault field */}
@@ -298,29 +397,80 @@ export const RoleDialogs = ({
 
               <div>
                 <Label>Permissions *</Label>
-                {createErrors.permissionIds && <p className="text-sm text-red-500 mt-1">{createErrors.permissionIds}</p>}
+                {createErrors.permissionIds && (
+                  <p className="text-sm text-red-500 mt-1">
+                    {createErrors.permissionIds}
+                  </p>
+                )}
                 <div className="mt-2 space-y-4">
-                  {permissions.map((category) => (
-                    <div key={category.id}>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">{category.name}</h4>
-                      <p className="text-xs text-gray-500 mb-2">{category.description}</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {category.permissions.map((permission) => (
-                          <div key={permission.id} className="flex items-center space-x-2">
-                            <Switch
-                              id={`create-${permission.id}`}
-                              checked={createForm.permissionIds.includes(permission.id)}
-                              onCheckedChange={() => handleCreatePermissionToggle(permission.id)}
-                            />
-                            <Label htmlFor={`create-${permission.id}`} className="text-sm cursor-pointer">
-                              <div>{permission.name}</div>
-                              <div className="text-xs text-gray-500">{permission.description}</div>
-                            </Label>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                 {permissions.map((category) => {
+                          const hasAnySelectedInCategory = category.permissions.some(p =>
+                            createForm.permissionIds.includes(p.id)
+                          )
+
+                          return (
+                            <div key={category.id} className="border rounded-md p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div>
+                                  <h4 className="text-sm font-medium text-gray-700">{category.name}</h4>
+                                  <p className="text-xs text-gray-500">{category.description}</p>
+                                </div>
+
+                                {hasAnySelectedInCategory && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-xs"
+                                    onClick={() => handleCreateClearCategory(category)}
+                                    disabled={loading}
+                                  >
+                                    Clear
+                                  </Button>
+                                )}
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {category.permissions.map((permission) => {
+                                  const isChecked = createForm.permissionIds.includes(permission.id);
+                                  const hasOtherSelected = category.permissions
+                                    .filter((p) => p.id !== permission.id)
+                                    .some((p) => createForm.permissionIds.includes(p.id));
+
+                                  return (
+                                    <div key={permission.id} className="flex items-center space-x-2">
+                                      <Switch
+                                        id={`create-${permission.id}`}
+                                        checked={isChecked}
+                                        onCheckedChange={() =>
+                                          handleCreatePermissionToggle(category, permission)
+                                        }
+                                        disabled={loading || (permission.isDefault && hasOtherSelected)}
+                                      />
+                                      <Label
+                                        htmlFor={`create-${permission.id}`}
+                                        className="text-sm cursor-pointer"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span>{permission.name}</span>
+                                          {permission.isDefault && (
+                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                              Default
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                          {permission.description}
+                                        </div>
+                                      </Label>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+
                 </div>
               </div>
             </div>
@@ -329,7 +479,7 @@ export const RoleDialogs = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Creating...' : 'Create Role'}
+                {loading ? "Creating..." : "Create Role"}
               </Button>
             </DialogFooter>
           </form>
@@ -354,27 +504,42 @@ export const RoleDialogs = ({
                     id="edit-role-name"
                     value={editForm.name}
                     onChange={(e) => {
-                      setEditForm(prev => ({ ...prev, name: e.target.value }))
-                      if (!shouldValidateEdit) setShouldValidateEdit(true)
+                      setEditForm((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }));
+                      if (!shouldValidateEdit) setShouldValidateEdit(true);
                     }}
-                    className={editErrors.name ? 'border-red-500' : ''}
-                    disabled={selectedRole.isDefault}
+                    className={editErrors.name ? "border-red-500" : ""}
+                    disabled={isEditDisabled}
                   />
-                  {editErrors.name && <p className="text-sm text-red-500 mt-1">{editErrors.name}</p>}
+                  {editErrors.name && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {editErrors.name}
+                    </p>
+                  )}
                 </div>
-                
+
                 <div>
                   <Label htmlFor="edit-role-description">Description *</Label>
                   <Input
                     id="edit-role-description"
                     value={editForm.description}
                     onChange={(e) => {
-                      setEditForm(prev => ({ ...prev, description: e.target.value }))
-                      if (!shouldValidateEdit) setShouldValidateEdit(true)
+                      setEditForm((prev) => ({
+                        ...prev,
+                        description: e.target.value,
+                      }));
+                      if (!shouldValidateEdit) setShouldValidateEdit(true);
                     }}
-                    className={editErrors.description ? 'border-red-500' : ''}
+                    disabled={isEditDisabled}
+                    className={editErrors.description ? "border-red-500" : ""}
                   />
-                  {editErrors.description && <p className="text-sm text-red-500 mt-1">{editErrors.description}</p>}
+                  {editErrors.description && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {editErrors.description}
+                    </p>
+                  )}
                 </div>
 
                 {/* THÊM isDefault field */}
@@ -397,29 +562,72 @@ export const RoleDialogs = ({
 
                 <div>
                   <Label>Permissions *</Label>
-                  {editErrors.permissionIds && <p className="text-sm text-red-500 mt-1">{editErrors.permissionIds}</p>}
+                  {editErrors.permissionIds && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {editErrors.permissionIds}
+                    </p>
+                  )}
                   <div className="mt-2 space-y-4">
-                    {permissions.map((category) => (
-                      <div key={category.id}>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">{category.name}</h4>
-                        <p className="text-xs text-gray-500 mb-2">{category.description}</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {category.permissions.map((permission) => (
-                            <div key={permission.id} className="flex items-center space-x-2">
-                              <Switch
-                                id={`edit-${permission.id}`}
-                                checked={editForm.permissionIds.includes(permission.id)}
-                                onCheckedChange={() => handleEditPermissionToggle(permission.id)}
-                              />
-                              <Label htmlFor={`edit-${permission.id}`} className="text-sm cursor-pointer">
-                                <div>{permission.name}</div>
-                                <div className="text-xs text-gray-500">{permission.description}</div>
-                              </Label>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+                   {permissions.map((category) => {
+                            const hasAnySelectedInCategory = category.permissions.some(p =>
+                              editForm.permissionIds.includes(p.id)
+                            )
+
+                            return (
+                              <div key={category.id} className="border rounded-md p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div>
+                                    <h4 className="text-sm font-medium text-gray-700">{category.name}</h4>
+                                    <p className="text-xs text-gray-500">{category.description}</p>
+                                  </div>
+
+                                  {hasAnySelectedInCategory && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-xs"
+                                      onClick={() => handleEditClearCategory(category)}
+                                      disabled={loading}
+                                    >
+                                      Clear
+                                    </Button>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {category.permissions.map((permission) => {
+                                    const isChecked = editForm.permissionIds.includes(permission.id)
+                                    const hasOtherSelected = category.permissions
+                                      .filter(p => p.id !== permission.id)
+                                      .some(p => editForm.permissionIds.includes(p.id))
+
+                                    return (
+                                      <div key={permission.id} className="flex items-center space-x-2">
+                                        <Switch
+                                          id={`edit-${permission.id}`}
+                                          checked={isChecked}
+                                          onCheckedChange={() => handleEditPermissionToggle(category, permission)}
+                                          disabled={loading || (permission.isDefault && hasOtherSelected)}
+                                        />
+                                        <Label htmlFor={`edit-${permission.id}`} className="text-sm cursor-pointer">
+                                          <div className="flex items-center gap-2">
+                                            <span>{permission.name}</span>
+                                            {permission.isDefault && (
+                                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                                Default
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="text-xs text-gray-500">{permission.description}</div>
+                                        </Label>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })}
                   </div>
                 </div>
               </div>
@@ -427,8 +635,8 @@ export const RoleDialogs = ({
                 <Button type="button" variant="outline" onClick={onEditClose}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Updating...' : 'Save Changes'}
+                <Button type="submit"  disabled={loading }>
+                  {loading ? "Updating..." : "Save Changes"}
                 </Button>
               </DialogFooter>
             </form>
@@ -449,75 +657,115 @@ export const RoleDialogs = ({
                   <Shield className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold">{selectedRoleForView.name}</h3>
-                  <p className="text-gray-600">{selectedRoleForView.description}</p>
+                  <h3 className="text-xl font-semibold">
+                    {selectedRoleForView.name}
+                  </h3>
+                  <p className="text-gray-600">
+                    {selectedRoleForView.description}
+                  </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Users with this role</label>
-                  <p className="text-lg font-semibold">{selectedRoleForView.users.toLocaleString()}</p>
+                  <label className="text-sm font-medium text-gray-600">
+                    Users with this role
+                  </label>
+                  <p className="text-lg font-semibold">
+                    {selectedRoleForView.users.toLocaleString()}
+                  </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Role Type</label>
+                  <label className="text-sm font-medium text-gray-600">
+                    Role Type
+                  </label>
                   <div className="mt-1">
                     {selectedRoleForView.isDefault ? (
-                      <Badge className="bg-green-100 text-green-800">Default</Badge>
+                      <Badge className="bg-green-100 text-green-800">
+                        Default
+                      </Badge>
                     ) : (
                       <Badge variant="outline">Custom</Badge>
                     )}
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Created Date</label>
-                  <p className="text-sm">{new Date(selectedRoleForView.createdAt).toLocaleDateString()}</p>
+                  <label className="text-sm font-medium text-gray-600">
+                    Created Date
+                  </label>
+                  <p className="text-sm">
+                    {new Date(
+                      selectedRoleForView.createdAt
+                    ).toLocaleDateString()}
+                  </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Total Permissions</label>
+                  <label className="text-sm font-medium text-gray-600">
+                    Total Permissions
+                  </label>
                   <p className="text-sm">
-                    {selectedRoleForView.permissionCategories.reduce((total, category) => 
-                      total + category.permissions.length, 0
+                    {selectedRoleForView.permissionCategories.reduce(
+                      (total, category) => total + category.permissions.length,
+                      0
                     )}
                   </p>
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-600">Permissions</label>
+                <label className="text-sm font-medium text-gray-600">
+                  Permissions
+                </label>
                 <div className="mt-2 space-y-3">
                   {selectedRoleForView.permissionCategories.map((category) => {
-                    if (category.permissions.length === 0) return null
-                    
+                    if (category.permissions.length === 0) return null;
+
                     return (
                       <div key={category.id}>
-                        <h4 className="text-sm font-medium text-gray-700 mb-1">{category.name}</h4>
-                        <p className="text-xs text-gray-500 mb-2">{category.description}</p>
+                        <h4 className="text-sm font-medium text-gray-700 mb-1">
+                          {category.name}
+                        </h4>
+                        <p className="text-xs text-gray-500 mb-2">
+                          {category.description}
+                        </p>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {category.permissions.map((permission) => (
-                            <div key={permission.id} className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
+                            <div
+                              key={permission.id}
+                              className="flex items-center space-x-2 p-2 bg-gray-50 rounded"
+                            >
                               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                               <div>
-                                <div className="text-sm font-medium">{permission.name}</div>
-                                <div className="text-xs text-gray-500">{permission.description}</div>
+                                <div className="text-sm font-medium">
+                                  {permission.name}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {permission.description}
+                                </div>
                               </div>
                             </div>
                           ))}
                         </div>
                       </div>
-                    )
+                    );
                   })}
-                  {selectedRoleForView.permissionCategories.every(cat => cat.permissions.length === 0) && (
-                    <p className="text-sm text-gray-500 text-center py-4">No permissions assigned</p>
+                  {selectedRoleForView.permissionCategories.every(
+                    (cat) => cat.permissions.length === 0
+                  ) && (
+                    <p className="text-sm text-gray-500 text-center py-4">
+                      No permissions assigned
+                    </p>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-600">Quick Actions</label>
+                <label className="text-sm font-medium text-gray-600">
+                  Quick Actions
+                </label>
                 <div className="flex space-x-2 mt-2">
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={handleViewUsersClick}
                   >
@@ -525,8 +773,8 @@ export const RoleDialogs = ({
                     View Users ({usersWithRoleCount})
                   </Button>
                   {!selectedRoleForView.isDefault && (
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       size="sm"
                       onClick={handleEditRoleClick}
                     >
@@ -547,12 +795,14 @@ export const RoleDialogs = ({
           <DialogHeader>
             <DialogTitle>Delete Role</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete the role "{selectedRoleForDelete?.name}"? 
+              Are you sure you want to delete the role "
+              {selectedRoleForDelete?.name}"?
               {selectedRoleForDelete?.users ? (
                 <>
                   <br />
                   <span className="text-red-600 font-medium">
-                    This role is assigned to {selectedRoleForDelete.users} user(s). 
+                    This role is assigned to {selectedRoleForDelete.users}{" "}
+                    user(s).
                   </span>
                   They will lose access to associated permissions.
                 </>
@@ -565,8 +815,12 @@ export const RoleDialogs = ({
             <Button variant="outline" onClick={onDeleteClose}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={onDeleteConfirm} disabled={loading}>
-              {loading ? 'Deleting...' : 'Delete Role'}
+            <Button
+              variant="destructive"
+              onClick={onDeleteConfirm}
+              disabled={loading}
+            >
+              {loading ? "Deleting..." : "Delete Role"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -578,7 +832,8 @@ export const RoleDialogs = ({
           <DialogHeader>
             <DialogTitle>Duplicate Role</DialogTitle>
             <DialogDescription>
-              Create a copy of "{selectedRoleForDuplicate?.name}" with a new name.
+              Create a copy of "{selectedRoleForDuplicate?.name}" with a new
+              name.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleDuplicateSubmit}>
@@ -595,11 +850,15 @@ export const RoleDialogs = ({
               </div>
             </div>
             <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" onClick={onDuplicateClose}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onDuplicateClose}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={loading || !duplicateName.trim()}>
-                {loading ? 'Duplicating...' : 'Create Copy'}
+                {loading ? "Duplicating..." : "Create Copy"}
               </Button>
             </DialogFooter>
           </form>
@@ -617,7 +876,7 @@ export const RoleDialogs = ({
               List of users assigned to this role
             </DialogDescription>
           </DialogHeader>
-          
+
           {loadingUsers ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -629,7 +888,7 @@ export const RoleDialogs = ({
                   Total: {usersWithRole.length} users
                 </div>
               </div>
-              
+
               {usersWithRole.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Users className="mx-auto h-12 w-12 mb-4 opacity-50" />
@@ -638,21 +897,32 @@ export const RoleDialogs = ({
               ) : (
                 <div className="border rounded-lg divide-y">
                   {usersWithRole.map((user) => (
-                    <div key={user.id} className="p-4 flex items-center justify-between">
+                    <div
+                      key={user.id}
+                      className="p-4 flex items-center justify-between"
+                    >
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                           <span className="text-blue-600 font-medium">
-                            {user.name?.charAt(0) || user.email?.charAt(0) || 'U'}
+                            {user.name?.charAt(0) ||
+                              user.email?.charAt(0) ||
+                              "U"}
                           </span>
                         </div>
                         <div>
-                          <div className="font-medium">{user.name || 'No name'}</div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
+                          <div className="font-medium">
+                            {user.name || "No name"}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {user.email}
+                          </div>
                         </div>
                       </div>
                       <div className="text-sm text-gray-600">
-                        {user.status === 'active' ? (
-                          <Badge className="bg-green-100 text-green-800">Active</Badge>
+                        {user.status === "active" ? (
+                          <Badge className="bg-green-100 text-green-800">
+                            Active
+                          </Badge>
                         ) : (
                           <Badge variant="outline">Inactive</Badge>
                         )}
@@ -663,7 +933,7 @@ export const RoleDialogs = ({
               )}
             </div>
           )}
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={onViewUsersClose}>
               Close
@@ -672,5 +942,5 @@ export const RoleDialogs = ({
         </DialogContent>
       </Dialog>
     </>
-  )
+  );
 }

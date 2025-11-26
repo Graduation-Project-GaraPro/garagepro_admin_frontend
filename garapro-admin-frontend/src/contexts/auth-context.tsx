@@ -96,17 +96,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       setUser(userData);
       
-      console.log('✅ Login successful');
+      console.log(' Login successful');
       
     } catch (error) {
-      console.error('❌ Login failed:', error);
+      console.error(' Login failed:', error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
-      console.log('🚪 Starting logout process...');
+      console.log(' Starting logout process...');
       await authService.logout();
       setUser(null);
       

@@ -1,97 +1,127 @@
-// config/route-permissions.ts
+// // config/route-permissions.ts
 
-export type RoutePermissionRule = {
-  pattern: RegExp;
-  permissions: string[]; // chỉ cần có ÍT NHẤT 1 trong các quyền này (hasAnyPermission)
-};
+// export type RoutePermissionRule = {
+//   pattern: RegExp;
+//   permissions: string[]; // chỉ cần có ÍT NHẤT 1 trong các quyền này (hasAnyPermission)
+// };
 
-/**
- * Map quyền → route
- * Bạn có thể chỉnh sửa thoải mái cho hợp với hệ thống thực tế.
- */
-export const routePermissionRules: RoutePermissionRule[] = [
-  // ===== USER MANAGEMENT =====
-  // /admin/users, /admin/users/banned
-  {
-    pattern: /^\/admin\/users(\/banned)?\/?$/,
-    permissions: ['USER_VIEW'],
-  },
-  // /admin/users/roles
-  {
-    pattern: /^\/admin\/users\/roles(\/.*)?$/,
-    permissions: ['ROLE_VIEW', 'ROLE_CREATE', 'ROLE_UPDATE', 'ROLE_DELETE', 'PERMISSION_ASSIGN'],
-  },
+// /**
+//  * Map quyền → route
+//  * Bạn có thể chỉnh sửa thoải mái cho hợp với hệ thống thực tế.
+//  */
+// export const routePermissionRules: RoutePermissionRule[] = [
+//   // ===== USER MANAGEMENT =====
+//   // /admin/users, /admin/users/banned
+//  // ===== USER MANAGEMENT =====
+//   {
+//     pattern: /^\/admin\/users\/?$/,
+//     permissions: ["USER_VIEW"],
+//   },
+//   {
+//     pattern: /^\/admin\/users\/banned\/?$/,
+//     permissions: ["USER_VIEW"],
+//   },
+//   {
+//     pattern: /^\/admin\/users\/roles(\/.*)?$/,
+//     permissions: [
+//       "ROLE_VIEW",
+//       "ROLE_CREATE",
+//       "ROLE_UPDATE",
+//       "ROLE_DELETE",
+//       "PERMISSION_ASSIGN",
+//     ],
+//   },
 
-  // ===== POLICIES =====
-  // /admin/policies + sub pages
-  {
-    pattern: /^\/admin\/policies(\/.*)?$/,
-    permissions: ['POLICY_MANAGEMENT'],
-  },
+//   // ===== POLICIES =====
+//   {
+//     pattern: /^\/admin\/policies(\/.*)?$/,
+//     permissions: ["POLICY_MANAGEMENT"],
+//   },
 
-  // ===== STATISTICS / REPORTS =====
-  // /admin/statistics, /admin/statistics/advanced, /admin/statistics/realtime
-  {
-    pattern: /^\/admin\/statistics(\/.*)?$/,
-    permissions: ['BOOKING_VIEW'],
-  },
-  // /admin/financial-reports
-  {
-    pattern: /^\/admin\/financial-reports(\/.*)?$/,
-    permissions: ['BOOKING_VIEW', 'BOOKING_MANAGE'],
-  },
+//   // ===== STATISTICS / REPORTS =====
+//   {
+//     pattern: /^\/admin\/statistics(\/.*)?$/,
+//     permissions: ["BOOKING_VIEW"],
+//   },
+//   {
+//     pattern: /^\/admin\/financial-reports(\/.*)?$/,
+//     permissions: ["BOOKING_VIEW", "BOOKING_MANAGE"],
+//   },
 
-  // ===== LOGS =====
-  // /admin/logs
-  {
-    pattern: /^\/admin\/logs(\/.*)?$/,
-    permissions: ['LOG_VIEW'],
-  },
+//   // ===== LOGS =====
+//   {
+//     pattern: /^\/admin\/logs(\/.*)?$/,
+//     permissions: ["LOG_VIEW"],
+//   },
 
-  // ===== PROMOTIONAL CAMPAIGNS =====
-  // /admin/campaigns
-  {
-    pattern: /^\/admin\/campaigns(\/.*)?$/,
-    permissions: ['PROMO_VIEW', 'PROMO_CREATE', 'PROMO_UPDATE', 'PROMO_DELETE', 'PROMO_TOGGLE'],
-  },
+//   // ===== PROMOTIONAL CAMPAIGNS =====
 
-  // ===== BRANCHES =====
-  // /admin/branches
-  // ===== BRANCH LIST =====
-{
-  pattern: /^\/admin\/branches\/?$/,          // /admin/branches hoặc /admin/branches/
-  permissions: ['BRANCH_VIEW'],
-},
+//    // /admin/campaigns - LIST
+//   {
+//     pattern: /^\/admin\/campaigns\/?$/,
+//     permissions: ["PROMO_VIEW"],
+//   },
+//   {
+//   pattern: /^\/admin\/campaigns\/[^\/]+\/analytics\/?$/,
+//   permissions: ["PROMO_VIEW"],
+//   },
+//   // /admin/campaign/create - CREATE
+//   {
+//     pattern: /^\/admin\/campaigns\/create\/?$/,
+//     permissions: ["PROMO_CREATE"],
+//   },
+//   // /admin/campaign/[id]/edit - EDIT
+//   {
+//     pattern: /^\/admin\/campaigns\/[^\/]+\/edit\/?$/,
+//     permissions: ["PROMO_UPDATE"],
+//   },
+//   // /admin/campaign/[id] - DETAIL
+//   {
+//     pattern: /^\/admin\/campaigns\/[^\/]+\/?$/,
+//     permissions: ["PROMO_VIEW"],
+//   },
 
-// ===== CREATE BRANCH =====
-{
-  pattern: /^\/admin\/branches\/create\/?$/,  // /admin/branches/create
-  permissions: ['BRANCH_CREATE'],
-},
+//   // ===== BRANCHES =====
+//   // LIST
+//   {
+//     pattern: /^\/admin\/branches\/?$/,
+//     permissions: ["BRANCH_VIEW"],
+//   },
+//   // CREATE  
+//   {
+//     pattern: /^\/admin\/branches\/create\/?$/,
+//     permissions: ["BRANCH_CREATE"],
+//   },
+//   // EDIT
+//   {
+//     pattern: /^\/admin\/branches\/[^\/]+\/edit\/?$/,
+//     permissions: ["BRANCH_UPDATE"],
+//   },
+//   // DETAIL
+//   {
+//     pattern: /^\/admin\/branches\/[^\/]+\/?$/,
+//     permissions: ["BRANCH_VIEW"],
+//   },
 
-// ===== EDIT BRANCH =====
-{
-  pattern: /^\/admin\/branches\/[^\/]+\/edit\/?$/, // /admin/branches/{id}/edit
-  permissions: ['BRANCH_UPDATE'],
-},
-
-// ===== VIEW BRANCH DETAIL =====
-{
-  pattern: /^\/admin\/branches\/[^\/]+\/?$/,  // /admin/branches/{id}
-  permissions: ['BRANCH_VIEW'],
-},
-  // ===== SERVICES =====
-  // /admin/services
-  {
-    pattern: /^\/admin\/services(\/.*)?$/,
-    permissions: ['SERVICE_VIEW', 'SERVICE_CREATE', 'SERVICE_UPDATE', 'SERVICE_DELETE', 'SERVICE_STATUS_TOGGLE'],
-  },
-
-  // ===== DASHBOARD =====
-  // /admin (dashboard chính)
-  // Ở đây mình cho phép ai có ÍT NHẤT 1 trong các quyền này vào dashboard
-  {
-    pattern: /^\/admin\/?$/,
-    permissions: ['USER_VIEW', 'BOOKING_VIEW', 'BRANCH_VIEW', 'SERVICE_VIEW', 'PROMO_VIEW', 'LOG_VIEW'],
-  },
-];
+//   // ===== SERVICES =====
+//   // LIST
+//   {
+//     pattern: /^\/admin\/services\/?$/,
+//     permissions: ["SERVICE_VIEW"],
+//   },
+//   // CREATE  /admin/services/new/[id]
+//   {
+//     pattern: /^\/admin\/services\/new\/?$/,
+//     permissions: ["SERVICE_CREATE"],
+//   },
+//   // EDIT  /admin/services/edit/[id]
+//   {
+//     pattern: /^\/admin\/services\/edit\/[^\/]+\/?$/,
+//     permissions: ["SERVICE_UPDATE"],
+//   },
+//   // DETAIL /admin/services/view/[id]
+//   {
+//     pattern: /^\/admin\/services\/view\/[^\/]+\/?$/,
+//     permissions: ["SERVICE_VIEW"],
+//   },
+// ];

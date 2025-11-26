@@ -34,7 +34,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthProvider>
-          {/* 👇 Bọc PermissionProvider bên trong AuthProvider để dùng useAuth */}
+         
           <PermissionProvider>
             <OnlineUserProvider>
               <RepairOrderHubProvider>{children}</RepairOrderHubProvider>
