@@ -131,10 +131,11 @@ export const RoleTable = ({
                   <Eye className="mr-2 h-4 w-4" />
                   View Details
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleEdit(role)}>
+                {role.name.toLowerCase() !== 'customer' && ( <DropdownMenuItem onClick={() => handleEdit(role)}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit Role
-                </DropdownMenuItem>
+                </DropdownMenuItem>)}
+               
                
                 <DropdownMenuSeparator />
                 {!role.isDefault && (

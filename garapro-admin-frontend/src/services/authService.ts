@@ -127,7 +127,6 @@ class AuthService {
     }
 
     const authData = await response.json();
-    // Giữ lại userId và email khi refresh token
     const currentUserId = this.getCurrentUserId();
     const currentUserEmail = this.getCurrentUserEmail();
     this.setStoredUserData(
@@ -139,12 +138,12 @@ class AuthService {
     return authData.token;
   }
 
-  // CHỈ DÙNG MỘT HÀM GETTOKEN DUY NHẤT
+
   getToken(): string | null {
     const token = this.getStoredToken();
-    console.log('🔐 getToken called - Token exists:', !!token);
-    console.log('🔐 sessionStorage authToken:', sessionStorage.getItem('authToken'));
-    console.log('🔐 globalToken:', globalToken);
+    console.log(' getToken called - Token exists:', !!token);
+    console.log(' sessionStorage authToken:', sessionStorage.getItem('authToken'));
+    console.log(' globalToken:', globalToken);
     return token;
   }
 
@@ -179,7 +178,7 @@ class AuthService {
   }
 
   async handleTokenRefresh(): Promise<string> {
-    // KIỂM TRA NẾU ĐANG LOGOUT THÌ KHÔNG REFRESH
+   
     if (this.isLoggingOut) {
       throw new Error("Logging out, cannot refresh token");
     }
@@ -214,7 +213,7 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
-    this.isLoggingOut = true; // ← SET FLAG TRƯỚC KHI LOGOUT
+    this.isLoggingOut = true; 
 
     try {
       const token = this.getToken();
@@ -237,7 +236,7 @@ class AuthService {
 
   isAuthenticated(): boolean {
     const authenticated = !!this.getToken();
-    console.log('🔐 isAuthenticated:', authenticated);
+    console.log(' isAuthenticated:', authenticated);
     return authenticated;
   }
 }

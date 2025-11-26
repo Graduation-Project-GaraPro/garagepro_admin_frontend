@@ -48,7 +48,7 @@ export default function AdminLayout({
     if (isChecking) return
 
     if (!isAuthenticated) {
-      router.replace('/login')
+      router.replace('/')
     }
   }, [isChecking, isAuthenticated, router])
 

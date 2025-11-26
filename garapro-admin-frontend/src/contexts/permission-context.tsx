@@ -98,47 +98,50 @@ console.log('[Perm]', { loaded, permissions: Array.from(permissions) });
   setLoaded(false);
 
   const connect = async () => {
-    try {
-      if (connectionRef.current) {
-        // đã có connection, chỉ cần reload quyền
-        await fetchPermissions();
-        return;
-      }
-
-      const conn = new signalR.HubConnectionBuilder()
-        .withUrl(`${HUB_BASE_URL}/hubs/permissions`, {
-          withCredentials: true,
-          accessTokenFactory: () => authService.getToken() ?? '',
-        })
-        .withAutomaticReconnect()
-        .build();
-
-      conn.on('RolePermissionsUpdated', async (payload) => {
-        console.log('🔔 RolePermissionsUpdated', payload);
-        await reload();
-      });
-
-      await conn.start();
-      console.log('✅ Permission hub connected');
-
-      if (user.roles && user.roles.length > 0) {
-        await conn.invoke('JoinRoleGroups', user.roles);
-      }
-
-      connectionRef.current = conn;
-
-      if (!cancelled) {
-        await fetchPermissions();
-      }
-    } catch (err) {
-      console.error('❌ Connect permission hub error', err);
-      if (!cancelled) {
-        await fetchPermissions();
-      }
+  try {
+    if (connectionRef.current) {
+      // đã có connection, chỉ cần reload quyền
+      await fetchPermissions();
+      return;
     }
-  };
 
-  connect();
+    const conn = new signalR.HubConnectionBuilder()
+      .withUrl(`${HUB_BASE_URL}/hubs/permissions`, {
+        withCredentials: true,
+        accessTokenFactory: () => authService.getToken() ?? '',
+      })
+      .withAutomaticReconnect()
+      .build();
+
+        
+        conn.on('PermissionsUpdated', async (payload) => {
+          console.log(' PermissionsUpdated', payload);
+          await fetchPermissions();; 
+        });
+
+        await conn.start();
+        console.log(' Permission hub connected');
+
+        if (user.roles && user.roles.length > 0) {
+        
+          await conn.invoke('JoinRoleGroups', user.roles);
+        }
+
+        connectionRef.current = conn;
+
+        if (!cancelled) {
+          await fetchPermissions();
+        }
+      } catch (err) {
+        console.error(' Connect permission hub error', err);
+        if (!cancelled) {
+          await fetchPermissions();
+        }
+      }
+    };
+
+    connect();
+
 
   return () => {
     cancelled = true;

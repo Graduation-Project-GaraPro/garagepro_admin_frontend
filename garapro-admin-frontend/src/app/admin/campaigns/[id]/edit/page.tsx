@@ -368,9 +368,19 @@ export default function EditCampaignPage() {
     }
 
     // Numbers
-    if (touchedFields.minimumOrderValue && formData.minimumOrderValue < 0) {
-      newErrors.minimumOrderValue = 'Minimum order value cannot be negative'
-    }
+    if (touchedFields.minimumOrderValue) {
+        const mov = formData.minimumOrderValue ?? 0;
+
+        if (mov !== 0) {
+          if (mov < 1000) {
+            newErrors.minimumOrderValue =
+              'Minimum order value must be ≥ 1.000đ (or leave blank for no requirement)';
+          } else if (mov % 1000 !== 0) {
+            newErrors.minimumOrderValue =
+              'Minimum order value must be in increments of 1.000đ (1.000, 2.000, 3.000...)';
+          }
+        }
+      }
 
     // Maximum discount: chỉ áp dụng khi percentage; 0/rỗng = unlimited; >0 thì ≥ 1000
     if (formData.discountType === 'percentage' && touchedFields.maximumDiscount) {

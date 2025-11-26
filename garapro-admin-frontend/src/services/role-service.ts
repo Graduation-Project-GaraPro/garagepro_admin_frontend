@@ -9,6 +9,7 @@ export interface Permission {
   code: string;
   description: string;
   deprecated: boolean;
+  isDefault: boolean;
 }
 
 export interface PermissionCategory {

@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Play,
   Pause,
+  MoreHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem
+} from "@/components/ui/dropdown-menu"
+
+
+
 import { toast } from "sonner";
 import {
   campaignService,
@@ -696,49 +707,89 @@ export default function CampaignsPage() {
                           {renderUsage(campaign.usedCount, campaign.usageLimit)}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Link href={`/admin/campaigns/${campaign.id}`}>
+
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
+                              <MoreHorizontal className="h-4 w-4" />
                             </Button>
-                          </Link>
-                          {canEdit && (
-                              <Link href={`/admin/campaigns/${campaign.id}/edit`}>
-                                <Button variant="ghost" size="sm">
-                                  <Edit className="h-4 w-4" />
-                                </Button>
+                          </DropdownMenuTrigger>
+
+                          <DropdownMenuContent align="end" className="w-44">
+                            {/* View */}
+                            <DropdownMenuItem asChild>
+                              <Link href={`/admin/campaigns/${campaign.id}`}>
+                                <div className="flex items-center gap-2">
+                                  <Eye className="h-4 w-4" />
+                                  <span>View detail</span>
+                                </div>
                               </Link>
+                            </DropdownMenuItem>
 
-                          )}
-                          <Link
-                            href={`/admin/campaigns/${campaign.id}/analytics`}
-                          >
-                            <Button variant="ghost" size="sm">
-                              <BarChart3 className="h-4 w-4" />
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() =>
-                              handleStatusToggle(campaign.id, campaign.isActive)
-                            }
-                          >
-                            {campaign.isActive ? "Deactivate" : "Activate"}
-                          </Button>
-                          {canDelete && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(campaign.id)}
-                                className="text-red-600 hover:text-red-700"
+                            {/* Edit */}
+                            {canEdit && (
+                              <DropdownMenuItem asChild>
+                                <Link
+                                  href={`/admin/campaigns/${campaign.id}/edit`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Edit className="h-4 w-4" />
+                                    <span>Edit</span>
+                                  </div>
+                                </Link>
+                              </DropdownMenuItem>
+                            )}
+
+                            {/* Analytics */}
+                            <DropdownMenuItem asChild>
+                              <Link
+                                href={`/admin/campaigns/${campaign.id}/analytics`}
                               >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                                <div className="flex items-center gap-2">
+                                  <BarChart3 className="h-4 w-4" />
+                                  <span>Analytics</span>
+                                </div>
+                              </Link>
+                            </DropdownMenuItem>
 
-                          )}
-                        </div>
+                            {/* Toggle status */}
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleStatusToggle(
+                                  campaign.id,
+                                  campaign.isActive
+                                )
+                              }
+                            >
+                              <div className="flex items-center gap-2">
+                                {campaign.isActive ? (
+                                  <Pause className="h-4 w-4" />
+                                ) : (
+                                  <Play className="h-4 w-4" />
+                                )}
+                                <span>
+                                  {campaign.isActive
+                                    ? "Deactivate"
+                                    : "Activate"}
+                                </span>
+                              </div>
+                            </DropdownMenuItem>
+
+                            {/* Delete */}
+                            {canDelete && (
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600"
+                                onClick={() => handleDelete(campaign.id)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Trash2 className="h-4 w-4" />
+                                  <span>Delete</span>
+                                </div>
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
