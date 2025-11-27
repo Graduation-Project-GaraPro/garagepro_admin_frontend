@@ -14,6 +14,7 @@ import {
 export type AdminMenuItem = {
   title: string;
   href: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   icon?: React.ComponentType<any>;
   requiredPermissions: string[];
   submenu?: AdminMenuItem[];
@@ -110,12 +111,7 @@ export const adminMenuItems: AdminMenuItem[] = [
         requiredPermissions: ["VIEW_STAT"],
         showInMenu: true,
       },
-      {
-        title: "Advanced Analytics",
-        href: "/admin/statistics/advanced",
-        requiredPermissions: ["VIEW_STAT"],
-        showInMenu: true,
-      },
+
       {
         title: "Real-time Analytics",
         href: "/admin/statistics/realtime",
@@ -172,7 +168,7 @@ export const adminMenuItems: AdminMenuItem[] = [
         href: "/admin/branches",
         requiredPermissions: ["BRANCH_VIEW"],
         showInMenu: true,
-      }
+      },
     ],
   },
   {
@@ -187,13 +183,10 @@ export const adminMenuItems: AdminMenuItem[] = [
         href: "/admin/services",
         requiredPermissions: ["SERVICE_VIEW"],
         showInMenu: true,
-      }
-      
+      },
     ],
   },
 ];
-
-
 
 export const routePermissionRules: RoutePermissionRule[] = [
   // ===== DASHBOARD =====
@@ -242,7 +235,7 @@ export const routePermissionRules: RoutePermissionRule[] = [
   },
   {
     pattern: /^\/admin\/financial-reports(\/.*)?$/,
-    permissions: ["VIEW_STAT"]
+    permissions: ["VIEW_STAT"],
   },
 
   // ===== LOGS =====
@@ -253,14 +246,14 @@ export const routePermissionRules: RoutePermissionRule[] = [
 
   // ===== PROMOTIONAL CAMPAIGNS =====
 
-   // /admin/campaigns - LIST
+  // /admin/campaigns - LIST
   {
     pattern: /^\/admin\/campaigns\/?$/,
     permissions: ["PROMO_VIEW"],
   },
   {
-  pattern: /^\/admin\/campaigns\/[^\/]+\/analytics\/?$/,
-  permissions: ["PROMO_VIEW"],
+    pattern: /^\/admin\/campaigns\/[^\/]+\/analytics\/?$/,
+    permissions: ["PROMO_VIEW"],
   },
   // /admin/campaign/create - CREATE
   {
@@ -283,14 +276,13 @@ export const routePermissionRules: RoutePermissionRule[] = [
   {
     pattern: /^\/admin\/branches\/import\/?$/,
     permissions: ["BRANCH_IMPORT_EXCEL"],
-    
   },
   // LIST
   {
     pattern: /^\/admin\/branches\/?$/,
     permissions: ["BRANCH_VIEW"],
   },
-  // CREATE  
+  // CREATE
   {
     pattern: /^\/admin\/branches\/create\/?$/,
     permissions: ["BRANCH_CREATE"],
@@ -305,7 +297,6 @@ export const routePermissionRules: RoutePermissionRule[] = [
     pattern: /^\/admin\/branches\/[^\/]+\/?$/,
     permissions: ["BRANCH_VIEW"],
   },
-  
 
   // ===== SERVICES =====
   // LIST
@@ -330,27 +321,32 @@ export const routePermissionRules: RoutePermissionRule[] = [
   },
 ];
 
-
 export function findFirstAccessibleAdminRoute(
   hasAnyPermission: (...codes: string[]) => boolean
 ): string | null {
   for (const item of adminMenuItems) {
     // Nếu menu chính không đủ quyền → skip luôn cả group
-    if (item.requiredPermissions && !hasAnyPermission(...item.requiredPermissions)) {
+    if (
+      item.requiredPermissions &&
+      !hasAnyPermission(...item.requiredPermissions)
+    ) {
       continue;
     }
 
     // Nếu có submenu → ưu tiên submenu đầu tiên mà có quyền
     if (item.submenu && item.submenu.length > 0) {
       for (const sub of item.submenu) {
-        if (!sub.requiredPermissions || hasAnyPermission(...sub.requiredPermissions)) {
+        if (
+          !sub.requiredPermissions ||
+          hasAnyPermission(...sub.requiredPermissions)
+        ) {
           return sub.href;
         }
       }
     }
 
     // Không có submenu hoặc không submenu nào match → dùng href của item chính
-    console.log("itemHREF",item.href)
+    console.log("itemHREF", item.href);
     return item.href;
   }
 

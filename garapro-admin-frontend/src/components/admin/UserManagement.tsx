@@ -129,6 +129,10 @@ const cleanupPortals = () => {
   });
 };
 
+interface RoleOption {
+  id: string;
+  name: string;
+}
 export function UserManagement() {
   // State Management
   const [searchTerm, setSearchTerm] = useState("");
@@ -162,6 +166,7 @@ export function UserManagement() {
   const [totalUsers, setTotalUsers] = useState(0);
 
   const [openAdd, setOpenAdd] = useState(false);
+  const [roles, setRoles] = useState<RoleOption[]>([]);
 
   // Error State
   const [error, setError] = useState<string | null>(null);
@@ -170,7 +175,32 @@ export function UserManagement() {
   // LIFECYCLE EFFECTS
   // ============================================================================
 
+  const fetchRoles = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/users/all-roles`
+      );
+
+      if (!res.ok) {
+        const error = await res.text();
+        console.error("Failed to fetch roles:", error);
+        toast.error("Failed to load roles");
+        return;
+      }
+
+      const data: RoleOption[] = await res.json();
+      setRoles(data);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load roles");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
+    fetchRoles();
     return () => cleanupPortals();
   }, []);
 
@@ -691,9 +721,12 @@ export function UserManagement() {
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Roles</option>
-              <option value="technician">Technician</option>
-              <option value="manager">Manager</option>
-              <option value="customer">Customer</option>
+
+              {roles.map((role) => (
+                <option key={role.id} value={role.name}>
+                  {role.name}
+                </option>
+              ))}
             </select>
           </div>
         </CardContent>

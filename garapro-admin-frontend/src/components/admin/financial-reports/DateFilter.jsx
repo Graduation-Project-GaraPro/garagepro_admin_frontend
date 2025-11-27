@@ -104,25 +104,7 @@ const periodOptions = [
               </>
             )}
   
-        <div className="space-y-2">
-            <Label htmlFor="branch">Branch</Label>
-            <Select 
-                value={filters.branchId || "all"} // nếu branchId rỗng => hiển thị "all"
-                onValueChange={(value) => 
-                onFilterChange({ branchId: value === 'all' ? '' : value })
-                }
-            >
-                <SelectTrigger id="branch">
-                <SelectValue placeholder="All Branches" />
-                </SelectTrigger>
-                <SelectContent>
-                <SelectItem value="all">All Branches</SelectItem> {/* ✅ không còn rỗng */}
-                <SelectItem value="b1">Downtown</SelectItem>
-                <SelectItem value="b2">Uptown</SelectItem>
-                <SelectItem value="b3">Suburban</SelectItem>
-                </SelectContent>
-            </Select>
-            </div>
+       
           </div>
         </CardContent>
       </Card>

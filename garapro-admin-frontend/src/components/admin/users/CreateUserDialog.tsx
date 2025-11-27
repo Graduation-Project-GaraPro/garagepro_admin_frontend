@@ -51,7 +51,9 @@ export default function CreateUserDialog({ open, onClose, onSuccess }: Props) {
   const fetchRoles = async () => {
     try {
       setRolesLoading(true);
-      const res = await fetch("https://localhost:7113/api/users/roles");
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE_URL}/users/roles`
+      );
 
       if (!res.ok) {
         const error = await res.text();
@@ -90,7 +92,7 @@ export default function CreateUserDialog({ open, onClose, onSuccess }: Props) {
 
     setLoading(true);
     try {
-      const res = await fetch("https://localhost:7113/api/users", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/users`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -161,7 +163,9 @@ export default function CreateUserDialog({ open, onClose, onSuccess }: Props) {
             disabled={rolesLoading}
           >
             <SelectTrigger>
-              <SelectValue placeholder={rolesLoading ? "Loading roles..." : "Select role"} />
+              <SelectValue
+                placeholder={rolesLoading ? "Loading roles..." : "Select role"}
+              />
             </SelectTrigger>
             <SelectContent>
               {roles.map((r) => (
