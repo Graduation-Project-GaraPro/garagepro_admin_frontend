@@ -98,12 +98,15 @@ export function BannedUsersManagement() {
     loadUsers();
   }, [banTypeFilter]);
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredUsers = Array.isArray(users)
+  ? users.filter((user) => {
+      const search = searchTerm.toLowerCase();
+      return (
+        user.fullName?.toLowerCase().includes(search) ||
+        user.email?.toLowerCase().includes(search)
+      );
+    })
+  : [];
 
   const handleUnbanUser = (user: any) => {
     setSelectedUser(user);

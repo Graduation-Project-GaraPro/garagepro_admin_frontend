@@ -335,12 +335,12 @@ export function findFirstAccessibleAdminRoute(
   hasAnyPermission: (...codes: string[]) => boolean
 ): string | null {
   for (const item of adminMenuItems) {
-    // Nếu menu chính không đủ quyền → skip luôn cả group
+    
     if (item.requiredPermissions && !hasAnyPermission(...item.requiredPermissions)) {
       continue;
     }
 
-    // Nếu có submenu → ưu tiên submenu đầu tiên mà có quyền
+    
     if (item.submenu && item.submenu.length > 0) {
       for (const sub of item.submenu) {
         if (!sub.requiredPermissions || hasAnyPermission(...sub.requiredPermissions)) {
@@ -349,7 +349,7 @@ export function findFirstAccessibleAdminRoute(
       }
     }
 
-    // Không có submenu hoặc không submenu nào match → dùng href của item chính
+    
     console.log("itemHREF",item.href)
     return item.href;
   }

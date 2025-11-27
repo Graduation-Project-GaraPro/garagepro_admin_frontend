@@ -37,7 +37,7 @@ export default function LoginPage() {
   const [activeTab, setActiveTab] = useState("phone");
 
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { loaded: permLoaded, hasAnyPermission } = usePermissionContext();
+ const { loaded: permLoaded, hasAnyPermission, permissions } = usePermissionContext();
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -63,9 +63,14 @@ export default function LoginPage() {
       return;
     }
 
+    
     // If permissions are not loaded yet, wait until permLoaded = true
     if (!permLoaded) return;
 
+    if (permissions.size === 0) {
+    console.log("Permissions empty, skip redirect this time");
+    return;
+  }
     // Find first admin route the user can access
     const firstRoute = findFirstAccessibleAdminRoute(hasAnyPermission);
     console.log("firstRoute",firstRoute)
@@ -119,8 +124,7 @@ export default function LoginPage() {
 
       console.log("✅ Phone login success:", result);
 
-      // ❌ Do NOT push /admin here.
-      // ✅ Redirect is handled in the useEffect above once auth + permissions are ready.
+      
     } catch (err: any) {
       console.error("❌ Phone login failed:", err);
 
@@ -151,7 +155,7 @@ export default function LoginPage() {
     if (errors.general) setErrors((prev) => ({ ...prev, general: "" }));
   };
 
-  // ⏳ Still checking auth state → show loading
+  
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">

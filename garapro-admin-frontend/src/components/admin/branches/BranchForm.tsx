@@ -41,7 +41,7 @@ type BranchFormValues = {
   operatingHours: OperatingHour[]
   arrivalWindowMinutes: number
   maxBookingsPerWindow: number
-  maxConcurrentWip: number
+  
 }
 
 const INITIAL_FORM_DATA: BranchFormValues = {
@@ -56,8 +56,8 @@ const INITIAL_FORM_DATA: BranchFormValues = {
   staffIds: [],
   operatingHours: DEFAULT_OPERATING_HOURS,
   arrivalWindowMinutes: 30,
-  maxBookingsPerWindow: 6,
-  maxConcurrentWip: 8,
+  maxBookingsPerWindow: 6
+
 }
 
 const getDayName = (dayOfWeek: number): string => {
@@ -160,14 +160,7 @@ const validateField = (
         return 'Maximum bookings per window must be at least 1'
       }
       return ''
-    case 'maxConcurrentWip':
-      if (value === undefined || value === null) {
-        return 'Maximum concurrent WIP is required'
-      }
-      if (value < 1) {
-        return 'Maximum concurrent WIP must be at least 1'
-      }
-      return ''
+    
     default:
       return ''
   }
@@ -186,8 +179,8 @@ const validateForm = (mode: BranchFormMode, formData: BranchFormValues): Record<
     'operatingHours',
     'description',
     'arrivalWindowMinutes',
-    'maxBookingsPerWindow',
-    'maxConcurrentWip',
+    'maxBookingsPerWindow'
+    
   ]
 
   const errors: Record<string, string> = {}
@@ -303,8 +296,8 @@ export default function BranchForm({ mode, branchId }: BranchFormProps) {
           staffIds: b.staffs.map(s => s.id),
           operatingHours: b.operatingHours,
           arrivalWindowMinutes: b.arrivalWindowMinutes,
-          maxBookingsPerWindow: b.maxBookingsPerWindow,
-          maxConcurrentWip: b.maxConcurrentWip,
+          maxBookingsPerWindow: b.maxBookingsPerWindow
+          
         }
 
         setCurrentBranchStaffIds(b.staffs.map(s => s.id))
@@ -355,8 +348,8 @@ export default function BranchForm({ mode, branchId }: BranchFormProps) {
         | 'province'
         | 'description'
         | 'arrivalWindowMinutes'
-        | 'maxBookingsPerWindow'
-        | 'maxConcurrentWip',
+        | 'maxBookingsPerWindow',
+        
       value: string
     ) => {
       setFormData(prev => {
@@ -366,8 +359,8 @@ export default function BranchForm({ mode, branchId }: BranchFormProps) {
 
         if (
           field === 'arrivalWindowMinutes' ||
-          field === 'maxBookingsPerWindow' ||
-          field === 'maxConcurrentWip'
+          field === 'maxBookingsPerWindow' 
+          
         ) {
           processedValue = value === '' ? 0 : parseInt(value, 10)
           if (isNaN(processedValue)) processedValue = 0
@@ -600,8 +593,7 @@ export default function BranchForm({ mode, branchId }: BranchFormProps) {
           province={formData.province}
           description={formData.description}
           arrivalWindowMinutes={formData.arrivalWindowMinutes}
-          maxBookingsPerWindow={formData.maxBookingsPerWindow}
-          maxConcurrentWip={formData.maxConcurrentWip}
+          maxBookingsPerWindow={formData.maxBookingsPerWindow}         
           errors={errors}
           onChange={handleInputChange}
         />

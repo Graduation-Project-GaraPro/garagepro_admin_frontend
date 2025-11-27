@@ -345,10 +345,7 @@ export default function BranchDetailPage() {
             <span className="text-sm font-medium">Max Bookings/Window:</span>
             <Badge variant="outline">{branch.maxBookingsPerWindow}</Badge>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">Max Concurrent WIP:</span>
-            <Badge variant="outline">{branch.maxConcurrentWip}</Badge>
-          </div>
+          
         </div>
       </CardContent>
         </Card>
