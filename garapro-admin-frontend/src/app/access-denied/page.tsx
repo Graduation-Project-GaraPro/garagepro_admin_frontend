@@ -1,4 +1,3 @@
-// app/access-denied/page.tsx
 'use client';
 
 import { useAuth } from '@/contexts/auth-context';
@@ -6,9 +5,16 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useRouter } from "next/navigation";
 
 export default function AccessDenied() {
   const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();         // Đợi logout hoàn thành
+    router.push("/");       // Sau đó về trang chủ
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -44,15 +50,9 @@ export default function AccessDenied() {
           )}
 
           <div className="flex flex-col gap-3">
-            {/* <Button asChild className="w-full">
-              <Link href="/">
-                Go to Homepage
-              </Link>
-            </Button> */}
-            
             <Button 
               variant="outline" 
-              onClick={() => logout()}
+              onClick={handleLogout}
               className="w-full"
             >
               Logout
