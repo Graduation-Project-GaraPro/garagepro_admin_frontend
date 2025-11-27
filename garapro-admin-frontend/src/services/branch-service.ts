@@ -21,7 +21,7 @@ export interface GarageBranch {
   operatingHours: OperatingHour[]
   arrivalWindowMinutes: number
   maxBookingsPerWindow: number
-  maxConcurrentWip: number
+  
 }
 
 export interface CreateBranchRequest {
@@ -37,7 +37,7 @@ export interface CreateBranchRequest {
   operatingHours: OperatingHour[]
   arrivalWindowMinutes: number
   maxBookingsPerWindow: number
-  maxConcurrentWip: number
+  
 }
 
 export interface UpdateBranchRequest {
@@ -56,7 +56,7 @@ export interface UpdateBranchRequest {
   operatingHours: OperatingHour[]
   arrivalWindowMinutes: number
   maxBookingsPerWindow: number
-  maxConcurrentWip: number
+ 
 }
 
 export interface Service {

@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (loginData: any) => {
     try {
-      console.log('🔐 Starting login process...');
+      
       const authData = await authService.phoneLogin(loginData);
       const userData = {
         userId: authData.userId,

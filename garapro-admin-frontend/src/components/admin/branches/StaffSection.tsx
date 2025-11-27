@@ -275,7 +275,7 @@ function StaffSectionImpl({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => onStaffRemove(staff.id)}
+                       onClick={() => handleStaffToggleWithWarning(staff, false)}
                       className="text-red-600 hover:text-red-700"
                       aria-label={`Remove ${staff.fullName}`}
                     >

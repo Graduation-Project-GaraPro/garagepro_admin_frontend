@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import Link from "next/link";
 import { useAuth } from '@/contexts/auth-context'
 import {
   DropdownMenu,
@@ -213,16 +214,16 @@ export function AdminHeader() {
         {/* Left side */}
         <div className="flex items-center space-x-4">
           <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-          
         </div>
 
         {/* Right side - CHỈ HIỂN THỊ KHI ĐÃ ĐĂNG NHẬP */}
         {isAuthenticated && (
           <div className="flex items-center space-x-4">
-           
-
             {/* Notifications */}
-            <Dialog open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+            <Dialog
+              open={isNotificationsOpen}
+              onOpenChange={setIsNotificationsOpen}
+            >
               <DialogTrigger asChild>
                 <Button variant="ghost" size="sm" className="relative">
                   <Bell className="h-5 w-5" />
@@ -233,13 +234,17 @@ export function AdminHeader() {
                   )}
                 </Button>
               </DialogTrigger>
-              
+
               <DialogContent className="max-w-md w-full">
                 <DialogHeader>
                   <DialogTitle className="flex items-center justify-between">
                     <span>Notifications</span>
                     {unreadCount > 0 && (
-                      <Button variant="ghost" size="sm" onClick={handleMarkAllRead}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleMarkAllRead}
+                      >
                         Mark all read
                       </Button>
                     )}
@@ -248,13 +253,16 @@ export function AdminHeader() {
                     {unreadCount} unread notifications
                   </DialogDescription>
                 </DialogHeader>
-                
+
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {notifications.map(renderNotificationItem)}
                 </div>
-                
+
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsNotificationsOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsNotificationsOpen(false)}
+                  >
                     Close
                   </Button>
                   <Button>
@@ -265,16 +273,16 @@ export function AdminHeader() {
               </DialogContent>
             </Dialog>
 
-            
-            
-
             {/* User Menu - CHỈ HIỂN THỊ KHI ĐÃ ĐĂNG NHẬP */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Button
+                  variant="ghost"
+                  className="relative h-8 w-8 rounded-full"
+                >
                   <Avatar className="h-8 w-8">
                     <AvatarFallback>
-                      {user?.email?.substring(0, 2).toUpperCase() || 'AD'}
+                      {user?.email?.substring(0, 2).toUpperCase() || "AD"}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -283,19 +291,21 @@ export function AdminHeader() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {user?.email || 'User'}
+                      {user?.email || "User"}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      {user?.roles?.join(', ') || 'No roles'}
+                      {user?.roles?.join(", ") || "No roles"}
                     </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
+                <DropdownMenuItem asChild>
+                  <Link href="/profile/edit">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
                 </DropdownMenuItem>
-                
+
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
@@ -307,5 +317,5 @@ export function AdminHeader() {
         )}
       </div>
     </header>
-  )
+  );
 }
