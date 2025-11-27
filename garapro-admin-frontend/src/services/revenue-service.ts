@@ -144,7 +144,7 @@ export interface RevenueReport {
 const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5117"
 ).replace(/\/$/, "");
-const BASE_PATH = `${API_BASE}/api/Statistics`;
+const BASE_PATH = `${API_BASE}/Statistics`;
 
 function buildQuery(params?: Record<string, unknown>): string {
   if (!params) return "";
