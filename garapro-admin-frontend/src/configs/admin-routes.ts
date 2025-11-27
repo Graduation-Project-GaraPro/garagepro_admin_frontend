@@ -136,7 +136,7 @@ export const adminMenuItems: AdminMenuItem[] = [
     submenu: [
       {
         title: "All Logs",
-        href: "/admin/logs",
+        href: "/admin/monitoringLogs",
         requiredPermissions: ["LOG_VIEW"],
         showInMenu: true,
       },
@@ -241,7 +241,7 @@ export const routePermissionRules: RoutePermissionRule[] = [
 
   // ===== LOGS =====
   {
-    pattern: /^\/admin\/logs(\/.*)?$/,
+    pattern: /^\/admin\/monitoringLogs(\/.*)?$/,
     permissions: ["LOG_VIEW"],
   },
 
