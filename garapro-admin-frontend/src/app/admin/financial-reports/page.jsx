@@ -96,8 +96,7 @@ export default function FinancialReports() {
               <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 max-w-2xl">
                 <TabsTrigger value="services">Services</TabsTrigger>
                 <TabsTrigger value="trends">Service Trends</TabsTrigger>
-                <TabsTrigger value="technicians">Technicians</TabsTrigger>
-                <TabsTrigger value="branches">Branches</TabsTrigger>
+                
                 <TabsTrigger value="orders">Repair Orders</TabsTrigger>
               </TabsList>
               

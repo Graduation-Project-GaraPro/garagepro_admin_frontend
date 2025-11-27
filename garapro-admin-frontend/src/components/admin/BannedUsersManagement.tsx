@@ -41,7 +41,7 @@ const fetchBannedUsers = async (banType?: string) => {
   const query =
     banType && banType !== "all"
       ? `?status=banned&type=${banType}`
-      : "?status=banned";
+      : "?status=inactive";
   const res = await apiClient.get<any>(`/users${query}`);
   if (!res.data) throw new Error("Failed to fetch users");
   console.log(res.data);
@@ -88,7 +88,7 @@ export function BannedUsersManagement() {
       setLoading(true);
       try {
         const data = await fetchBannedUsers(banTypeFilter);
-        setUsers(data);
+        setUsers(data.data);
       } catch (error) {
         console.error("Failed to load users", error);
       } finally {

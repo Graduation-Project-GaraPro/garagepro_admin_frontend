@@ -213,12 +213,12 @@ class UserService {
 
       const newUser: User = {
         id: Math.max(0, ...users.map((u) => u.id)) + 1,
-        name: userData.name,
+        fullName: userData.name,
         email: userData.email,
-        phone: userData.phone,
+        phoneNumber: userData.phone,
         role: userData.role,
         status: "active",
-        joinedDate: now,
+        createdAt: new Date(now),
         lastLogin: now,
         avatar: "",
         location: userData.location,
@@ -457,7 +457,7 @@ class UserService {
       const thisMonth = new Date();
       thisMonth.setDate(1); // First day of current month
       const newUsersThisMonth = users.filter(
-        (u) => new Date(u.joinedDate) >= thisMonth
+        (u) => new Date(u.createdAt) >= thisMonth
       ).length;
 
       const roleDistribution: Record<string, number> = users.reduce(
@@ -508,7 +508,7 @@ class UserService {
       const rows = users
         .map(
           (u) =>
-            `${u.id},"${u.name}","${u.email}","${u.phone}",${u.role},${u.status},${u.joinedDate},${u.lastLogin},${u.totalOrders},${u.totalSpent},${u.verified},"${u.location}"`
+            `${u.id},"${u.fullName}","${u.email}","${u.phoneNumber}",${u.role},${u.status},${u.createdAt},${u.lastLogin},${u.totalOrders},${u.totalSpent},${u.verified},"${u.location}"`
         )
         .join("\n");
       const csv = header + rows;
@@ -544,7 +544,7 @@ class UserService {
       // CSV/Excel format
       const header =
         "id,name,email,phone,role,status,joinedDate,lastLogin,totalOrders,totalSpent,verified,location\n";
-      const row = `${user.id},"${user.name}","${user.email}","${user.phone}",${user.role},${user.status},${user.joinedDate},${user.lastLogin},${user.totalOrders},${user.totalSpent},${user.verified},"${user.location}"`;
+      const row = `${user.id},"${user.fullName}","${user.email}","${user.phoneNumber}",${user.role},${user.status},${user.createdAt},${user.lastLogin},${user.totalOrders},${user.totalSpent},${user.verified},"${user.location}"`;
       const csv = header + row;
 
       const mimeType =
@@ -704,12 +704,12 @@ class UserService {
     const users: User[] = [
       {
         id: 1,
-        name: "John Smith",
+        fullName: "John Smith",
         email: "john@garage.com",
-        phone: "+1-555-0101",
+        phoneNumber: "+1-555-0101",
         role: "manager",
         status: "active",
-        joinedDate: "2024-01-01T00:00:00Z",
+        createdAt: new Date("2024-01-01T00:00:00Z"),
         lastLogin: "2024-03-10T10:30:00Z",
         avatar: "",
         location: "New York",
@@ -758,12 +758,12 @@ class UserService {
       },
       {
         id: 2,
-        name: "Sarah Wilson",
+        fullName: "Sarah Wilson",
         email: "sarah@garage.com",
-        phone: "+1-555-0202",
+        phoneNumber: "+1-555-0202",
         role: "manager",
         status: "active",
-        joinedDate: "2024-01-05T00:00:00Z",
+        createdAt: new Date("2024-01-05T00:00:00Z"),
         lastLogin: "2024-03-11T09:15:00Z",
         avatar: "",
         location: "Los Angeles",
@@ -802,119 +802,6 @@ class UserService {
               date: "2024-02-20",
             },
           ],
-        },
-      },
-      {
-        id: 3,
-        name: "Tom Davis",
-        email: "tom@garage.com",
-        phone: "+1-555-0303",
-        role: "user",
-        status: "active",
-        joinedDate: "2024-01-10T00:00:00Z",
-        lastLogin: "2024-03-09T18:20:00Z",
-        avatar: "",
-        location: "Chicago",
-        verified: true,
-        totalOrders: 4,
-        totalSpent: 350,
-        details: {
-          address: "789 Pine Rd, Chicago, IL 60601",
-          dateOfBirth: "1992-11-08",
-          emergencyContact: "Sarah Wilson (+1-555-0202)",
-          preferences: {
-            notifications: true,
-            marketing: false,
-            twoFactor: false,
-          },
-          devices: ["Dell Laptop"],
-          lastIpAddress: "10.0.0.25",
-          userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-          accountHistory: [
-            {
-              action: "Account created",
-              date: "2024-01-10T00:00:00Z",
-              ip: "10.0.0.25",
-            },
-          ],
-          orders: [],
-        },
-      },
-      {
-        id: 4,
-        name: "Mike Johnson",
-        email: "mike@garage.com",
-        phone: "+1-555-0404",
-        role: "user",
-        status: "active",
-        joinedDate: "2024-02-01T00:00:00Z",
-        lastLogin: "2024-03-08T12:00:00Z",
-        avatar: "",
-        location: "Miami",
-        verified: false,
-        totalOrders: 6,
-        totalSpent: 520,
-        details: {
-          address: "321 Cedar St, Miami, FL 33101",
-          dateOfBirth: "1988-07-14",
-          emergencyContact: "John Smith (+1-555-0101)",
-          preferences: {
-            notifications: true,
-            marketing: false,
-            twoFactor: false,
-          },
-          devices: [],
-          lastIpAddress: "172.16.0.10",
-          userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-          accountHistory: [
-            {
-              action: "Account created",
-              date: "2024-02-01T00:00:00Z",
-              ip: "172.16.0.10",
-            },
-          ],
-          orders: [],
-        },
-      },
-      {
-        id: 5,
-        name: "Emma Brown",
-        email: "emma@garage.com",
-        phone: "+1-555-0505",
-        role: "admin",
-        status: "active",
-        joinedDate: "2023-12-15T00:00:00Z",
-        lastLogin: "2024-03-12T08:45:00Z",
-        avatar: "",
-        location: "Seattle",
-        verified: true,
-        totalOrders: 0,
-        totalSpent: 0,
-        details: {
-          address: "555 Admin Way, Seattle, WA 98101",
-          dateOfBirth: "1987-04-30",
-          emergencyContact: "System Administrator (+1-800-ADMIN)",
-          preferences: {
-            notifications: true,
-            marketing: false,
-            twoFactor: true,
-          },
-          devices: ["MacBook Air M2", "iPhone 14 Pro"],
-          lastIpAddress: "203.0.113.1",
-          userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-          accountHistory: [
-            {
-              action: "Admin account created",
-              date: "2023-12-15T00:00:00Z",
-              ip: "203.0.113.1",
-            },
-            {
-              action: "Security settings updated",
-              date: "2024-01-01T00:00:00Z",
-              ip: "203.0.113.1",
-            },
-          ],
-          orders: [],
         },
       },
     ];

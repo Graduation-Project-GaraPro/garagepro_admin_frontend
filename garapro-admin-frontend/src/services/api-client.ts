@@ -24,7 +24,7 @@ class ApiClient {
   private refreshPromise: Promise<void> | null = null;
 
   constructor(
-    baseUrl: string = process.env.NEXT_PUBLIC_API_URL ||
+    baseUrl: string = process.env.NEXT_PUBLIC_API_BASE_URL ||
       "https://localhost:7113/api",
     retryAttempts: number = 3,
     retryDelay: number = 1000
@@ -227,7 +227,10 @@ class ApiClient {
     });
   }
 
-  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+  async delete<T>(
+    endpoint: string,
+    p0: { body: { userIds: number[] } }
+  ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { method: "DELETE" });
   }
 }

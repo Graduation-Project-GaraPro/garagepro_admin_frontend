@@ -1,23 +1,28 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Activity } from "lucide-react" // icon
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Activity } from "lucide-react"; // icon
 
-import { User } from "@/services/user-service"
+import { User } from "@/services/user-service";
 
 function ActivityDialog({
   open,
   onOpenChange,
   user,
 }: {
-  open: boolean
-  onOpenChange: (v: boolean) => void
-  user: User | null
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  user: User | null;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            Account Activity - {user?.name ?? "Unknown"}
+            Account Activity - {user?.fullName ?? "Unknown"}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -29,12 +34,12 @@ function ActivityDialog({
               >
                 <div className="flex items-center space-x-2">
                   <Activity className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-900">{activity.action}</span>
+                  <span className="text-sm text-gray-900">
+                    {activity.action}
+                  </span>
                 </div>
                 <div className="flex items-center space-x-4 text-xs text-gray-500">
-                  <span>
-                    {new Date(activity.date).toLocaleDateString()}
-                  </span>
+                  <span>{new Date(activity.date).toLocaleDateString()}</span>
                   <span>{activity.ip}</span>
                 </div>
               </div>
@@ -45,7 +50,7 @@ function ActivityDialog({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
-export default ActivityDialog
+export default ActivityDialog;
