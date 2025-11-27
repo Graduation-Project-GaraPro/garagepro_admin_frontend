@@ -1,3 +1,4 @@
+
 // configs/admin-routes.ts
 import React from "react";
 import {
@@ -30,20 +31,20 @@ export type RoutePermissionRule = {
  * MENU CONFIG – dùng cho AdminSidebar
  */
 export const adminMenuItems: AdminMenuItem[] = [
-  {
-    title: "Dashboard",
-    href: "/admin",
-    icon: LayoutDashboard,
-    requiredPermissions: [
-      "USER_VIEW",
-      "VIEW_STAT",
-      "BRANCH_VIEW",
-      "SERVICE_VIEW",
-      "PROMO_VIEW",
-      "LOG_VIEW",
-    ],
-    showInMenu: true,
-  },
+  // {
+  //   title: "Dashboard",
+  //   href: "/admin",
+  //   icon: LayoutDashboard,
+  //   requiredPermissions: [
+  //     "USER_VIEW",
+  //     "VIEW_STAT",
+  //     "BRANCH_VIEW",
+  //     "SERVICE_VIEW",
+  //     "PROMO_VIEW",
+  //     "LOG_VIEW",
+  //   ],
+  //   showInMenu: true,
+  // },
   {
     title: "User Management",
     href: "/admin/users",
@@ -190,17 +191,17 @@ export const adminMenuItems: AdminMenuItem[] = [
 
 export const routePermissionRules: RoutePermissionRule[] = [
   // ===== DASHBOARD =====
-  {
-    pattern: /^\/admin\/?$/,
-    permissions: [
-      "USER_VIEW",
-      "BOOKING_VIEW",
-      "BRANCH_VIEW",
-      "SERVICE_VIEW",
-      "PROMO_VIEW",
-      "LOG_VIEW",
-    ],
-  },
+  // {
+  //   pattern: /^\/admin\/?$/,
+  //   permissions: [
+  //     "USER_VIEW",
+  //     "BOOKING_VIEW",
+  //     "BRANCH_VIEW",
+  //     "SERVICE_VIEW",
+  //     "PROMO_VIEW",
+  //     "LOG_VIEW",
+  //   ],
+  // },
 
   // ===== USER MANAGEMENT =====
   {

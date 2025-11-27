@@ -331,7 +331,7 @@ export default function RevenuePage() {
             Comprehensive analysis of your garage's financial performance
           </p>
         </div>
-        
+
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="flex gap-2">
             <Select value={period} onValueChange={setPeriod}>
@@ -359,33 +359,39 @@ export default function RevenuePage() {
               </SelectContent>
             </Select>
 
-            {period === 'custom' && (
+            {period === "custom" && (
               <DateRangePicker date={dateRange} onDateChange={setDateRange} />
             )}
           </div>
 
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
-              <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            <Button
+              variant="outline"
+              onClick={handleRefresh}
+              disabled={refreshing}
+            >
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={() => handleExport('csv')} 
+
+            <Button
+              variant="outline"
+              onClick={() => handleExport("csv")}
               disabled={isExporting}
             >
               <Download className="mr-2 h-4 w-4" />
-              {isExporting ? 'Exporting...' : 'CSV'}
+              {isExporting ? "Exporting..." : "CSV"}
             </Button>
-            
-            <Button 
-              variant="outline" 
-              onClick={() => handleExport('excel')} 
+
+            <Button
+              variant="outline"
+              onClick={() => handleExport("excel")}
               disabled={isExporting}
             >
               <Download className="mr-2 h-4 w-4" />
-              {isExporting ? 'Exporting...' : 'Excel'}
+              {isExporting ? "Exporting..." : "Excel"}
             </Button>
           </div>
         </div>
@@ -394,33 +400,46 @@ export default function RevenuePage() {
       {/* Summary Cards */}
       <Card>
         <CardHeader className="pb-3">
-          <div 
+          <div
             className="flex items-center justify-between cursor-pointer"
-            onClick={() => toggleSection('summary')}
+            onClick={() => toggleSection("summary")}
           >
             <CardTitle className="text-xl">Performance Summary</CardTitle>
             {expandedSections.summary ? <ChevronUp /> : <ChevronDown />}
           </div>
-          <CardDescription>Key revenue metrics for the selected period</CardDescription>
+          <CardDescription>
+            Key revenue metrics for the selected period
+          </CardDescription>
         </CardHeader>
         {expandedSections.summary && (
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Total Revenue
+                  </CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(report.totalRevenue)}</div>
+                  <div className="text-2xl font-bold">
+                    {formatCurrency(report.totalRevenue)}
+                  </div>
                   <div className="flex items-center text-xs text-muted-foreground mt-1">
-                    {report.growthRate >= 0 ? (
+                    {(report.growthRate ?? 0) >= 0 ? (
                       <ArrowUp className="h-3 w-3 text-green-600 mr-1" />
                     ) : (
                       <ArrowDown className="h-3 w-3 text-red-600 mr-1" />
                     )}
-                    <span className={report.growthRate >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {formatPercentage(report.growthRate)} from previous period
+                    <span
+                      className={
+                        (report.growthRate ?? 0) >= 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }
+                    >
+                      {formatPercentage(report.growthRate ?? 0)} from previous
+                      period
                     </span>
                   </div>
                 </CardContent>
@@ -428,20 +447,34 @@ export default function RevenuePage() {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Total Orders
+                  </CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{report.totalOrders.toLocaleString()}</div>
+                  <div className="text-2xl font-bold">
+                    {report.totalOrders.toLocaleString()}
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {Math.round(report.totalOrders / (period === 'daily' ? 1 : period === 'monthly' ? 30 : 365))} avg per day
+                    {Math.round(
+                      report.totalOrders /
+                        (period === "daily"
+                          ? 1
+                          : period === "monthly"
+                          ? 30
+                          : 365)
+                    )}{" "}
+                    avg per day
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Avg Order Value
+                  </CardTitle>
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -449,19 +482,32 @@ export default function RevenuePage() {
                     {formatCurrency(report.averageOrderValue)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {(report.totalRevenue / report.totalOrders).toLocaleString(undefined, { maximumFractionDigits: 2 })} per order
+                    {(report.totalRevenue / report.totalOrders).toLocaleString(
+                      undefined,
+                      { maximumFractionDigits: 2 }
+                    )}{" "}
+                    per order
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Growth Rate</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Growth Rate
+                  </CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className={`text-2xl font-bold ${report.growthRate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {report.growthRate >= 0 ? '+' : ''}{report.growthRate}%
+                  <div
+                    className={`text-2xl font-bold ${
+                      (report.growthRate ?? 0) >= 0
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {(report.growthRate ?? 0) >= 0 ? "+" : ""}
+                    {report.growthRate}%
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Compared to previous period
@@ -476,14 +522,16 @@ export default function RevenuePage() {
       {/* Charts Section */}
       <Card>
         <CardHeader className="pb-3">
-          <div 
+          <div
             className="flex items-center justify-between cursor-pointer"
-            onClick={() => toggleSection('charts')}
+            onClick={() => toggleSection("charts")}
           >
             <CardTitle className="text-xl">Performance Visualization</CardTitle>
             {expandedSections.charts ? <ChevronUp /> : <ChevronDown />}
           </div>
-          <CardDescription>Visual representation of revenue data</CardDescription>
+          <CardDescription>
+            Visual representation of revenue data
+          </CardDescription>
         </CardHeader>
         {expandedSections.charts && (
           <CardContent>
@@ -491,7 +539,9 @@ export default function RevenuePage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Revenue by Service</CardTitle>
-                  <CardDescription>Top revenue generating services</CardDescription>
+                  <CardDescription>
+                    Top revenue generating services
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
@@ -501,17 +551,31 @@ export default function RevenuePage() {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ serviceName, percentageOfTotal }) => `${serviceName}: ${percentageOfTotal}%`}
+                        label={({ serviceName, percentageOfTotal }) =>
+                          `${serviceName}: ${percentageOfTotal}%`
+                        }
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="revenue"
                         nameKey="serviceName"
                       >
-                        {report.topServices.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
+                        {report.topServices &&
+                          report.topServices.length > 0 && (
+                            <PieChart>
+                              <Pie
+                                data={report.topServices}
+                                dataKey="revenue"
+                                nameKey="serviceName"
+                              />
+                            </PieChart>
+                          )}
                       </Pie>
-                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Revenue']} />
+                      <Tooltip
+                        formatter={(value) => [
+                          formatCurrency(Number(value)),
+                          "Revenue",
+                        ]}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -534,9 +598,18 @@ export default function RevenuePage() {
                       }}
                     >
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="technicianName" angle={-45} textAnchor="end" />
+                      <XAxis
+                        dataKey="technicianName"
+                        angle={-45}
+                        textAnchor="end"
+                      />
                       <YAxis />
-                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Revenue']} />
+                      <Tooltip
+                        formatter={(value) => [
+                          formatCurrency(Number(value)),
+                          "Revenue",
+                        ]}
+                      />
                       <Legend />
                       <Bar dataKey="revenue" name="Revenue" fill="#8884d8" />
                     </BarChart>
@@ -549,7 +622,9 @@ export default function RevenuePage() {
             <Card className="mt-4">
               <CardHeader>
                 <CardTitle>Branch Performance Comparison</CardTitle>
-                <CardDescription>Revenue metrics across all branches</CardDescription>
+                <CardDescription>
+                  Revenue metrics across all branches
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border">
@@ -560,19 +635,32 @@ export default function RevenuePage() {
                     <div className="col-span-2 text-right">Avg Order</div>
                     <div className="col-span-2 text-right">Growth</div>
                   </div>
-                  {report.branchComparison.map((branch) => (
-                    <div key={branch.branchId} className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0">
+                  {(report.branchComparison ?? []).map((branch) => (
+                    <div
+                      key={branch.branchId}
+                      className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0"
+                    >
                       <div className="col-span-4 font-medium flex items-center">
                         <Building className="h-4 w-4 mr-2 text-muted-foreground" />
                         {branch.branchName}
                       </div>
-                      <div className="col-span-2 text-right">{formatCurrency(branch.revenue)}</div>
-                      <div className="col-span-2 text-right">{branch.orderCount.toLocaleString()}</div>
+                      <div className="col-span-2 text-right">
+                        {formatCurrency(branch.revenue)}
+                      </div>
+                      <div className="col-span-2 text-right">
+                        {branch.orderCount.toLocaleString()}
+                      </div>
                       <div className="col-span-2 text-right">
                         {formatCurrency(branch.revenue / branch.orderCount)}
                       </div>
                       <div className="col-span-2 text-right">
-                        <div className={`flex items-center justify-end ${branch.growthRate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <div
+                          className={`flex items-center justify-end ${
+                            branch.growthRate >= 0
+                              ? "text-green-600"
+                              : "text-red-600"
+                          }`}
+                        >
                           {branch.growthRate >= 0 ? (
                             <ArrowUp className="h-3 w-3 mr-1" />
                           ) : (
@@ -593,14 +681,16 @@ export default function RevenuePage() {
       {/* Services Section */}
       <Card>
         <CardHeader className="pb-3">
-          <div 
+          <div
             className="flex items-center justify-between cursor-pointer"
-            onClick={() => toggleSection('services')}
+            onClick={() => toggleSection("services")}
           >
             <CardTitle className="text-xl">Service Analytics</CardTitle>
             {expandedSections.services ? <ChevronUp /> : <ChevronDown />}
           </div>
-          <CardDescription>Detailed breakdown of services performance</CardDescription>
+          <CardDescription>
+            Detailed breakdown of services performance
+          </CardDescription>
         </CardHeader>
         {expandedSections.services && (
           <CardContent>
@@ -618,17 +708,29 @@ export default function RevenuePage() {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percentage }) => `${name}: ${percentage}%`}
+                        label={({ name, percentage }) =>
+                          `${name}: ${percentage}%`
+                        }
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="revenue"
                         nameKey="name"
                       >
-                        {report.serviceCategories.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
+                        {(report.serviceCategories ?? []).map(
+                          (entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={COLORS[index % COLORS.length]}
+                            />
+                          )
+                        )}
                       </Pie>
-                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Revenue']} />
+                      <Tooltip
+                        formatter={(value) => [
+                          formatCurrency(Number(value)),
+                          "Revenue",
+                        ]}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -637,7 +739,9 @@ export default function RevenuePage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Service Trends</CardTitle>
-                  <CardDescription>Service performance over time</CardDescription>
+                  <CardDescription>
+                    Service performance over time
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
@@ -653,16 +757,23 @@ export default function RevenuePage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="period" angle={-45} textAnchor="end" />
                       <YAxis />
-                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Revenue']} />
+                      <Tooltip
+                        formatter={(value) => [
+                          formatCurrency(Number(value)),
+                          "Revenue",
+                        ]}
+                      />
                       <Legend />
-                      {report.topServices.slice(0, 3).map((service, index) => (
-                        <Bar 
-                          key={service.serviceName} 
-                          dataKey={service.serviceName} 
-                          name={service.serviceName} 
-                          fill={COLORS[index % COLORS.length]} 
-                        />
-                      ))}
+                      {(report.topServices ?? [])
+                        .slice(0, 3)
+                        .map((service, index) => (
+                          <Bar
+                            key={service.serviceName}
+                            dataKey={service.serviceName}
+                            name={service.serviceName}
+                            fill={COLORS[index % COLORS.length]}
+                          />
+                        ))}
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -672,7 +783,9 @@ export default function RevenuePage() {
             <Card className="mt-4">
               <CardHeader>
                 <CardTitle>Service Details</CardTitle>
-                <CardDescription>Detailed breakdown of all services performed</CardDescription>
+                <CardDescription>
+                  Detailed breakdown of all services performed
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border">
@@ -682,16 +795,26 @@ export default function RevenuePage() {
                     <div className="col-span-2 text-right">Orders</div>
                     <div className="col-span-3 text-right">Avg. Price</div>
                   </div>
-                  {report.detailedServices && report.detailedServices.length > 0 ? (
+                  {report.detailedServices &&
+                  report.detailedServices.length > 0 ? (
                     report.detailedServices.map((service, index) => (
-                      <div key={index} className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0">
+                      <div
+                        key={index}
+                        className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0"
+                      >
                         <div className="col-span-5 font-medium flex items-center">
                           <Wrench className="h-4 w-4 mr-2 text-muted-foreground" />
                           {service.name}
                         </div>
-                        <div className="col-span-2 text-right">{formatCurrency(service.revenue)}</div>
-                        <div className="col-span-2 text-right">{service.orderCount}</div>
-                        <div className="col-span-3 text-right">{formatCurrency(service.averagePrice)}</div>
+                        <div className="col-span-2 text-right">
+                          {formatCurrency(service.revenue)}
+                        </div>
+                        <div className="col-span-2 text-right">
+                          {service.orderCount}
+                        </div>
+                        <div className="col-span-3 text-right">
+                          {formatCurrency(service.averagePrice)}
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -709,9 +832,9 @@ export default function RevenuePage() {
       {/* Orders Section */}
       <Card>
         <CardHeader className="pb-3">
-          <div 
+          <div
             className="flex items-center justify-between cursor-pointer"
-            onClick={() => toggleSection('orders')}
+            onClick={() => toggleSection("orders")}
           >
             <CardTitle className="text-xl">Repair Orders</CardTitle>
             {expandedSections.orders ? <ChevronUp /> : <ChevronDown />}
@@ -724,7 +847,9 @@ export default function RevenuePage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Order Status Distribution</CardTitle>
-                  <CardDescription>Breakdown of orders by status</CardDescription>
+                  <CardDescription>
+                    Breakdown of orders by status
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
@@ -740,8 +865,11 @@ export default function RevenuePage() {
                         dataKey="value"
                         nameKey="name"
                       >
-                        {report.orderStatusStats.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        {(report.orderStatusStats ?? []).map((entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
                         ))}
                       </Pie>
                       <Tooltip />
@@ -753,7 +881,9 @@ export default function RevenuePage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Order Value Distribution</CardTitle>
-                  <CardDescription>Distribution of order values</CardDescription>
+                  <CardDescription>
+                    Distribution of order values
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
@@ -769,7 +899,9 @@ export default function RevenuePage() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="range" />
                       <YAxis />
-                      <Tooltip formatter={(value) => [value, 'Number of Orders']} />
+                      <Tooltip
+                        formatter={(value) => [value, "Number of Orders"]}
+                      />
                       <Legend />
                       <Bar dataKey="count" name="Orders" fill="#8884d8" />
                     </BarChart>
@@ -781,7 +913,9 @@ export default function RevenuePage() {
             <Card className="mt-4">
               <CardHeader>
                 <CardTitle>Repair Orders List</CardTitle>
-                <CardDescription>Detailed list of all repair orders</CardDescription>
+                <CardDescription>
+                  Detailed list of all repair orders
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border">
@@ -796,22 +930,28 @@ export default function RevenuePage() {
                   </div>
                   {report.repairOrders && report.repairOrders.length > 0 ? (
                     report.repairOrders.map((order) => (
-                      <div 
-                        key={order.id} 
+                      <div
+                        key={order.id}
                         className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0 hover:bg-muted/50 cursor-pointer transition-colors"
                         onClick={() => handleOrderClick(order.id)}
                       >
-                        <div className="col-span-2 font-medium">#{order.id}</div>
-                        <div className="col-span-2">{formatDate(order.date)}</div>
+                        <div className="col-span-2 font-medium">
+                          #{order.id}
+                        </div>
+                        <div className="col-span-2">
+                          {formatDate(order.date ?? "")}
+                        </div>
                         <div className="col-span-2">{order.customerName}</div>
                         <div className="col-span-2 flex items-center">
                           <Car className="h-4 w-4 mr-1 text-muted-foreground" />
                           {order.vehicle}
                         </div>
                         <div className="col-span-2">{order.technician}</div>
-                        <div className="col-span-1 text-right">{formatCurrency(order.amount)}</div>
                         <div className="col-span-1 text-right">
-                          <StatusBadge status={order.status} />
+                          {formatCurrency(order.amount ?? 0)}
+                        </div>
+                        <div className="col-span-1 text-right">
+                          <StatusBadge status={order.status ?? "unknown"} />
                         </div>
                       </div>
                     ))
@@ -842,7 +982,7 @@ export default function RevenuePage() {
                   Detailed information for this repair order
                 </DialogDescription>
               </DialogHeader>
-              
+
               <ScrollArea className="max-h-[80vh] pr-4">
                 <div className="grid gap-6">
                   {/* Order Summary */}
@@ -854,21 +994,37 @@ export default function RevenuePage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-muted-foreground">Date</p>
-                          <p className="font-medium">{formatDate(selectedOrder.date)}</p>
+                          <p className="font-medium">
+                            {formatDate(selectedOrder.date ?? "")}
+                          </p>
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground">Status</p>
-                          <StatusBadge status={selectedOrder.status} />
+                          <p className="text-sm text-muted-foreground">
+                            Status
+                          </p>
+                          <StatusBadge
+                            status={selectedOrder.status ?? "unknown"}
+                          />
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm text-muted-foreground">Total Amount</p>
-                          <p className="font-medium text-xl">{formatCurrency(selectedOrder.totalAmount)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Total Amount
+                          </p>
+                          <p className="font-medium text-xl">
+                            {formatCurrency(selectedOrder.totalAmount ?? 0)}
+                          </p>
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground">Estimated Completion</p>
-                          <p className="font-medium">{formatDate(selectedOrder.estimatedCompletion)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Estimated Completion
+                          </p>
+                          <p className="font-medium">
+                            {formatDate(
+                              selectedOrder.estimatedCompletion ?? ""
+                            )}
+                          </p>
                         </div>
                       </div>
                     </CardContent>
@@ -883,16 +1039,22 @@ export default function RevenuePage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-muted-foreground">Name</p>
-                          <p className="font-medium">{selectedOrder.customerName}</p>
+                          <p className="font-medium">
+                            {selectedOrder.customerName}
+                          </p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Phone</p>
-                          <p className="font-medium">{selectedOrder.customerPhone}</p>
+                          <p className="font-medium">
+                            {selectedOrder.customerPhone}
+                          </p>
                         </div>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Email</p>
-                        <p className="font-medium">{selectedOrder.customerEmail}</p>
+                        <p className="font-medium">
+                          {selectedOrder.customerEmail}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -905,27 +1067,48 @@ export default function RevenuePage() {
                     <CardContent className="grid gap-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <p className="text-sm text-muted-foreground">Make & Model</p>
-                          <p className="font-medium">{selectedOrder.vehicle.make} {selectedOrder.vehicle.model}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Make & Model
+                          </p>
+                          <p className="font-medium">
+                            {selectedOrder.vehicle?.make ?? "N/A"}{" "}
+                            {selectedOrder.vehicle?.model ?? ""}
+                          </p>
                         </div>
+
                         <div>
                           <p className="text-sm text-muted-foreground">Year</p>
-                          <p className="font-medium">{selectedOrder.vehicle.year}</p>
+                          <p className="font-medium">
+                            {selectedOrder.vehicle?.year ?? "N/A"}
+                          </p>
                         </div>
                       </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-muted-foreground">VIN</p>
-                          <p className="font-medium">{selectedOrder.vehicle.vin}</p>
+                          <p className="font-medium">
+                            {selectedOrder.vehicle?.vin ?? "N/A"}
+                          </p>
                         </div>
+
                         <div>
-                          <p className="text-sm text-muted-foreground">License Plate</p>
-                          <p className="font-medium">{selectedOrder.vehicle.licensePlate}</p>
+                          <p className="text-sm text-muted-foreground">
+                            License Plate
+                          </p>
+                          <p className="font-medium">
+                            {selectedOrder.vehicle?.licensePlate ?? "N/A"}
+                          </p>
                         </div>
                       </div>
+
                       <div>
                         <p className="text-sm text-muted-foreground">Mileage</p>
-                        <p className="font-medium">{selectedOrder.vehicle.mileage.toLocaleString()} miles</p>
+                        <p className="font-medium">
+                          {selectedOrder.vehicle?.mileage
+                            ? `${selectedOrder.vehicle.mileage.toLocaleString()} miles`
+                            : "N/A"}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -943,19 +1126,52 @@ export default function RevenuePage() {
                           <div className="col-span-2 text-right">Quantity</div>
                           <div className="col-span-3 text-right">Total</div>
                         </div>
-                        {selectedOrder.services.map((service, index) => (
-                          <div key={index} className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0">
-                            <div className="col-span-5">
-                              <p className="font-medium">{service.name}</p>
-                              <p className="text-sm text-muted-foreground">{service.description}</p>
-                              <p className="text-sm text-muted-foreground">Technician: {service.technician}</p>
-                              <p className="text-sm text-muted-foreground">Duration: {service.duration} min</p>
-                            </div>
-                            <div className="col-span-2 text-right">{formatCurrency(service.price)}</div>
-                            <div className="col-span-2 text-right">{service.quantity}</div>
-                            <div className="col-span-3 text-right font-medium">{formatCurrency(service.total)}</div>
-                          </div>
-                        ))}
+
+                        {(selectedOrder.services ?? []).map(
+                          (service, index) => {
+                            const price = service.price ?? 0;
+                            const quantity = service.quantity ?? 0;
+                            const total = service.total ?? price * quantity;
+                            const technician = service.technician ?? "N/A";
+                            const duration = service.durationMinutes ?? 0;
+
+                            return (
+                              <div
+                                key={service.id ?? index}
+                                className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0"
+                              >
+                                <div className="col-span-5">
+                                  <p className="font-medium">
+                                    {service.name ?? "Unnamed service"}
+                                  </p>
+                                  {service.description && (
+                                    <p className="text-sm text-muted-foreground">
+                                      {service.description}
+                                    </p>
+                                  )}
+                                  <p className="text-sm text-muted-foreground">
+                                    Technician: {technician}
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Duration: {duration} min
+                                  </p>
+                                </div>
+
+                                <div className="col-span-2 text-right">
+                                  {formatCurrency(price)}
+                                </div>
+
+                                <div className="col-span-2 text-right">
+                                  {quantity}
+                                </div>
+
+                                <div className="col-span-3 text-right font-medium">
+                                  {formatCurrency(total)}
+                                </div>
+                              </div>
+                            );
+                          }
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -973,23 +1189,53 @@ export default function RevenuePage() {
                           <div className="col-span-2 text-right">Quantity</div>
                           <div className="col-span-3 text-right">Total</div>
                         </div>
-                        {selectedOrder.parts.map((part, index) => (
-                          <div key={index} className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0">
-                            <div className="col-span-5">
-                              <p className="font-medium">{part.name}</p>
-                              <p className="text-sm text-muted-foreground">{part.description}</p>
-                              <div className="flex items-center mt-1">
-                                <div className={`h-2 w-2 rounded-full mr-2 ${part.inStock ? 'bg-green-500' : 'bg-red-500'}`} />
-                                <span className="text-xs text-muted-foreground">
-                                  {part.inStock ? 'In Stock' : 'Out of Stock'}
-                                </span>
+
+                        {(selectedOrder.parts ?? []).map((part, index) => {
+                          const price = part.price ?? 0;
+                          const qty = part.quantity ?? 0;
+                          const total = part.total ?? price * qty;
+                          const inStock = part.inStock ?? false;
+
+                          return (
+                            <div
+                              key={part.id ?? index}
+                              className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0"
+                            >
+                              <div className="col-span-5">
+                                <p className="font-medium">
+                                  {part.name ?? "Unnamed part"}
+                                </p>
+
+                                {/* {part.description && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {part.description}
+                                  </p>
+                                )} */}
+
+                                <div className="flex items-center mt-1">
+                                  <div
+                                    className={`h-2 w-2 rounded-full mr-2 ${
+                                      inStock ? "bg-green-500" : "bg-red-500"
+                                    }`}
+                                  />
+                                  <span className="text-xs text-muted-foreground">
+                                    {inStock ? "In Stock" : "Out of Stock"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="col-span-2 text-right">
+                                {formatCurrency(price)}
+                              </div>
+
+                              <div className="col-span-2 text-right">{qty}</div>
+
+                              <div className="col-span-3 text-right font-medium">
+                                {formatCurrency(total)}
                               </div>
                             </div>
-                            <div className="col-span-2 text-right">{formatCurrency(part.price)}</div>
-                            <div className="col-span-2 text-right">{part.quantity}</div>
-                            <div className="col-span-3 text-right font-medium">{formatCurrency(part.total)}</div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
@@ -1016,5 +1262,5 @@ export default function RevenuePage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }

@@ -391,7 +391,7 @@ export default function CreateCampaignPage() {
   }
 
   // Usage limit: 0 = unlimited; chỉ lỗi nếu < 0
-  if (touchedFields.usageLimit && formData.usageLimit < 0) {
+  if (touchedFields.usageLimit && (formData.usageLimit ?? 0) < 0) {
     newErrors.usageLimit = "Usage limit must be ≥ 0 (0 = unlimited)";
   }
 

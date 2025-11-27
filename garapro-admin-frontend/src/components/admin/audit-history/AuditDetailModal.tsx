@@ -57,26 +57,48 @@ export function AuditDetailModal({
   };
 
   const { changes } = useMemo(() => {
-    try {
-      const prev = JSON.parse(audit.previousValues);
-      const curr = JSON.parse(audit.newValues);
+ 
+  if (!audit?.previousValues || !audit?.newValues) {
+    return { changes: [] };
+  }
 
-      const diffs: { key: string; previous: any; current: any }[] = [];
-      Object.keys(curr).forEach((key) => {
-        if (key !== 'Histories' && prev[key] !== curr[key]) {
-          diffs.push({
-            key,
-            previous: prev[key],
-            current: curr[key]
-          });
-        }
+  try {
+    const prev = JSON.parse(audit.previousValues) as any;
+    const curr = JSON.parse(audit.newValues) as any;
+
+    const diffs: { key: string; previous: any; current: any }[] = [];
+
+    const ignoreKeys = [
+      "Id",
+      "CreatedAt",
+      "UpdatedAt",
+      "Histories",
+      "UpdatedBy",
+      "UpdatedByUser",
+    ];
+
+    Object.keys(curr).forEach((key) => {
+      if (ignoreKeys.includes(key)) return;
+
+      const prevVal = prev[key];
+      const currVal = curr[key];
+
+      // Không đổi thì bỏ qua
+      if (JSON.stringify(prevVal) === JSON.stringify(currVal)) return;
+
+      diffs.push({
+        key,
+        previous: prevVal,
+        current: currVal,
       });
+    });
 
-      return { changes: diffs };
-    } catch {
-      return { changes: [] };
-    }
-  }, [audit]);
+    return { changes: diffs };
+  } catch {
+    return { changes: [] };
+  }
+}, [audit]);
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -108,7 +130,7 @@ export function AuditDetailModal({
                   <div className="flex items-center gap-2">
                     <span className="font-medium w-28">Changed by:</span>
                     <span className="truncate">
-                      {audit.changedByUser || "System"}
+                       {String(audit.changedByUser || "System")}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

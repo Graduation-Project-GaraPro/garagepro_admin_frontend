@@ -27,7 +27,7 @@ function SendEmailDialog({
         description: (
           <div>
             <p className="font-semibold">Email sent</p>
-            <p className="text-muted-foreground">Email has been sent to ${user.name}</p>
+            <p className="text-muted-foreground">Email has been sent to ${user.firstName}</p>
           </div>
         ) 
       })
@@ -42,7 +42,7 @@ function SendEmailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Send Email to {user.name}</DialogTitle>
+          <DialogTitle>Send Email to {user.firstName}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <Input

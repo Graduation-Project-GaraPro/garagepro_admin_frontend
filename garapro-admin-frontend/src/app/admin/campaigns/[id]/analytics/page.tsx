@@ -186,7 +186,7 @@ export default function CampaignAnalyticsPage() {
               <div className="text-sm font-medium text-muted-foreground">Status</div>
               <div className="flex items-center gap-2">
                 {getStatusBadge(campaign.isActive)}
-                {getTypeBadge(campaign.type)}
+                {getTypeBadge(campaign.type.toString())}
               </div>
             </div>
 
@@ -224,7 +224,7 @@ export default function CampaignAnalyticsPage() {
                 <div>Type: {campaign.discountType}</div>
                 <div>
                   Value:{' '}
-                  {campaign.discountType === 'percentage'
+                  {campaign.discountType.toString() === 'percentage'
                     ? `${campaign.discountValue}%`
                     : formatCurrency(campaign.discountValue)}
                 </div>

@@ -87,7 +87,7 @@ export default function CampaignDetailPage() {
   }
 
   const getDiscountDisplay = (c: PromotionalCampaign) => {
-    if (c.discountType === 'fixed') {
+    if (c.discountType.toString() === 'fixed') {
       return `${formatVND(c.discountValue)} off`
     }
     // default percentage
@@ -243,7 +243,7 @@ export default function CampaignDetailPage() {
             </Badge>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{getTypeBadge(campaign.type)}</div>
+            <div className="text-2xl font-bold">{getTypeBadge(campaign.type.toString())}</div>
           </CardContent>
         </Card>
 
@@ -312,28 +312,28 @@ export default function CampaignDetailPage() {
                 <div>
                   <div className="text-muted-foreground">Discount Type</div>
                   <div className="font-medium capitalize">
-                    {(campaign.discountType || 'percentage').replace('_', ' ')}
+                    {(campaign.discountType.toString() || 'percentage').replace('_', ' ')}
                   </div>
                 </div>
                 <div>
                   <div className="text-muted-foreground">Discount Value</div>
                   <div className="font-medium">
-                    {campaign.discountType === 'percentage'
+                    {campaign.discountType.toString() === 'percentage'
                       ? `${campaign.discountValue}%`
-                      : campaign.discountType === 'fixed'
+                      : campaign.discountType.toString() === 'fixed'
                       ? formatVND(campaign.discountValue)
                       : '-'}
                   </div>
                 </div>
 
-                {campaign.minimumOrderValue > 0 && (
+                {(campaign.minimumOrderValue ?? 0) > 0 && (
                   <div>
                     <div className="text-muted-foreground">Minimum Order</div>
                     <div className="font-medium">{formatVND(campaign.minimumOrderValue)}</div>
                   </div>
                 )}
 
-                {campaign.maximumDiscount > 0 && (
+                {(campaign.maximumDiscount??0) > 0 && (
                   <div>
                     <div className="text-muted-foreground">Maximum Discount</div>
                     <div className="font-medium">{formatVND(campaign.maximumDiscount)}</div>

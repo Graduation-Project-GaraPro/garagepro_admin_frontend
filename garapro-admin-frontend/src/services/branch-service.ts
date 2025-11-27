@@ -48,7 +48,7 @@ export interface UpdateBranchRequest {
   street: string
   commune: string
   province: string
-  
+
   description: string
   isActive: boolean
   serviceIds: string[]

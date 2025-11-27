@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 
-export default function Banner({ banner, onClose }) {
+export default function Banner({
+  banner,
+  onClose,
+}: {
+  banner: { type: string; message: string } | null;
+  onClose?: () => void;
+}) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
@@ -8,7 +14,7 @@ export default function Banner({ banner, onClose }) {
       setVisible(true);
       const timer = setTimeout(() => {
         setVisible(false);
-        if (onClose) onClose(); // callback để clear banner trong state cha
+        if (onClose) onClose();
       }, 5000);
       return () => clearTimeout(timer);
     }

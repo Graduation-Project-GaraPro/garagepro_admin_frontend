@@ -57,25 +57,30 @@ export default function DailyRevenuePage() {
     return 'text-gray-600'
   }
 
-  const handleExport = async (format: 'csv' | 'excel' | 'pdf') => {
-    try {
-      const blob = await revenueService.exportRevenueReport({
-        period: 'daily',
+  const handleExport = async (format: "csv" | "excel") => {
+  try {
+    const blob = await revenueService.exportRevenueReport(
+      {
+        period: "daily",
         startDate: selectedDate,
         endDate: selectedDate,
-      }, format)
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `daily-revenue-${selectedDate}.${format}`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (error) {
-      console.error('Failed to export report:', error)
-    }
+      },
+      format
+    );
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `daily-revenue-${selectedDate}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error("Failed to export report:", error);
   }
+};
+
 
   if (loading) {
     return (
@@ -137,9 +142,9 @@ export default function DailyRevenuePage() {
               <CardContent>
                 <div className="text-2xl font-bold">{formatCurrency(revenueData.totalRevenue)}</div>
                 <div className="flex items-center text-xs text-muted-foreground">
-                  {getGrowthIcon(revenueData.growthRate)}
-                  <span className={`ml-1 ${getGrowthColor(revenueData.growthRate)}`}>
-                    {revenueData.growthRate > 0 ? '+' : ''}{revenueData.growthRate.toFixed(1)}% from previous day
+                  {getGrowthIcon(revenueData.growthRate ?? 0)}
+                  <span className={`ml-1 ${getGrowthColor(revenueData.growthRate ?? 0)}`}>
+                    {(revenueData.growthRate ?? 0) > 0 ? '+' : ''}{(revenueData.growthRate ?? 0).toFixed(1)}% from previous day
                   </span>
                 </div>
               </CardContent>
@@ -163,14 +168,17 @@ export default function DailyRevenuePage() {
                 <CardTitle className="text-sm font-medium">Growth Rate</CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${getGrowthColor(revenueData.growthRate)}`}>
-                  {revenueData.growthRate > 0 ? '+' : ''}{revenueData.growthRate.toFixed(1)}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  vs {formatCurrency(revenueData.previousPeriodRevenue)}
-                </p>
-              </CardContent>
+            <CardContent>
+  <div className={`text-2xl font-bold ${getGrowthColor(revenueData.growthRate ?? 0)}`}>
+    {(revenueData.growthRate ?? 0) > 0 ? "+" : ""}
+    {(revenueData.growthRate ?? 0).toFixed(1)}%
+  </div>
+
+  <p className="text-xs text-muted-foreground">
+    vs {formatCurrency(revenueData.previousPeriodRevenue ?? 0)}
+  </p>
+</CardContent>
+
             </Card>
 
             <Card>
@@ -213,7 +221,7 @@ export default function DailyRevenuePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {revenueData.topServices.map((service, index) => (
+                  {(revenueData.topServices ?? []).map((service, index) => (
                     <TableRow key={service.serviceName}>
                       <TableCell>
                         <Badge variant="outline" className="w-8 h-8 rounded-full flex items-center justify-center">
@@ -249,10 +257,7 @@ export default function DailyRevenuePage() {
                   <Download className="mr-2 h-4 w-4" />
                   Export as Excel
                 </Button>
-                <Button variant="outline" onClick={() => handleExport('pdf')}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export as PDF
-                </Button>
+                
               </div>
             </CardContent>
           </Card>

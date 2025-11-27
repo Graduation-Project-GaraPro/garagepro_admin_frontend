@@ -20,7 +20,7 @@ export default function SecurityPolicies() {
   const [policy, setPolicy] = useState<SecurityPolicy | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-
+const [initialPolicy, setInitialPolicy] = useState<SecurityPolicy | null>(null);
   useEffect(() => {
     loadPolicy();
   }, []);
@@ -30,6 +30,7 @@ export default function SecurityPolicies() {
       setIsLoading(true);
       const currentPolicy = await securityPolicyService.getPolicy();
       setPolicy(currentPolicy);
+      setInitialPolicy(currentPolicy);
     } catch (error) {
       console.error('Failed to load security policy:', error);
       toast.error('Failed to load security policy', {
@@ -49,7 +50,7 @@ export default function SecurityPolicies() {
       
       const { message, updatedPolicy } = await securityPolicyService.updatePolicy(policy);
       setPolicy(updatedPolicy);
-  
+   setInitialPolicy(updatedPolicy);
       toast.success(message, {
         description: "All security settings have been saved.",
       });
@@ -91,6 +92,10 @@ export default function SecurityPolicies() {
     }
   };
 
+   const isDirty =
+    policy &&
+    initialPolicy &&
+    JSON.stringify(policy) !== JSON.stringify(initialPolicy);
   if (isLoading) {
     return (
       <Card className="w-full">
@@ -138,11 +143,19 @@ export default function SecurityPolicies() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={loadPolicy} className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={loadPolicy}
+            className="flex items-center gap-2"
+          >
             <RefreshCw className="h-4 w-4" />
             Refresh
           </Button>
-          <Button variant="outline" onClick={handleResetToDefaults} className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleResetToDefaults}
+            className="flex items-center gap-2"
+          >
             Reset to Defaults
           </Button>
         </div>
@@ -152,7 +165,8 @@ export default function SecurityPolicies() {
         <Shield className="h-4 w-4" />
         <AlertTitle>Security Recommendations</AlertTitle>
         <AlertDescription>
-          We recommend enabling MFA and setting a minimum password length of at least 12 characters for enhanced security.
+          We recommend enabling MFA and setting a minimum password length of at
+          least 12 characters for enhanced security.
         </AlertDescription>
       </Alert>
 
@@ -167,11 +181,13 @@ export default function SecurityPolicies() {
               <Timer className="h-4 w-4" />
               Session
             </TabsTrigger>
-            <TabsTrigger value="authentication" className="flex items-center gap-2">
+            <TabsTrigger
+              value="authentication"
+              className="flex items-center gap-2"
+            >
               <Shield className="h-4 w-4" />
               Authentication
             </TabsTrigger>
-            
           </TabsList>
 
           <TabsContent value="password">
@@ -188,7 +204,10 @@ export default function SecurityPolicies() {
               <CardContent className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="minPasswordLength" className="flex items-center gap-2">
+                    <Label
+                      htmlFor="minPasswordLength"
+                      className="flex items-center gap-2"
+                    >
                       Minimum Password Length
                     </Label>
                     <Input
@@ -197,28 +216,41 @@ export default function SecurityPolicies() {
                       min="6"
                       max="20"
                       value={policy.minPasswordLength}
-                      onChange={(e) => handlePolicyChange({ minPasswordLength: parseInt(e.target.value) })}
+                      onChange={(e) =>
+                        handlePolicyChange({
+                          minPasswordLength: parseInt(e.target.value),
+                        })
+                      }
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="passwordExpiryDays">Password Expiry (Days)</Label>
+                    <Label htmlFor="passwordExpiryDays">
+                      Password Expiry (Days)
+                    </Label>
                     <Input
                       id="passwordExpiryDays"
                       type="number"
                       min="1"
                       max="365"
                       value={policy.passwordExpiryDays}
-                      onChange={(e) => handlePolicyChange({ passwordExpiryDays: parseInt(e.target.value) })}
+                      onChange={(e) =>
+                        handlePolicyChange({
+                          passwordExpiryDays: parseInt(e.target.value),
+                        })
+                      }
                     />
                   </div>
                 </div>
-                
+
                 <Separator />
-                
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label htmlFor="requireSpecialChar" className="flex items-center gap-2">
+                      <Label
+                        htmlFor="requireSpecialChar"
+                        className="flex items-center gap-2"
+                      >
                         {policy.requireSpecialChar ? (
                           <Check className="h-4 w-4 text-green-500" />
                         ) : (
@@ -227,19 +259,25 @@ export default function SecurityPolicies() {
                         Require Special Characters
                       </Label>
                       <p className="text-sm text-muted-foreground">
-                        Passwords must contain at least one special character (!@#$%^&*)
+                        Passwords must contain at least one special character
+                        (!@#$%^&*)
                       </p>
                     </div>
                     <Switch
                       id="requireSpecialChar"
                       checked={policy.requireSpecialChar}
-                      onCheckedChange={(checked) => handlePolicyChange({ requireSpecialChar: checked })}
+                      onCheckedChange={(checked) =>
+                        handlePolicyChange({ requireSpecialChar: checked })
+                      }
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label htmlFor="requireNumber" className="flex items-center gap-2">
+                      <Label
+                        htmlFor="requireNumber"
+                        className="flex items-center gap-2"
+                      >
                         {policy.requireNumber ? (
                           <Check className="h-4 w-4 text-green-500" />
                         ) : (
@@ -254,13 +292,18 @@ export default function SecurityPolicies() {
                     <Switch
                       id="requireNumber"
                       checked={policy.requireNumber}
-                      onCheckedChange={(checked) => handlePolicyChange({ requireNumber: checked })}
+                      onCheckedChange={(checked) =>
+                        handlePolicyChange({ requireNumber: checked })
+                      }
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label htmlFor="requireUppercase" className="flex items-center gap-2">
+                      <Label
+                        htmlFor="requireUppercase"
+                        className="flex items-center gap-2"
+                      >
                         {policy.requireUppercase ? (
                           <Check className="h-4 w-4 text-green-500" />
                         ) : (
@@ -275,7 +318,9 @@ export default function SecurityPolicies() {
                     <Switch
                       id="requireUppercase"
                       checked={policy.requireUppercase}
-                      onCheckedChange={(checked) => handlePolicyChange({ requireUppercase: checked })}
+                      onCheckedChange={(checked) =>
+                        handlePolicyChange({ requireUppercase: checked })
+                      }
                     />
                   </div>
                 </div>
@@ -297,23 +342,34 @@ export default function SecurityPolicies() {
               <CardContent className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="sessionTimeout">Session Timeout (Minutes)</Label>
+                    <Label htmlFor="sessionTimeout">
+                      Session Timeout (Minutes)
+                    </Label>
                     <Input
                       id="sessionTimeout"
                       type="number"
                       min="1"
                       max="1440"
                       value={policy.sessionTimeout}
-                      onChange={(e) => handlePolicyChange({ sessionTimeout: parseInt(e.target.value) })}
+                      onChange={(e) =>
+                        handlePolicyChange({
+                          sessionTimeout: parseInt(e.target.value),
+                        })
+                      }
                     />
                   </div>
                 </div>
-                
-                <Alert variant="default" className="bg-amber-50 border-amber-200">
+
+                <Alert
+                  variant="default"
+                  className="bg-amber-50 border-amber-200"
+                >
                   <Timer className="h-4 w-4" />
                   <AlertTitle>Session Management</AlertTitle>
                   <AlertDescription>
-                    Shorter session timeouts improve security but may inconvenience users. We recommend 15-30 minutes for most applications.
+                    Shorter session timeouts improve security but may
+                    inconvenience users. We recommend 15-30 minutes for most
+                    applications.
                   </AlertDescription>
                 </Alert>
               </CardContent>
@@ -334,32 +390,44 @@ export default function SecurityPolicies() {
               <CardContent className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="maxLoginAttempts">Maximum Login Attempts</Label>
+                    <Label htmlFor="maxLoginAttempts">
+                      Maximum Login Attempts
+                    </Label>
                     <Input
                       id="maxLoginAttempts"
                       type="number"
                       min="1"
                       max="10"
                       value={policy.maxLoginAttempts}
-                      onChange={(e) => handlePolicyChange({ maxLoginAttempts: parseInt(e.target.value) })}
+                      onChange={(e) =>
+                        handlePolicyChange({
+                          maxLoginAttempts: parseInt(e.target.value),
+                        })
+                      }
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="accountLockoutTime">Account Lockout Time (Minutes)</Label>
+                    <Label htmlFor="accountLockoutTime">
+                      Account Lockout Time (Minutes)
+                    </Label>
                     <Input
                       id="accountLockoutTime"
                       type="number"
                       min="1"
                       max="1440"
                       value={policy.accountLockoutTime}
-                      onChange={(e) => handlePolicyChange({ accountLockoutTime: parseInt(e.target.value) })}
+                      onChange={(e) =>
+                        handlePolicyChange({
+                          accountLockoutTime: parseInt(e.target.value),
+                        })
+                      }
                     />
                   </div>
                 </div>
-                
+
                 <Separator />
-                
+
                 {/* <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label htmlFor="mfaRequired" className="flex items-center gap-2">
@@ -389,7 +457,10 @@ export default function SecurityPolicies() {
                  */}
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
-                    <Label htmlFor="enableBruteForceProtection" className="flex items-center gap-2">
+                    <Label
+                      htmlFor="enableBruteForceProtection"
+                      className="flex items-center gap-2"
+                    >
                       {policy.enableBruteForceProtection ? (
                         <Check className="h-4 w-4 text-green-500" />
                       ) : (
@@ -404,18 +475,20 @@ export default function SecurityPolicies() {
                   <Switch
                     id="enableBruteForceProtection"
                     checked={policy.enableBruteForceProtection}
-                    onCheckedChange={(checked) => handlePolicyChange({ enableBruteForceProtection: checked })}
+                    onCheckedChange={(checked) =>
+                      handlePolicyChange({
+                        enableBruteForceProtection: checked,
+                      })
+                    }
                   />
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
-          
         </Tabs>
 
         <div className="mt-6 flex justify-end gap-2">
-          <Button 
+          <Button
             type="button"
             variant="outline"
             onClick={loadPolicy}
@@ -424,9 +497,9 @@ export default function SecurityPolicies() {
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button 
-            type="submit" 
-            disabled={isSaving} 
+          <Button
+            type="submit"
+            disabled={isSaving || !isDirty}
             className="w-full md:w-auto bg-black text-white hover:bg-gray-800"
           >
             {isSaving ? (

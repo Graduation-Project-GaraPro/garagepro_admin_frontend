@@ -11,6 +11,7 @@ import type {
   Branch,
 } from "@/services/service-Service";
 import { formatCurrency, formatNumber } from "@/utils/format";
+import { ServiceCategory } from "@/services/branch-service";
 
 export type Touched = {
   name: boolean;
@@ -214,7 +215,7 @@ export const useServiceForm = (service?: Service) => {
     if (
       selectedSubCategory &&
       !availableSubCategories.some(
-        (s: any) => s.serviceCategoryId === selectedSubCategory
+        (s: ServiceCategory) => s.serviceCategoryId === selectedSubCategory
       )
     ) {
       setSelectedSubCategory("");
@@ -240,7 +241,7 @@ export const useServiceForm = (service?: Service) => {
     console.log("target", targetSubId);
 
     const existsInSubs = availableSubCategories.some(
-      (s: any) => s.serviceCategoryId === targetSubId
+      (s: ServiceCategory) => s.serviceCategoryId === targetSubId
     );
 
     // Chỉ đánh dấu done khi đã tính được sublist (kể cả trống)
@@ -260,7 +261,7 @@ export const useServiceForm = (service?: Service) => {
     const validSub =
       selectedSubCategory &&
       availableSubCategories.some(
-        (s) => s.serviceCategoryId === selectedSubCategory
+        (s : ServiceCategory) => s.serviceCategoryId === selectedSubCategory
       );
 
     setFormData((p) => ({
@@ -291,13 +292,13 @@ const togglePartCategory = useCallback(
   (id: string) => {
     setSelectedPartCategoryIds((prev) => {
       if (formData.isAdvanced) {
-        // ✅ Advanced: cho chọn nhiều
+        //  Advanced: cho chọn nhiều
         return prev.includes(id)
           ? prev.filter((x) => x !== id)
           : [...prev, id];
       }
 
-      // ✅ Không advanced: chỉ 1 category
+      //  Không advanced: chỉ 1 category
       if (prev.includes(id)) {
         // click lại cái đang chọn -> bỏ chọn hết
         return [];

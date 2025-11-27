@@ -20,7 +20,7 @@ export default function RevenuePage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [activeTab, setActiveTab] = useState('overview')
-
+  
   useEffect(() => {
     loadRevenueData()
   }, [selectedPeriod, selectedDate, selectedYear, selectedMonth])
@@ -100,6 +100,7 @@ export default function RevenuePage() {
       alert('Failed to export report. Please try again.')
     }
   }
+  
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -135,11 +136,11 @@ export default function RevenuePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => handleExport('csv')}>
+          <Button variant="outline" onClick={() => handleExport("csv")}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>
-          <Button variant="outline" onClick={() => handleExport('excel')}>
+          <Button variant="outline" onClick={() => handleExport("excel")}>
             <Download className="mr-2 h-4 w-4" />
             Export Excel
           </Button>
@@ -170,7 +171,6 @@ export default function RevenuePage() {
             getGrowthIcon={getGrowthIcon}
             getGrowthColor={getGrowthColor}
           />
-
           <RevenueCharts
             activeTab={activeTab}
             setActiveTab={setActiveTab}
@@ -181,13 +181,14 @@ export default function RevenuePage() {
             CustomTooltip={CustomTooltip}
             COLORS={COLORS}
           />
-
-          <QuickActions
-            selectedPeriod={selectedPeriod}
-            handleExport={handleExport}
-          />
+          filters=
+          {{
+            period: selectedPeriod as "daily" | "monthly" | "yearly",
+            startDate: selectedDate,
+            endDate: selectedDate,
+          }}
         </>
       )}
     </div>
-  )
+  );
 }

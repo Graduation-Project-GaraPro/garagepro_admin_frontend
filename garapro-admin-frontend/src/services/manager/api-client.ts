@@ -11,13 +11,16 @@ interface ApiError {
   code?: string
   details?: any
 }
-
+interface RequestConfig extends RequestInit {
+  url: string
+}
 class ApiClient {
   private baseUrl: string
   private defaultHeaders: Record<string, string>
   private retryAttempts: number
   private retryDelay: number
-  private requestInterceptors: Array<(config: RequestInit) => RequestInit> = []
+  private requestInterceptors: Array<(config: RequestConfig) => RequestConfig> = []
+
   private responseInterceptors: Array<(response: Response) => Response> = []
 
   constructor(
@@ -34,7 +37,8 @@ class ApiClient {
   }
 
   // Add request interceptor
-  addRequestInterceptor(interceptor: (config: RequestInit) => RequestInit) {
+  addRequestInterceptor(interceptor: (config: RequestConfig) => RequestConfig) {
+
     this.requestInterceptors.push(interceptor)
   }
 
@@ -65,7 +69,8 @@ class ApiClient {
     const url = `${this.baseUrl}${endpoint}`
 
     // Apply request interceptors
-    let config: RequestInit = {
+    let config: RequestConfig = {
+      url,
       headers: {
         ...this.defaultHeaders,
         ...options.headers,
@@ -244,9 +249,9 @@ export const apiClient = new ApiClient()
 
 // Add default interceptors for common use cases
 apiClient.addRequestInterceptor((config) => {
-  // Add timestamp for cache busting
+  // Add timestamp for cache busting on GET requests
   if (config.method === 'GET') {
-    const url = new URL(config.url as string, window.location.origin)
+    const url = new URL(config.url, window.location.origin)
     url.searchParams.set('_t', Date.now().toString())
     config.url = url.toString()
   }

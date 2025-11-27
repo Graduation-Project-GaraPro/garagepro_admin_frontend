@@ -37,7 +37,7 @@ export interface PaginatedResponse<T> {
 }
 
 class HistoryChangePolicyService {
-  private baseUrl = 'https://localhost:7113/api/SecurityPolicy';
+  private baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ||'https://localhost:7113/api';
 
   private async makeAuthenticatedRequest(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
   const token = authService.getToken();
@@ -93,7 +93,7 @@ class HistoryChangePolicyService {
         ...(params.dateTo && { dateTo: params.dateTo }),
       });
 
-      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/history?${queryParams}`, {
+      const response = await this.makeAuthenticatedRequest(`${this.baseUrl}/SecurityPolicy/history?${queryParams}`, {
         method: 'GET',
       });
 
@@ -141,7 +141,7 @@ class HistoryChangePolicyService {
       console.log('Reverting:', historyId, type);
 
       if (type === 'previous') {
-        const responseRevert = await this.makeAuthenticatedRequest(`${this.baseUrl}/revert-to-previous/${historyId}`, {
+        const responseRevert = await this.makeAuthenticatedRequest(`${this.baseUrl}/SecurityPolicy/revert-to-previous/${historyId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -149,7 +149,7 @@ class HistoryChangePolicyService {
         if (!responseRevert.ok) throw new Error('Failed to apply reverted policy');
       } 
       else if (type === 'snapshot') {
-        const responseRevert = await this.makeAuthenticatedRequest(`${this.baseUrl}/revert-to-snapshot/${historyId}`, {
+        const responseRevert = await this.makeAuthenticatedRequest(`${this.baseUrl}/SecurityPolicy/revert-to-snapshot/${historyId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
         });

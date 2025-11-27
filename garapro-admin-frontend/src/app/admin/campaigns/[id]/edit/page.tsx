@@ -139,7 +139,7 @@ export default function EditCampaignPage() {
         // kiểm tra editable
         const today = new Date()
         const endDate = campaignData?.endDate ? new Date(campaignData.endDate) : null
-        const hasUsage = campaignData?.voucherUsages && campaignData.voucherUsages.length > 0
+        const hasUsage = campaignData.usedCount > 0
         const isExpired = endDate && endDate < today
 
         if (hasUsage || isExpired) {
@@ -153,7 +153,7 @@ export default function EditCampaignPage() {
           name: campaignData.name || '',
           description: campaignData.description || '',
           type: campaignData.type || 'discount',
-          discountType: campaignData.discountType || 'percentage',
+          discountType: campaignData.discountType.toString() || 'percentage',
           discountValue: campaignData.discountValue || 0,
           startDate: campaignData.startDate ? new Date(campaignData.startDate).toLocaleDateString('en-CA') : '',
           endDate: campaignData.endDate ? new Date(campaignData.endDate).toLocaleDateString('en-CA') : '',
@@ -166,7 +166,7 @@ export default function EditCampaignPage() {
 
         // init display
         if (campaignData.discountValue > 0) {
-          const formatted = campaignData.discountType === 'percentage'
+          const formatted = campaignData.discountType.toString() === 'percentage'
             ? campaignData.discountValue.toString()
             : formatNumber(campaignData.discountValue)
           setDisplayValues(prev => ({ ...prev, discountValue: formatted }))
@@ -252,9 +252,9 @@ export default function EditCampaignPage() {
   const handleDiscountValueBlur = () => {
     markFieldAsTouched('discountValue')
 
-    if (formData.discountValue > 0) {
+    if ((formData.discountValue ?? 0)  > 0) {
       const formatted = formData.discountType === 'percentage'
-        ? formData.discountValue.toString()
+        ? (formData.discountValue ?? 0).toString() 
         : formatNumber(formData.discountValue)
       setDisplayValues(prev => ({ ...prev, discountValue: formatted }))
     } else {
@@ -297,7 +297,7 @@ export default function EditCampaignPage() {
       if (formData.maximumDiscount !== 0) {
         setFormData(prev => ({ ...prev, maximumDiscount: 0 }))
       }
-    } else if (formData.maximumDiscount > 0) {
+    } else if ((formData.maximumDiscount ?? 0) > 0) {
       setDisplayValues(prev => ({ ...prev, maximumDiscount: formatNumber(formData.maximumDiscount) }))
     }
 
@@ -344,19 +344,25 @@ export default function EditCampaignPage() {
       }
     }
 
-    // Start date editing guard (không đổi về quá khứ)
-    if (campaign && formData.startDate !== campaign.startDate?.split('T')[0]) {
-      const originalStartCA = campaign.startDate
-        ? new Date(campaign.startDate).toLocaleDateString('en-CA')
-        : null
-      const today = new Date(); today.setHours(0,0,0,0)
-      const newStart = new Date(formData.startDate); newStart.setHours(0,0,0,0)
+    if (
+      campaign &&
+      formData.startDate && // 👈 thêm dòng này để đảm bảo không undefined
+      formData.startDate !== campaign.startDate?.split('T')[0]
+    ) {
+        const originalStartCA = campaign.startDate
+          ? new Date(campaign.startDate).toLocaleDateString("en-CA")
+          : null;
 
-      if (newStart < today && formData.startDate !== originalStartCA) {
-        newErrors.startDate = 'Cannot change start date to a past date'
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const newStart = new Date(formData.startDate); 
+        newStart.setHours(0, 0, 0, 0);
+
+        if (newStart < today && formData.startDate !== originalStartCA) {
+          newErrors.startDate = "Cannot change start date to a past date";
+        }
       }
-    }
-
     // isActive cannot be true if expired
     if (formData.isActive && formData.endDate && new Date(formData.endDate) < new Date(todayStr)) {
       newErrors.isActive = 'Cannot activate a campaign that has already expired'
@@ -398,7 +404,7 @@ export default function EditCampaignPage() {
     }
 
     // Usage limit: 0 = unlimited; chỉ lỗi nếu < 0
-    if (formData.usageLimit < 0) {
+    if ((formData.usageLimit ?? 0) < 0 ) {
       newErrors.usageLimit = 'Usage limit must be ≥ 0 (0 = unlimited)'
     }
 
@@ -522,7 +528,7 @@ export default function EditCampaignPage() {
               </h3>
               <div className="mt-2 text-sm text-yellow-700">
                 <p>
-                  This campaign {campaign?.voucherUsages && campaign.voucherUsages.length > 0 ? 'has been used in orders' : 'has expired'} and cannot be modified.
+                  This campaign {campaign?.usedCount > 0 ? 'has been used in orders' : 'has expired'} and cannot be modified.
                 </p>
               </div>
             </div>

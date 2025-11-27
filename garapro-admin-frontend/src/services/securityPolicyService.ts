@@ -17,7 +17,8 @@ export interface SecurityPolicy {
 
 class SecurityPolicyService {
   private policy: SecurityPolicy | null = null;
-  private readonly apiUrl = "https://localhost:7113/api/SecurityPolicy";
+  private readonly apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
+  
 
   private async makeAuthenticatedRequest(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
   const token = authService.getToken();
@@ -90,7 +91,7 @@ class SecurityPolicyService {
     try {
       console.log('Loading policy from:', `${this.apiUrl}/current`);
       
-      const response = await this.makeAuthenticatedRequest(`${this.apiUrl}/current`, {
+      const response = await this.makeAuthenticatedRequest(`${this.apiUrl}/SecurityPolicy/current`, {
         method: 'GET',
       });
 
@@ -130,7 +131,7 @@ class SecurityPolicyService {
     try {
       console.log("Updating policy with:", newPolicy);
 
-      const response = await this.makeAuthenticatedRequest(this.apiUrl, {
+      const response = await this.makeAuthenticatedRequest(this.apiUrl+"/SecurityPolicy", {
         method: "PUT",
         body: JSON.stringify(newPolicy),
       });

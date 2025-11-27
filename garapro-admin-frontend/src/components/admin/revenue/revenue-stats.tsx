@@ -10,7 +10,7 @@ interface RevenueStatsProps {
   revenueData: any
   formatCurrency: (amount: number) => string
   formatNumber: (num: number) => string
-  getGrowthIcon: (growthRate: number) => JSX.Element | null
+  getGrowthIcon: (growthRate: number) => React.ReactNode| null
   getGrowthColor: (growthRate: number) => string
 }
 

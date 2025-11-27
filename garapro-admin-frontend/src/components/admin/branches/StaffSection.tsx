@@ -161,7 +161,10 @@ function StaffSectionImpl({
       </CardHeader>
 
       <CardContent className="space-y-6">
-        <Tabs value={activeTab} onValueChange={(v: 'available' | 'all') => setActiveTab(v)}>
+       <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as 'available' | 'all')}
+        />
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="available" className="flex items-center gap-2">
               <UserCheck className="h-4 w-4" />
@@ -227,7 +230,7 @@ function StaffSectionImpl({
               </div>
             )}
           </TabsContent>
-        </Tabs>
+        
 
         {/* Selected Staff */}
         {selectedStaff.length > 0 && (

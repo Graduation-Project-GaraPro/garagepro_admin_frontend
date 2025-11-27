@@ -25,9 +25,12 @@ export const OnlineUserProvider: React.FC<{ children: React.ReactNode }> = ({
   const [connected, setConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+  
+  const API_BASE = process.env.NEXT_PUBLIC_HUB_BASE_URL || "http://localhost:5117"
+
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl("http://localhost:5117/api/onlineuserhub")
+      .withUrl(`${API_BASE}/api/onlineuserhub`)
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Information)
       .build();

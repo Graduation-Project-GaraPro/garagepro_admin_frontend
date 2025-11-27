@@ -45,7 +45,7 @@ class RepairOrderHubService {
 
     if (!this.connection) {
       const baseUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:5117";
+        process.env.NEXT_PUBLIC_HUB_BASE_URL || "http://localhost:5117";
       const token =
         typeof window !== "undefined"
           ? localStorage.getItem("authToken") || ""

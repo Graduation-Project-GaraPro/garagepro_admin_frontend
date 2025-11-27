@@ -291,15 +291,15 @@ class UserService {
   }
 
   // Delete user
-  async deleteUser(id: number): Promise<void> {
-    try {
-      await apiClient.delete(`${this.baseUrl}/${id}`);
-    } catch (error) {
-      this.initializeCache();
-      const users = this.readCache().filter((u) => u.id !== id);
-      this.writeCache(users);
-    }
-  }
+  // async deleteUser(id: number): Promise<void> {
+  //   try {
+  //     await apiClient.delete(`${this.baseUrl}/${id}`);
+  //   } catch (error) {
+  //     this.initializeCache();
+  //     const users = this.readCache().filter((u) => u.id !== id);
+  //     this.writeCache(users);
+  //   }
+  // }
 
   // Ban user
   async banUser(id: number, reason: string): Promise<void> {

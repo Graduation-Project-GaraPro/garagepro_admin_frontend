@@ -24,6 +24,8 @@ export interface TopService {
   revenue: number;
   orderCount: number;
   percentageOfTotal: number;
+
+  [key: string]: string | number; 
 }
 
 export interface TaskContribution {
@@ -60,6 +62,7 @@ export interface ServiceCategory {
   name: string;
   revenue: number;
   percentage: number;
+  [key: string]: string | number; 
 }
 
 export interface ServiceTrend {
@@ -144,7 +147,7 @@ export interface RevenueReport {
 const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5117"
 ).replace(/\/$/, "");
-const BASE_PATH = `${API_BASE}/api/Statistics`;
+const BASE_PATH = `${API_BASE}/Statistics`;
 
 function buildQuery(params?: Record<string, unknown>): string {
   if (!params) return "";
@@ -311,7 +314,9 @@ class RevenueService {
             };
           } catch (err) {
             console.error("Error mapping order:", o, err);
-            return null;
+            return {
+                    id: "",
+                  } satisfies RepairOrderItem;
           }
         })
         .filter(Boolean); // Remove null entries

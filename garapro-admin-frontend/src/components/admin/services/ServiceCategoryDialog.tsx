@@ -534,23 +534,23 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent 
-          className="overflow-hidden flex flex-col p-0"
-          style={{
-            width: '98vw',
-            height: '98vh',
-            maxWidth: '98vw',
-            maxHeight: '98vh'
-          }}
-        >
-
+      <DialogContent
+        className="overflow-hidden flex flex-col p-0"
+        style={{
+          width: "98vw",
+          height: "98vh",
+          maxWidth: "98vw",
+          maxHeight: "98vh",
+        }}
+      >
         <DialogHeader className="px-6 py-4 border-b shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <FolderTree className="h-5 w-5" />
             Service Categories Management
           </DialogTitle>
           <DialogDescription>
-            Manage service categories and subcategories. Categories help organize your services.
+            Manage service categories and subcategories. Categories help
+            organize your services.
           </DialogDescription>
         </DialogHeader>
 
@@ -559,7 +559,7 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
           <div className="lg:col-span-1 border rounded-lg p-4 bg-card h-fit lg:sticky lg:top-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">
-                {editingCategory ? 'Edit Category' : 'Create New Category'}
+                {editingCategory ? "Edit Category" : "Create New Category"}
               </h3>
               {editingCategory && (
                 <Button variant="outline" size="sm" onClick={handleCreateNew}>
@@ -571,134 +571,168 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                  <Label htmlFor="categoryName" className="text-sm font-medium">
-                    Category Name *
-                    <span className="text-muted-foreground text-xs font-normal ml-1">
-                      (at least 3 characters)
+                <Label htmlFor="categoryName" className="text-sm font-medium">
+                  Category Name *
+                  <span className="text-muted-foreground text-xs font-normal ml-1">
+                    (at least 3 characters)
+                  </span>
+                </Label>
+                <Input
+                  id="categoryName"
+                  value={formData.categoryName}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      categoryName: e.target.value,
+                    }))
+                  }
+                  onBlur={() => handleBlur("categoryName")}
+                  placeholder="Enter category name (minimum 3 characters)"
+                  className={`h-9 ${
+                    touchedFields.categoryName &&
+                    formData.categoryName.length > 0 &&
+                    formData.categoryName.length < 3
+                      ? "border-destructive focus-visible:ring-destructive"
+                      : touchedFields.categoryName &&
+                        formData.categoryName.length >= 3
+                      ? "border-green-500 focus-visible:ring-green-500"
+                      : ""
+                  }`}
+                  required
+                />
+                {touchedFields.categoryName && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>
+                      {formData.categoryName.length < 3 ? (
+                        <span className="text-destructive">
+                          {3 - formData.categoryName.length} more characters
+                          required
+                        </span>
+                      ) : (
+                        <span className="text-green-600">
+                          ✓ Minimum length satisfied
+                        </span>
+                      )}
                     </span>
-                  </Label>
-                  <Input
-                    id="categoryName"
-                    value={formData.categoryName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, categoryName: e.target.value }))}
-                    onBlur={() => handleBlur('categoryName')}
-                    placeholder="Enter category name (minimum 3 characters)"
-                    className={`h-9 ${
-                      touchedFields.categoryName && formData.categoryName.length > 0 && formData.categoryName.length < 3
-                        ? 'border-destructive focus-visible:ring-destructive'
-                        : touchedFields.categoryName && formData.categoryName.length >= 3
-                        ? 'border-green-500 focus-visible:ring-green-500'
-                        : ''
-                    }`}
-                    required
-                  />
-                  {touchedFields.categoryName && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>
-                        {formData.categoryName.length < 3 ? (
-                          <span className="text-destructive">
-                            {3 - formData.categoryName.length} more characters required
-                          </span>
-                        ) : (
-                          <span className="text-green-600">
-                            ✓ Minimum length satisfied
-                          </span>
-                        )}
-                      </span>
-                      <span>{formData.categoryName.length}/3</span>
-                    </div>
-                  )}
-                </div>
+                    <span>{formData.categoryName.length}/3</span>
+                  </div>
+                )}
+              </div>
 
               {/* Sửa phần Select parent category thành: */}
-                  <div className="space-y-2">
-                    <Label htmlFor="parentCategory" className="text-sm font-medium">
-                      Parent Category
-                      {isLoadingParents && (
-                        <Loader2 className="h-3 w-3 animate-spin inline ml-2" />
-                      )}
-                    </Label>
-                    <Select
-                      value={formData.parentServiceCategoryId}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, parentServiceCategoryId: value }))}
-                      disabled={isLoadingParents}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue 
-                          placeholder={
-                            isLoadingParents 
-                              ? "Loading parent categories..." 
-                              : "Select parent category (optional)"
-                          } 
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="no-parent">No parent (Root category)</SelectItem>
-                        {availableParentCategories.map(category => (
-                          <SelectItem key={category.serviceCategoryId} value={category.serviceCategoryId}>
-                            {category.categoryName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {isLoadingParents && (
-                      <p className="text-xs text-muted-foreground">Loading available parent categories...</p>
-                    )}
-                  </div>
+              <div className="space-y-2">
+                <Label htmlFor="parentCategory" className="text-sm font-medium">
+                  Parent Category
+                  {isLoadingParents && (
+                    <Loader2 className="h-3 w-3 animate-spin inline ml-2" />
+                  )}
+                </Label>
+                <Select
+                  value={formData.parentServiceCategoryId}
+                  onValueChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      parentServiceCategoryId: value,
+                    }))
+                  }
+                  disabled={isLoadingParents}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue
+                      placeholder={
+                        isLoadingParents
+                          ? "Loading parent categories..."
+                          : "Select parent category (optional)"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no-parent">
+                      No parent (Root category)
+                    </SelectItem>
+                    {availableParentCategories.map((category) => (
+                      <SelectItem
+                        key={category.serviceCategoryId}
+                        value={category.serviceCategoryId}
+                      >
+                        {category.categoryName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isLoadingParents && (
+                  <p className="text-xs text-muted-foreground">
+                    Loading available parent categories...
+                  </p>
+                )}
+              </div>
 
               <div className="space-y-2">
-                  <Label htmlFor="description" className="text-sm font-medium">
-                    Description *
-                    <span className="text-muted-foreground text-xs font-normal ml-1">
-                      (at least 10 characters)
+                <Label htmlFor="description" className="text-sm font-medium">
+                  Description *
+                  <span className="text-muted-foreground text-xs font-normal ml-1">
+                    (at least 10 characters)
+                  </span>
+                </Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
+                  }
+                  onBlur={() => handleBlur("description")}
+                  placeholder="Enter category description (minimum 10 characters)"
+                  className="min-h-[80px] resize-vertical"
+                  required
+                />
+                {touchedFields.description && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>
+                      {formData.description.length < 10 ? (
+                        <span className="text-destructive">
+                          {10 - formData.description.length} more characters
+                          required
+                        </span>
+                      ) : (
+                        <span className="text-green-600">
+                          ✓ Minimum length satisfied
+                        </span>
+                      )}
                     </span>
-                  </Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                    onBlur={() => handleBlur('description')}
-                    placeholder="Enter category description (minimum 10 characters)"
-                    className="min-h-[80px] resize-vertical"
-                    required
-                  />
-                  {touchedFields.description && (
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>
-                        {formData.description.length < 10 ? (
-                          <span className="text-destructive">
-                            {10 - formData.description.length} more characters required
-                          </span>
-                        ) : (
-                          <span className="text-green-600">
-                            ✓ Minimum length satisfied
-                          </span>
-                        )}
-                      </span>
-                      <span>{formData.description.length}/10</span>
-                    </div>
-                  )}
-                </div>
+                    <span>{formData.description.length}/10</span>
+                  </div>
+                )}
+              </div>
 
               <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center space-x-3">
                   <Switch
                     id="isActive"
                     checked={formData.isActive}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, isActive: checked }))
+                    }
                   />
-                  <Label htmlFor="isActive" className="text-sm font-medium cursor-pointer">
+                  <Label
+                    htmlFor="isActive"
+                    className="text-sm font-medium cursor-pointer"
+                  >
                     Active
                   </Label>
                 </div>
-                
-                <Button 
-                  type="submit" 
-                  disabled={isSubmitting || isLoadingParents} 
+
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || isLoadingParents}
                   className="h-9 min-w-[140px]"
                 >
-                  {(isSubmitting || isLoadingParents) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {editingCategory ? 'Update Category' : 'Create Category'}
+                  {(isSubmitting || isLoadingParents) && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {editingCategory ? "Update Category" : "Create Category"}
                 </Button>
               </div>
             </form>
@@ -712,7 +746,12 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
                 <Badge variant="secondary" className="text-sm">
                   {allCategories.length} categories
                 </Badge>
-                <Button variant="outline" size="sm" onClick={loadCategories} disabled={isLoading}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadCategories}
+                  disabled={isLoading}
+                >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
@@ -727,20 +766,24 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
                 <div className="flex items-center justify-center h-32">
                   <div className="text-center">
                     <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">Loading categories...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Loading categories...
+                    </p>
                   </div>
                 </div>
               ) : categories.length > 0 ? (
                 <div className="flex flex-col h-full">
                   {/* Header */}
                   <div className="flex items-center border-b bg-background sticky top-0 z-10 font-semibold">
-                    <div className="min-w-[200px] p-4 flex-1">Category Name</div>
+                    <div className="min-w-[200px] p-4 flex-1">
+                      Category Name
+                    </div>
                     <div className="min-w-[200px] p-4 flex-1">Description</div>
                     <div className="w-20 p-4">Status</div>
                     <div className="w-16 p-4 text-center">Services</div>
                     <div className="w-24 p-4">Actions</div>
                   </div>
-                  
+
                   {/* Content */}
                   <div className="flex-1 overflow-auto">
                     {renderCategoryTree(categories)}
@@ -749,7 +792,9 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
               ) : (
                 <div className="flex flex-col items-center justify-center h-32 text-center p-6">
                   <FolderTree className="h-12 w-12 text-muted-foreground/50 mb-3" />
-                  <p className="font-medium text-muted-foreground">No categories found</p>
+                  <p className="font-medium text-muted-foreground">
+                    No categories found
+                  </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     Create your first category to get started
                   </p>
@@ -759,38 +804,35 @@ const renderCategoryTree = (categories: ServiceCategory[], level = 0) => {
           </div>
         </div>
 
-              
-          {deleteConfirm && (
-            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-              <div className="bg-background border rounded-lg shadow-lg p-6 max-w-sm mx-4">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="flex-shrink-0">
-                    <Trash2 className="h-6 w-6 text-destructive" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Delete Category</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Delete "{deleteConfirm.categoryName}"? This cannot be undone.
-                    </p>
-                  </div>
+        {deleteConfirm && (
+          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-background border rounded-lg shadow-lg p-6 max-w-sm mx-4">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="flex-shrink-0">
+                  <Trash2 className="h-6 w-6 text-destructive" />
                 </div>
-                <div className="flex justify-end space-x-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setDeleteConfirm(null)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => confirmDelete(deleteConfirm)}
-                  >
-                    Delete
-                  </Button>
+                <div>
+                  <h3 className="font-semibold">Delete Category</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Delete "{deleteConfirm.categoryName}"? This cannot be
+                    undone.
+                  </p>
                 </div>
               </div>
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirm(null)}
+                >
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={confirmDelete}>
+                  Delete
+                </Button>
+              </div>
             </div>
-          )}
+          </div>
+        )}
         <DialogFooter className="px-6 py-4 border-t bg-muted/20 shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close

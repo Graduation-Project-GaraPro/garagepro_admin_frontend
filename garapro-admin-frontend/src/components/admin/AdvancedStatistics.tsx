@@ -486,8 +486,8 @@ export function AdvancedStatistics() {
                     <div key={category} className="flex items-center justify-between">
                       <span className="text-sm">{category}</span>
                       <div className="flex items-center space-x-2">
-                        <Progress value={percentage} className="w-20 h-2" />
-                        <span className="text-sm font-medium">{percentage}%</span>
+                        <Progress value={Number(percentage ?? 0)} className="w-20 h-2" />
+                        <span className="text-sm font-medium">{Number(percentage ?? 0)}%</span>
                       </div>
                     </div>
                   ))}
@@ -591,8 +591,8 @@ export function AdvancedStatistics() {
                         <div key={type} className="flex items-center justify-between">
                           <span className="text-sm">{type}</span>
                           <div className="flex items-center space-x-2">
-                            <Progress value={percentage} className="w-20 h-2" />
-                            <span className="text-sm font-medium">{percentage}%</span>
+                            <Progress value={Number(percentage ?? 0)} className="w-20 h-2" />
+                            <span className="text-sm font-medium">{Number(percentage ?? 0)}%</span>
                           </div>
                         </div>
                       ))}

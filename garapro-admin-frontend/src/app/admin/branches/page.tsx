@@ -701,8 +701,8 @@ export default function BranchesPage() {
 
               {/* Pagination */}
               <div className="flex items-center justify-between mt-6">
-                {/* Hiển thị số trang */}
-                {console.log(totalPages)}
+                
+                
                 <div className="text-sm text-muted-foreground">
                   Page {currentPage} of {totalPages}
                 </div>

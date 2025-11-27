@@ -124,23 +124,83 @@ export default function AuditHistoryPage() {
     });
   };
 
-  const parseChanges = (previous: string, current: string) => {
-    try {
-      const prev = JSON.parse(previous);
-      const curr = JSON.parse(current);
-      const changes: string[] = [];
+ const getUserDisplayName = (user: any) => {
+  if (!user) return 'System';
 
-      Object.keys(curr).forEach(key => {
-        if (prev[key] !== curr[key] && key !== 'UpdatedAt' && key !== 'Histories') {
-          changes.push(`${key}: ${prev[key]} → ${curr[key]}`);
-        }
-      });
+  // Nếu backend trả sẵn string
+  if (typeof user === 'string') return user;
 
-      return changes;
-    } catch {
-      return ['Unable to parse changes'];
-    }
-  };
+  const fullName =
+    user.FullName ||
+    [user.FirstName, user.LastName].filter(Boolean).join(' ');
+
+  const username = user.UserName || user.Email || user.PhoneNumber || user.Id;
+
+  if (fullName && username && fullName !== username) {
+    return `${fullName} (${username})`;
+  }
+
+  return fullName || username || 'System';
+};
+
+
+const formatValue = (value: any) => {
+  if (value === null || value === undefined) return '—';
+
+  // Nếu là object mà không phải UpdatedByUser sẽ xử lý riêng bên dưới
+  if (typeof value === 'object') {
+    return '[object]';
+  }
+
+  return String(value);
+};
+
+const parseChanges = (previous: string | null, current: string | null) => {
+  try {
+    // Nếu thiếu 1 trong 2 thì coi như không có gì để hiển thị
+    if (!previous || !current) return [];
+
+    const prev = JSON.parse(previous) as any;
+    const curr = JSON.parse(current) as any;
+    const changes: string[] = [];
+
+    const ignoreKeys = [
+      'Id',
+      'CreatedAt',
+      'UpdatedAt',
+      'Histories',
+      'UpdatedBy',
+      'UpdatedByUser',
+    ];
+
+    Object.keys(curr).forEach((key) => {
+      if (ignoreKeys.includes(key)) return;
+
+      const prevVal = prev[key];
+      const currVal = curr[key];
+
+      // Không đổi thì bỏ qua
+      if (JSON.stringify(prevVal) === JSON.stringify(currVal)) return;
+
+      // Field dạng object không in toàn object
+      if (typeof prevVal === 'object' || typeof currVal === 'object') {
+        changes.push(`${key}: [object changed]`);
+        return;
+      }
+
+      // Field bình thường
+      changes.push(`${key}: ${prevVal} → ${currVal}`);
+    });
+
+    return changes;
+  } catch (err) {
+    console.error('parseChanges error:', err);
+    return ['Unable to parse changes'];
+  }
+};
+
+
+
 
   if (error && auditHistory.length === 0) {
     return (
@@ -228,18 +288,20 @@ export default function AuditHistoryPage() {
               const changes = parseChanges(audit.previousValues, audit.newValues);
               
               return (
-                <Card key={audit.historyId} className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500 group">
+                <Card
+                  key={audit.historyId}
+                  className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500 group"
+                >
                   <CardHeader className="pb-3">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <CardTitle className="text-lg flex items-center gap-2">
                           {audit.changeSummary}
-                         
                         </CardTitle>
                         <CardDescription className="flex flex-wrap items-center gap-4 mt-2">
                           <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-xs">
                             <User className="h-3 w-3" />
-                            {audit.changedByUser || 'System'}
+                            {getUserDisplayName(audit.changedByUser)}
                           </span>
                           <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full text-xs">
                             <Calendar className="h-3 w-3" />
@@ -260,30 +322,39 @@ export default function AuditHistoryPage() {
                       </div>
                     </div>
                   </CardHeader>
-                  
+
                   <CardContent className="pt-0">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium text-gray-700">Changes:</h4>
-                      <div className="space-y-1">
-                        {changes.slice(0, 3).map((change, index) => (
-                          <div key={index} className="text-sm text-gray-600 bg-gray-50 p-2 rounded-lg border">
-                            {change}
-                          </div>
-                        ))}
-                        {changes.length > 3 && (
-                          <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded-lg border border-blue-200">
-                            +{changes.length - 3} more changes... 
-                            <Button
-                              variant="link"
-                              className="p-0 h-auto text-blue-600 ml-1 font-medium"
-                              onClick={() => handleViewDetails(audit)}
+                    {changes.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-700">
+                          Changes:
+                        </h4>
+
+                        <div className="space-y-1">
+                          {changes.slice(0, 3).map((change, index) => (
+                            <div
+                              key={index}
+                              className="text-sm text-gray-600 bg-gray-50 p-2 rounded-lg border"
                             >
-                              View all details
-                            </Button>
-                          </div>
-                        )}
+                              {change}
+                            </div>
+                          ))}
+
+                          {changes.length > 3 && (
+                            <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded-lg border border-blue-200">
+                              +{changes.length - 3} more changes...
+                              <Button
+                                variant="link"
+                                className="p-0 h-auto text-blue-600 ml-1 font-medium"
+                                onClick={() => handleViewDetails(audit)}
+                              >
+                                View all details
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
               );

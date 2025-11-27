@@ -149,7 +149,7 @@ export const RoleDialogs = ({
   if (selectedRole && isEditOpen) {
     const allPermissionIds = getAllPermissionIds(selectedRole)
     setEditForm({
-      id: selectedRole.id,
+      roleId: selectedRole.id,
       name: selectedRole.name,
       description: selectedRole.description,
       permissionIds: allPermissionIds

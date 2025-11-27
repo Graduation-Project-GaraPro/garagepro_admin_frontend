@@ -4,7 +4,7 @@ interface RoleForm {
   name: string
   description: string
   permissionIds: string[]
-  isDefault: boolean
+  
 }
 
 interface ValidationErrors {
