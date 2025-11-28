@@ -39,48 +39,84 @@ export interface PaginatedResponse<T> {
 class HistoryChangePolicyService {
   private baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ||'https://localhost:7113/api';
 
-  private async makeAuthenticatedRequest(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
-  const token = authService.getToken();
-  
-  if (!token) {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/';
-    }
-    throw new Error('Authentication required');
-  }
+  private async makeAuthenticatedRequest(
+  url: string,
+  options: RequestInit = {},
+  retryCount = 0
+): Promise<Response> {
+  const MAX_RETRIES = 2;
 
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-    ...options.headers,
-  };
+  try {
+    const token = authService.getToken();
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include'
-  });
-
-  // Token expired - try to refresh and retry
-  if (response.status === 401 && retryCount === 0) {
-    try {
-      await authService.handleTokenRefresh();
-      return this.makeAuthenticatedRequest(url, options, retryCount + 1);
-    } catch (refreshError) {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
+    if (!token) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
       }
-      throw new Error('Session expired. Please login again.');
+      throw new Error("Authentication required");
     }
-  }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-  }
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    };
 
-  return response;
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      credentials: "include",
+    });
+
+    // 401 -> thử refresh token 1 lần
+    if (response.status === 401 && retryCount === 0) {
+      try {
+        await authService.handleTokenRefresh();
+        return this.makeAuthenticatedRequest(url, options, retryCount + 1);
+      } catch {
+        if (typeof window !== "undefined") {
+          window.location.href = "/";
+        }
+        throw new Error("Session expired. Please login again.");
+      }
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `HTTP error! status: ${response.status}, message: ${errorText}`
+      );
+    }
+
+    return response;
+  } catch (error: any) {
+    const msg = error?.message || "";
+
+    // Lỗi mạng / HTTP2 / stream reset -> retry
+    const isNetworkError =
+      msg.includes("Failed to fetch") ||
+      msg.includes("NetworkError") ||
+      msg.includes("ERR_HTTP2") ||
+      msg.includes("HTTP2") ||
+      msg.includes("stream") ||
+      msg.includes("ECONNRESET");
+
+    if (isNetworkError && retryCount < MAX_RETRIES) {
+      const delay = 150 + retryCount * 150; // 150ms, 300ms
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return this.makeAuthenticatedRequest(url, options, retryCount + 1);
+    }
+
+    if (msg.includes("Authentication required")) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      }
+    }
+
+    throw error;
+  }
 }
+
 
   async getAuditHistory(params: PaginationParams): Promise<PaginatedResponse<AuditHistory>> {
     try {

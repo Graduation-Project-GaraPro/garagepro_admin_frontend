@@ -34,7 +34,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { toast } from 'sonner';
-
+import {authenticatedFetch} from '@/services/service-Service'
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api';
 
 interface ServiceCategory {
@@ -181,21 +181,24 @@ useEffect(() => {
 const loadAvailableParentCategories = async (currentCategoryId: string | null) => {
   try {
     setIsLoadingParents(true);
-    const url = currentCategoryId 
+
+    const url = currentCategoryId
       ? `${API_BASE_URL}/ServiceCategories/parentValid?serviceCategoryId=${currentCategoryId}`
       : `${API_BASE_URL}/ServiceCategories/parentValid`;
+
     console.log(url);
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to load parent categories: ${response.statusText}`);
-    }
+
+    // DÙNG authenticatedFetch (có token + retry + refresh token)
+    const response = await authenticatedFetch(url, {
+      method: "GET",
+    });
+
     const data: ServiceCategory[] = await response.json();
-    console.log(data)
+    console.log(data);
 
     setAvailableParentCategories(data);
   } catch (error) {
-    console.error('Error loading parent categories:', error);
+    console.error("Error loading parent categories:", error);
     // Fallback to empty array
     setAvailableParentCategories([]);
   } finally {
@@ -204,48 +207,54 @@ const loadAvailableParentCategories = async (currentCategoryId: string | null) =
 };
 
 
+
   const loadCategories = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch(`${API_BASE_URL}/ServiceCategories`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load categories: ${response.statusText}`);
+  try {
+    setIsLoading(true);
+
+    const response = await authenticatedFetch(`${API_BASE_URL}/ServiceCategories`, {
+      method: "GET",
+    });
+
+    const data: ServiceCategory[] = await response.json();
+
+    // Build tree structure
+    const categoryMap = new Map<string, ServiceCategory>();
+    const rootCategories: ServiceCategory[] = [];
+
+    // First pass: create map and copy all categories
+    data.forEach((category) => {
+      categoryMap.set(category.serviceCategoryId, { ...category, children: [] });
+    });
+
+    // Second pass: build tree structure
+    data.forEach((category) => {
+      const categoryWithChildren = categoryMap.get(category.serviceCategoryId)!;
+
+      if (
+        category.parentServiceCategoryId &&
+        categoryMap.has(category.parentServiceCategoryId)
+      ) {
+        const parent = categoryMap.get(
+          category.parentServiceCategoryId
+        )!;
+        parent.children!.push(categoryWithChildren);
+      } else {
+        rootCategories.push(categoryWithChildren);
       }
-      
-      const data: ServiceCategory[] = await response.json();
-      
-      // Build tree structure
-      const categoryMap = new Map<string, ServiceCategory>();
-      const rootCategories: ServiceCategory[] = [];
-      
-      // First pass: create map and copy all categories
-      data.forEach(category => {
-        categoryMap.set(category.serviceCategoryId, { ...category, children: [] });
-      });
-      
-      // Second pass: build tree structure
-      data.forEach(category => {
-        const categoryWithChildren = categoryMap.get(category.serviceCategoryId)!;
-        
-        if (category.parentServiceCategoryId && categoryMap.has(category.parentServiceCategoryId)) {
-          const parent = categoryMap.get(category.parentServiceCategoryId)!;
-          parent.children!.push(categoryWithChildren);
-        } else {
-          rootCategories.push(categoryWithChildren);
-        }
-      });
-      
-      setCategories(rootCategories);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      toast.error('Failed to load categories', {
-        description: 'Please try again later.'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    });
+
+    setCategories(rootCategories);
+  } catch (error) {
+    console.error("Error loading categories:", error);
+    toast.error("Failed to load categories", {
+      description: "Please try again later.",
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const toggleCategory = (categoryId: string) => {
     const newExpanded = new Set(expandedCategories);

@@ -165,83 +165,90 @@ class BranchService {
     return authService.getToken(); // CHỈ DÙNG GETTOKEN
   }
 
-  private async request<T>(url: string, options: RequestInit = {}, retryCount = 0): Promise<T> {
-    console.log('🚀 Making request to:', url);
-    
-    try {
-      const token = await this.getAuthToken();
-    console.log('🚀 Token:', token);
+ private async request<T>(
+  url: string,
+  options: RequestInit = {},
+  retryCount = 0
+): Promise<T> {
+  const MAX_RETRIES = 2;
 
-       if (!token) {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-        throw new Error('Authentication required');
-      }
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        ...options.headers,
-      };
+  try {
+    const token = await this.getAuthToken();
 
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      console.log('📡 Response status:', response.status);
-
-      // Token expired - try to refresh and retry
-      if (response.status === 401 && retryCount === 0) {
-        console.log('🔄 Token expired, attempting refresh...');
-        try {
-          await authService.handleTokenRefresh();
-          return this.request(url, options, retryCount + 1);
-        } catch (refreshError) {
-          console.log('❌ Token refresh failed');
-          throw new Error('Session expired. Please login again.');
-        }
-      }
-
-      // Access denied
-      if (response.status === 403) {
-        console.log(' Access denied');
-        if (typeof window !== 'undefined') {
-          // window.location.href = '/access-denied';
-        }
-        throw new Error('Access denied: You do not have permission to access this resource.');
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `HTTP error! status: ${response.status}`;
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      // For responses with no content
-      if (response.status === 204) {
-        return {} as T;
-      }
-
-      return response.json();
-    } catch (error) {
-      console.log('💥 Request failed:', error);
-      if (error instanceof Error && error.message.includes('Authentication required')) {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-      }
-      throw error;
+    if (!token) {
+      if (typeof window !== "undefined") window.location.href = "/";
+      throw new Error("Authentication required");
     }
+
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    };
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    // 401 → Try refresh token once
+    if (response.status === 401 && retryCount === 0) {
+      try {
+        await authService.handleTokenRefresh();
+        return this.request<T>(url, options, retryCount + 1);
+      } catch {
+        throw new Error("Session expired. Please login again.");
+      }
+    }
+
+    // 403 → No permission
+    if (response.status === 403) {
+      throw new Error("Access denied");
+    }
+
+    // API error but not network error
+    if (!response.ok) {
+      const text = await response.text();
+      try {
+        const data = JSON.parse(text);
+        throw new Error(data.message || data.error || text);
+      } catch {
+        throw new Error(text || `HTTP Error ${response.status}`);
+      }
+    }
+
+    // 204 No Content
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    return response.json();
+  } catch (error: any) {
+    const msg = error?.message || "";
+
+    const isNetworkError =
+      msg.includes("Failed to fetch") ||
+      msg.includes("NetworkError") ||
+      msg.includes("ERR_HTTP2") ||
+      msg.includes("HTTP2") ||
+      msg.includes("stream") ||
+      msg.includes("ECONNRESET");
+
+    if (isNetworkError && retryCount < MAX_RETRIES) {
+      const delay = 150 + retryCount * 150;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return this.request<T>(url, options, retryCount + 1);
+    }
+
+    // Authentication missing → redirect
+    if (msg.includes("Authentication required")) {
+      if (typeof window !== "undefined") window.location.href = "/";
+    }
+
+    throw error;
   }
+}
+
 
   async getBranches(
     page: number = 1,

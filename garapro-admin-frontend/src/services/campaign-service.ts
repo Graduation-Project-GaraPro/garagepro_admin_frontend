@@ -193,19 +193,26 @@ class CampaignService {
     return authService.getToken(); // CHỈ DÙNG GETTOKEN
   }
 
-private async authenticatedFetch(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
+private async authenticatedFetch(
+  url: string,
+  options: RequestInit = {},
+  retryCount = 0
+): Promise<Response> {
+  const MAX_RETRIES = 2;
+
   try {
     const token = await this.getAuthToken();
-    
-     if (!token) {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
+
+    if (!token) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
       }
-      throw new Error('Authentication required');
+      throw new Error("Authentication required");
     }
+
     const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
       ...options.headers,
     };
 
@@ -214,59 +221,71 @@ private async authenticatedFetch(url: string, options: RequestInit = {}, retryCo
       headers,
     });
 
-    console.log(' Response status:', response.status);
-
-    // Token expired - try to refresh and retry
+    // 401 -> thử refresh token 1 lần
     if (response.status === 401 && retryCount === 0) {
-      console.log(' Token expired, attempting refresh...');
       try {
         await authService.handleTokenRefresh();
         return this.authenticatedFetch(url, options, retryCount + 1);
-      } catch (refreshError) {
-        console.log(' Token refresh failed');
-        throw new Error('Session expired. Please login again.');
+      } catch {
+        throw new Error("Session expired. Please login again.");
       }
     }
 
-    // Access denied
+    // 403 -> không có quyền
     if (response.status === 403) {
-      console.log('🚫 Access denied');
-      if (typeof window !== 'undefined') {
-        window.location.href = '/access-denied';
+      if (typeof window !== "undefined") {
+        window.location.href = "/access-denied";
       }
-      window.location.href = '/access-denied';
-      throw new Error('Access denied: You do not have permission to access this resource.');
+      throw new Error("Access denied: You do not have permission to access this resource.");
     }
 
+    // Các case status khác nhưng không ok
     if (!response.ok) {
       const errorText = await response.text();
-        let errorMessage = `HTTP error! status: ${response.status}`;
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          errorMessage =
+      let errorMessage = `HTTP error! status: ${response.status}`;
+
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage =
           (errorData.message
             ? errorData.message + (errorData.detail ? " " + errorData.detail : "")
             : errorData.error) || errorMessage;
-          console.log(errorData )
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        
-        throw new Error(errorMessage);
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+
+      throw new Error(errorMessage);
     }
 
     return response;
-  } catch (error) {
-    console.log(' Request failed:', error);
-    if (error instanceof Error && error.message.includes('Authentication required')) {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
+  } catch (error: any) {
+    const msg = error?.message || "";
+
+    // Nhận diện lỗi mạng / HTTP2 / stream reset để retry
+    const isNetworkError =
+      msg.includes("Failed to fetch") ||
+      msg.includes("NetworkError") ||
+      msg.includes("ERR_HTTP2") ||
+      msg.includes("HTTP2") ||
+      msg.includes("stream") ||
+      msg.includes("ECONNRESET");
+
+    if (isNetworkError && retryCount < MAX_RETRIES) {
+      const delay = 150 + retryCount * 150; // 150ms, 300ms
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return this.authenticatedFetch(url, options, retryCount + 1);
+    }
+
+    if (msg.includes("Authentication required")) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
       }
     }
+
     throw error;
   }
 }
+
 
   async getCampaigns(params: GetCampaignsParams = {}): Promise<CampaignsResponse> {
     const queryParams = new URLSearchParams();

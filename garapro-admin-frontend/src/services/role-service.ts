@@ -58,7 +58,7 @@ export interface AuthResponseDto {
 
 // services/roleService.ts
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "https://localhost:7113/api";
+  process.env.NEXT_PUBLIC_API_BASE_URL|| "https://localhost:7113/api";
 
 class RoleService {
   private getAuthToken(): string | null {
@@ -74,64 +74,65 @@ class RoleService {
   }
 
   private async fetchAPI<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    retryCount = 0
-  ): Promise<T> {
+  endpoint: string,
+  options: RequestInit = {},
+  retryCount = 0
+): Promise<T> {
+  const MAX_RETRIES = 2;
+  const url = `${API_BASE_URL}${endpoint}`;
+
+  try {
     const token = this.getAuthToken();
-    const url = `${API_BASE_URL}${endpoint}`;
+
     if (!token) {
       if (typeof window !== "undefined") {
         window.location.href = "/";
       }
       throw new Error("Authentication required");
     }
+
     const defaultHeaders: HeadersInit = {
       "Content-Type": "application/json",
     };
-
-    console.log(token);
 
     const headers: HeadersInit = {
       ...defaultHeaders,
       ...((options.headers as Record<string, string>) || {}),
     };
 
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
+    headers["Authorization"] = `Bearer ${token}`;
 
     const response = await fetch(url, {
       ...options,
       headers,
     });
 
-    // Token expired - try to refresh and retry
+    // 401 -> thử refresh token 1 lần
     if (response.status === 401 && retryCount === 0) {
       try {
         await authService.handleTokenRefresh();
         return this.fetchAPI<T>(endpoint, options, retryCount + 1);
-      } catch (refreshError) {
+      } catch {
         throw new Error("Session expired. Please login again.");
       }
     }
 
+    // 403 -> không có quyền
     if (response.status === 403) {
-      console.log("🚫 Access denied");
       if (typeof window !== "undefined") {
         window.location.href = "/access-denied";
       }
-      window.location.href = "/access-denied";
       throw new Error(
         "Access denied: You do not have permission to access this resource."
       );
     }
-    // Handle no content
+
+    // 204 -> không có content
     if (response.status === 204) {
       return null as T;
     }
 
-    // Handle non-OK responses
+    // Các lỗi HTTP khác
     if (!response.ok) {
       let errorMessage: string;
 
@@ -149,12 +150,39 @@ class RoleService {
     const contentType = response.headers.get("content-type");
 
     if (contentType && contentType.includes("application/json")) {
-      return response.json() as Promise<T>;
+      return (await response.json()) as T;
     }
 
-    // fallback: return text
+    // fallback: text
     return (await response.text()) as unknown as T;
+  } catch (error: any) {
+    const msg = error?.message || "";
+
+    // Lỗi mạng / HTTP2 / stream reset -> retry
+    const isNetworkError =
+      msg.includes("Failed to fetch") ||
+      msg.includes("NetworkError") ||
+      msg.includes("ERR_HTTP2") ||
+      msg.includes("HTTP2") ||
+      msg.includes("stream") ||
+      msg.includes("ECONNRESET");
+
+    if (isNetworkError && retryCount < MAX_RETRIES) {
+      const delay = 150 + retryCount * 150; // 150ms, 300ms
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return this.fetchAPI<T>(endpoint, options, retryCount + 1);
+    }
+
+    if (msg.includes("Authentication required")) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      }
+    }
+
+    throw error;
   }
+}
+
 
   // Get all roles
   async getRoles(): Promise<Role[]> {

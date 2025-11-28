@@ -181,69 +181,89 @@ const getAuthToken = (): string | null => {
 };
 
 // Helper function cho fetch có auth + refresh token
-const authenticatedFetch = async (
+export const authenticatedFetch = async (
   url: string,
   options: RequestInit = {},
   retryCount = 0
 ): Promise<Response> => {
+  const MAX_RETRIES = 2;
+
   const token = getAuthToken();
 
   if (!token) {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/';
-    }
-    throw new Error('Authentication required');
+    if (typeof window !== "undefined") window.location.href = "/";
+    throw new Error("Authentication required");
   }
 
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...options.headers,
     Authorization: `Bearer ${token}`,
   };
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
 
-  // Token hết hạn → refresh 1 lần
-  if (response.status === 401 && retryCount === 0) {
-    try {
-      await authService.handleTokenRefresh();
-      return authenticatedFetch(url, options, retryCount + 1);
-    } catch {
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
+    // Handle 401 (refresh token 1 lần)
+    if (response.status === 401 && retryCount === 0) {
+      try {
+        await authService.handleTokenRefresh();
+        return authenticatedFetch(url, options, retryCount + 1);
+      } catch {
+        if (typeof window !== "undefined") window.location.href = "/";
+        throw new Error("Session expired. Please login again.");
       }
-      throw new Error('Session expired. Please login again.');
     }
-  }
 
-  // Không có quyền
-  if (response.status === 403) {
-    if (typeof window !== 'undefined') {
-      window.location.href = '/access-denied';
+    // 403 → No Permission
+    if (response.status === 403) {
+      if (typeof window !== "undefined") window.location.href = "/access-denied";
+      throw new Error("Access denied");
     }
-    throw new Error(
-      'Access denied: You do not have permission to access this resource.'
-    );
-  }
 
-  if (!response.ok) {
-    let message = `HTTP error! status: ${response.status}`;
-    try {
-      const errorBody = await response.json();
-      message += `, message: ${
-        errorBody.detail || errorBody.message || 'Unknown error'
-      }`;
-    } catch {
-      // ignore parse error
+    // Non-OK responses
+    if (!response.ok) {
+      let message = `HTTP error! status: ${response.status}`;
+      try {
+        const body = await response.json();
+        message += `, message: ${
+          body.detail || body.message || JSON.stringify(body)
+        }`;
+      } catch {}
+      throw new Error(message);
     }
-    throw new Error(message);
-  }
 
-  return response;
+    return response;
+  } catch (error: any) {
+    const msg = error?.message || "";
+
+    // Detect network errors (HTTP/2 reset, failed fetch, stream closed…)
+    const isNetworkError =
+      msg.includes("Failed to fetch") ||
+      msg.includes("NetworkError") ||
+      msg.includes("ERR_HTTP2") ||
+      msg.includes("stream") ||
+      msg.includes("ECONNRESET");
+
+    if (isNetworkError && retryCount < MAX_RETRIES) {
+      // Exponential backoff retry delay
+      const delay = 150 + retryCount * 150;
+      console.warn(
+        `Retrying ${url} due to network error... attempt ${retryCount + 1}`
+      );
+      await new Promise((res) => setTimeout(res, delay));
+
+      return authenticatedFetch(url, options, retryCount + 1);
+    }
+
+    // Throw final error
+    throw error;
+  }
 };
+
 
 // =======================
 // Mapping helpers

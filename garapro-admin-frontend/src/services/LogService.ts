@@ -69,50 +69,81 @@ export class LogService {
     return headers;
   }
 
-  private static async authenticatedFetch(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
-    try {
-      const headers = await this.getAuthHeaders();
-      
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...headers,
-          ...options.headers,
-        },
-      });
+  private static async authenticatedFetch(
+  url: string,
+  options: RequestInit = {},
+  retryCount = 0
+): Promise<Response> {
+  const MAX_RETRIES = 2;
 
-      // Token expired - try to refresh and retry
-      if (response.status === 401 && retryCount === 0) {
-        try {
-          await authService.handleTokenRefresh();
-          return this.authenticatedFetch(url, options, retryCount + 1);
-        } catch (refreshError) {
-          throw new Error('Session expired. Please login again.');
-        }
-      }
-      if (response.status === 403) {
-        console.log(' Access denied');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/access-denied';
-        }
-        throw new Error('Access denied: You do not have permission to access this resource.');
-      }
+  try {
+    const headers = await this.getAuthHeaders();
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-      }
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...headers,
+        ...options.headers,
+      },
+    });
 
-      return response;
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('Authentication required')) {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
+    // 401: token hết hạn -> refresh 1 lần rồi retry
+    if (response.status === 401 && retryCount === 0) {
+      try {
+        await authService.handleTokenRefresh();
+        return this.authenticatedFetch(url, options, retryCount + 1);
+      } catch {
+        throw new Error("Session expired. Please login again.");
       }
-      throw error;
     }
+
+    // 403: không có quyền
+    if (response.status === 403) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/access-denied";
+      }
+      throw new Error(
+        "Access denied: You do not have permission to access this resource."
+      );
+    }
+
+    // Các lỗi HTTP khác
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `HTTP error! status: ${response.status}, message: ${errorText}`
+      );
+    }
+
+    return response;
+  } catch (error: any) {
+    const msg = error?.message || "";
+
+    // Lỗi mạng / HTTP2 / stream reset -> retry
+    const isNetworkError =
+      msg.includes("Failed to fetch") ||
+      msg.includes("NetworkError") ||
+      msg.includes("ERR_HTTP2") ||
+      msg.includes("HTTP2") ||
+      msg.includes("stream") ||
+      msg.includes("ECONNRESET");
+
+    if (isNetworkError && retryCount < MAX_RETRIES) {
+      const delay = 150 + retryCount * 150; // 150ms, 300ms
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return this.authenticatedFetch(url, options, retryCount + 1);
+    }
+
+    // Chưa đăng nhập
+    if (error instanceof Error && error.message.includes("Authentication required")) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      }
+    }
+
+    throw error;
   }
+}
 
   // Kết nối SignalR
   static async connectToLogHub(
