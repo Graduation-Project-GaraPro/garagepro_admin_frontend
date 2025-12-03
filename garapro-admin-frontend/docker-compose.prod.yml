@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  web:
+    build:
+      context: .
+      target: runner
+      dockerfile: Dockerfile
+    image: garapro-frontend-admin:prod
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.production
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
