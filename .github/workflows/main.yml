@@ -24,7 +24,7 @@ jobs:
           context: ./garapro-admin-frontend                      # thư mục chứa Dockerfile và source
           file: ./garapro-admin-frontend/Dockerfile                 # đường dẫn tới Dockerfile (đổi nếu Dockerfile trong subfolder)
           push: true
-          tags: hoangminhcb/garapro-frontend-admin:${{ github.sha }}
+          tags: hoangminhfcb/garapro-frontend-admin:${{ github.sha }}
 
       - name: Wait for registry (optional)
         run: sleep 10
