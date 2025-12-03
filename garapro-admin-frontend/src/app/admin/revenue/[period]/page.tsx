@@ -1,17 +1,30 @@
-'use client'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { 
-  BarChart3, 
-  Download, 
-  ArrowUp, 
-  ArrowDown, 
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  BarChart3,
+  Download,
+  ArrowUp,
+  ArrowDown,
   Calendar,
   Filter,
   RefreshCw,
@@ -24,9 +37,14 @@ import {
   CheckCircle,
   AlertCircle,
   ChevronDown,
-  ChevronUp
-} from 'lucide-react'
-import { RevenueReport, revenueService, RevenueFilters, DetailedRepairOrder } from '@/services/revenue-service'
+  ChevronUp,
+} from "lucide-react";
+import {
+  RevenueReport,
+  revenueService,
+  RevenueFilters,
+  DetailedRepairOrder,
+} from "@/services/revenue-service";
 import {
   BarChart,
   Bar,
@@ -40,68 +58,100 @@ import {
   Pie,
   Cell,
   LineChart,
-  Line
-} from 'recharts'
+  Line,
+} from "recharts";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar as CalendarComponent } from '@/components/ui/calendar'
-import { format } from 'date-fns'
-import { DateRange } from 'react-day-picker'
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { DateRange } from "react-day-picker";
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#FF6B6B', '#48DBFB', '#1DD1A1']
+const COLORS = [
+  "#0088FE",
+  "#00C49F",
+  "#FFBB28",
+  "#FF8042",
+  "#8884D8",
+  "#FF6B6B",
+  "#48DBFB",
+  "#1DD1A1",
+];
 
 // Format currency
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value)
-}
+  }).format(value);
+};
 
 // Format percentage
 const formatPercentage = (value: number) => {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
-}
+  return `${value >= 0 ? "+" : ""}${value.toFixed(1)}%`;
+};
 
 // Format date
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
+  return new Date(dateString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+};
 
 // Status badge component
 const StatusBadge = ({ status }: { status: string }) => {
   const statusConfig = {
-    completed: { color: 'bg-green-100 text-green-800', icon: <CheckCircle className="h-3 w-3" /> },
-    in_progress: { color: 'bg-blue-100 text-blue-800', icon: <Clock className="h-3 w-3" /> },
-    pending: { color: 'bg-yellow-100 text-yellow-800', icon: <Clock className="h-3 w-3" /> },
-    cancelled: { color: 'bg-red-100 text-red-800', icon: <AlertCircle className="h-3 w-3" /> }
-  }
+    completed: {
+      color: "bg-green-100 text-green-800",
+      icon: <CheckCircle className="h-3 w-3" />,
+    },
+    in_progress: {
+      color: "bg-blue-100 text-blue-800",
+      icon: <Clock className="h-3 w-3" />,
+    },
+    pending: {
+      color: "bg-yellow-100 text-yellow-800",
+      icon: <Clock className="h-3 w-3" />,
+    },
+    cancelled: {
+      color: "bg-red-100 text-red-800",
+      icon: <AlertCircle className="h-3 w-3" />,
+    },
+  };
 
-  const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
+  const config =
+    statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
 
   return (
     <Badge className={`${config.color} flex items-center gap-1`}>
       {config.icon}
-      {status.replace('_', ' ').toUpperCase()}
+      {status.replace("_", " ").toUpperCase()}
     </Badge>
-  )
-}
+  );
+};
 
 // Custom Date Picker Component
-const DateRangePicker = ({ date, onDateChange }: { date: DateRange | undefined, onDateChange: (date: DateRange | undefined) => void }) => {
+const DateRangePicker = ({
+  date,
+  onDateChange,
+}: {
+  date: DateRange | undefined;
+  onDateChange: (date: DateRange | undefined) => void;
+}) => {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -113,7 +163,8 @@ const DateRangePicker = ({ date, onDateChange }: { date: DateRange | undefined, 
           {date?.from ? (
             date.to ? (
               <>
-                {format(date.from, "LLL dd, y")} - {format(date.to, "LLL dd, y")}
+                {format(date.from, "LLL dd, y")} -{" "}
+                {format(date.to, "LLL dd, y")}
               </>
             ) : (
               format(date.from, "LLL dd, y")
@@ -134,129 +185,136 @@ const DateRangePicker = ({ date, onDateChange }: { date: DateRange | undefined, 
         />
       </PopoverContent>
     </Popover>
-  )
-}
+  );
+};
 
 export default function RevenuePage() {
-  const [report, setReport] = useState<RevenueReport | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isExporting, setIsExporting] = useState(false)
-  const [selectedBranch, setSelectedBranch] = useState<string>('all')
-  const [period, setPeriod] = useState<string>('monthly')
-  const [dateRange, setDateRange] = useState<DateRange | undefined>()
-  const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState('overview')
-  const [selectedOrder, setSelectedOrder] = useState<DetailedRepairOrder | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isLoadingOrder, setIsLoadingOrder] = useState(false)
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+  const [report, setReport] = useState<RevenueReport | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<string>("all");
+  const [period, setPeriod] = useState<string>("monthly");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedOrder, setSelectedOrder] =
+    useState<DetailedRepairOrder | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoadingOrder, setIsLoadingOrder] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<
+    Record<string, boolean>
+  >({
     summary: true,
     charts: true,
     services: true,
-    orders: true
-  })
+    orders: true,
+  });
 
   // Fetch report data
   const fetchReport = async () => {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const filters: RevenueFilters = { period: period as 'daily' | 'monthly' | 'yearly' }
-      
-      if (selectedBranch !== 'all') {
-        filters.branchId = selectedBranch
+      const filters: RevenueFilters = {
+        period: period as "daily" | "monthly" | "yearly",
+      };
+
+      if (selectedBranch !== "all") {
+        filters.branchId = selectedBranch;
       }
-      
+
       // Add date range filtering if selected
       if (dateRange?.from) {
-        filters.startDate = dateRange.from.toISOString().split('T')[0]
+        filters.startDate = dateRange.from.toISOString().split("T")[0];
       }
-      
+
       if (dateRange?.to) {
-        filters.endDate = dateRange.to.toISOString().split('T')[0]
+        filters.endDate = dateRange.to.toISOString().split("T")[0];
       }
-      
-      const data = await revenueService.getRevenueReport(filters)
-      setReport(data)
+
+      const data = await revenueService.getRevenueReport(filters);
+      setReport(data);
     } catch (error) {
-      console.error('Failed to fetch revenue report:', error)
+      console.error("Failed to fetch revenue report:", error);
     } finally {
-      setIsLoading(false)
-      setRefreshing(false)
+      setIsLoading(false);
+      setRefreshing(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchReport()
-  }, [period, selectedBranch])
+    fetchReport();
+  }, [period, selectedBranch]);
 
   useEffect(() => {
     if (dateRange?.from && dateRange.to) {
-      fetchReport()
+      fetchReport();
     }
-  }, [dateRange])
+  }, [dateRange]);
 
-  const handleExport = async (format: 'csv' | 'excel') => {
-    setIsExporting(true)
+  const handleExport = async (format: "csv" | "excel") => {
+    setIsExporting(true);
     try {
       const filters: RevenueFilters = {
-        period: period as 'daily' | 'monthly' | 'yearly',
+        period: period as "daily" | "monthly" | "yearly",
+      };
+
+      if (selectedBranch !== "all") {
+        filters.branchId = selectedBranch;
       }
-      
-      if (selectedBranch !== 'all') {
-        filters.branchId = selectedBranch
-      }
-      
+
       if (dateRange?.from) {
-        filters.startDate = dateRange.from.toISOString().split('T')[0]
+        filters.startDate = dateRange.from.toISOString().split("T")[0];
       }
-      
+
       if (dateRange?.to) {
-        filters.endDate = dateRange.to.toISOString().split('T')[0]
+        filters.endDate = dateRange.to.toISOString().split("T")[0];
       }
-      
-      const blob = await revenueService.exportRevenueReport(filters, format)
-      
+
+      const blob = await revenueService.exportRevenueReport(filters, format);
+
       // Create download URL
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.style.display = 'none'
-      a.href = url
-      a.download = `revenue-report-${period}-${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'xlsx'}`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `revenue-report-${period}-${
+        new Date().toISOString().split("T")[0]
+      }.${format === "csv" ? "csv" : "xlsx"}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export failed:', error)
-      alert('Failed to export report. Please try again.')
+      console.error("Export failed:", error);
+      alert("Failed to export report. Please try again.");
     } finally {
-      setIsExporting(false)
+      setIsExporting(false);
     }
-  }
+  };
 
   const handleRefresh = () => {
-    setRefreshing(true)
-    fetchReport()
-  }
+    setRefreshing(true);
+    fetchReport();
+  };
 
   const handleOrderClick = async (orderId: string) => {
-    setIsLoadingOrder(true)
-    setIsDialogOpen(true)
+    setIsLoadingOrder(true);
+    setIsDialogOpen(true);
     try {
-      const orderDetail = await revenueService.getRepairOrderDetail(orderId)
-      setSelectedOrder(orderDetail)
+      const orderDetail = await revenueService.getRepairOrderDetail(orderId);
+      setSelectedOrder(orderDetail);
     } catch (error) {
-      console.error('Failed to fetch order details:', error)
+      console.error("Failed to fetch order details:", error);
     } finally {
-      setIsLoadingOrder(false)
+      setIsLoadingOrder(false);
     }
-  }
+  };
 
   const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({
+    setExpandedSections((prev) => ({
       ...prev,
-      [section]: !prev[section]
-    }))
-  }
+      [section]: !prev[section],
+    }));
+  };
 
   // Loading state
   if (isLoading) {
@@ -306,7 +364,7 @@ export default function RevenuePage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   // Error state
@@ -314,11 +372,13 @@ export default function RevenuePage() {
     return (
       <div className="container mx-auto py-6">
         <div className="flex flex-col items-center justify-center h-96 space-y-4">
-          <div className="text-destructive text-lg">Failed to load revenue report</div>
+          <div className="text-destructive text-lg">
+            Failed to load revenue report
+          </div>
           <Button onClick={fetchReport}>Try Again</Button>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -328,7 +388,7 @@ export default function RevenuePage() {
         <div>
           <h1 className="text-3xl font-bold">Revenue Analytics Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            Comprehensive analysis of your garage's financial performance
+            {`Comprehensive analysis of your garage's financial performance`}
           </p>
         </div>
 
@@ -551,9 +611,18 @@ export default function RevenuePage() {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ serviceName, percentageOfTotal }) =>
-                          `${serviceName}: ${percentageOfTotal}%`
-                        }
+                        label={(props) => {
+                          // nếu dùng recharts: props.name hoặc props.payload?.serviceName
+                          const serviceName =
+                            (props as any).name ??
+                            (props as any).payload?.serviceName ??
+                            "Unknown";
+                          const percentage =
+                            typeof (props as any).percent === "number"
+                              ? Math.round((props as any).percent * 100)
+                              : (props as any).percentageOfTotal ?? 0;
+                          return `${serviceName}: ${percentage}%`;
+                        }}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="revenue"
@@ -708,9 +777,19 @@ export default function RevenuePage() {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ name, percentage }) =>
-                          `${name}: ${percentage}%`
-                        }
+                        // thay thế label={({ name, percentage }) => `${name}: ${percentage}%`}
+                        label={(props) => {
+                          const p = props as any; // tránh lỗi kiểu từ thư viện
+                          // nhiều lib chart expose .name, .percent, và .payload (original datum)
+                          const serviceName =
+                            p.name ?? p.payload?.serviceName ?? "Unknown";
+                          // percent thường là fraction (0..1) in recharts; nếu bạn stored percentageOfTotal in payload, fallback to it
+                          const percentage =
+                            typeof p.percent === "number"
+                              ? Math.round((p.percent ?? 0) * 100)
+                              : p.payload?.percentageOfTotal ?? 0;
+                          return `${serviceName}: ${percentage}%`;
+                        }}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="revenue"
