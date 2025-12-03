@@ -161,7 +161,7 @@ export interface ImportResult {
 class BranchService {
   private baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
   private dbUrl = '/data/db.json'
-   private getAuthToken(): string | null {
+  private getAuthToken(): string | null {
     return authService.getToken(); // CHỈ DÙNG GETTOKEN
   }
 
@@ -191,7 +191,7 @@ class BranchService {
       headers,
     });
 
-    // 401 → Try refresh token once
+    
     if (response.status === 401 && retryCount === 0) {
       try {
         await authService.handleTokenRefresh();
@@ -201,7 +201,7 @@ class BranchService {
       }
     }
 
-    // 403 → No permission
+    
     if (response.status === 403) {
       throw new Error("Access denied");
     }

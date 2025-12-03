@@ -10,6 +10,7 @@ export interface Permission {
   description: string;
   deprecated: boolean;
   isDefault: boolean;
+  isSystem: boolean;
 }
 
 export interface PermissionCategory {
@@ -107,7 +108,7 @@ class RoleService {
       headers,
     });
 
-    // 401 -> thử refresh token 1 lần
+    
     if (response.status === 401 && retryCount === 0) {
       try {
         await authService.handleTokenRefresh();
@@ -117,7 +118,7 @@ class RoleService {
       }
     }
 
-    // 403 -> không có quyền
+    
     if (response.status === 403) {
       if (typeof window !== "undefined") {
         window.location.href = "/access-denied";
@@ -127,12 +128,12 @@ class RoleService {
       );
     }
 
-    // 204 -> không có content
+    
     if (response.status === 204) {
       return null as T;
     }
 
-    // Các lỗi HTTP khác
+    
     if (!response.ok) {
       let errorMessage: string;
 
@@ -146,7 +147,7 @@ class RoleService {
       throw new Error(`API error ${response.status}: ${errorMessage}`);
     }
 
-    // Detect content-type
+    
     const contentType = response.headers.get("content-type");
 
     if (contentType && contentType.includes("application/json")) {

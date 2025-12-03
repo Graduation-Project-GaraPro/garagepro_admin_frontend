@@ -36,7 +36,7 @@ export class LocationService {
       return this.provinces
     } catch (err) {
       console.error('Failed to fetch provinces:', err)
-      // QUAN TRỌNG: đừng return [] nữa, để caller tự xử lý
+      
       throw err
     }
   }
@@ -64,7 +64,7 @@ export class LocationService {
       return filtered
     } catch (err) {
       console.error('Failed to fetch communes:', err)
-      // QUAN TRỌNG: rethrow
+      
       throw err
     }
   }

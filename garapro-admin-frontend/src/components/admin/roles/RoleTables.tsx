@@ -72,7 +72,7 @@ export const RoleTable = ({
           </TableCell>
           <TableCell>
             <div className="max-w-xs truncate" title={role.description}>
-              {role.description || 'No description'}
+              {role.description || "No description"}
             </div>
           </TableCell>
           <TableCell>
@@ -84,9 +84,9 @@ export const RoleTable = ({
           <TableCell>
             <div className="flex flex-wrap gap-1">
               {allPermissions.slice(0, 3).map((permission) => (
-                <Badge 
-                  key={permission.id} 
-                  variant="secondary" 
+                <Badge
+                  key={permission.id}
+                  variant="secondary"
                   className="text-xs"
                   title={permission.description}
                 >
@@ -131,15 +131,16 @@ export const RoleTable = ({
                   <Eye className="mr-2 h-4 w-4" />
                   View Details
                 </DropdownMenuItem>
-                {role.name.toLowerCase() !== 'customer' && ( <DropdownMenuItem onClick={() => handleEdit(role)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Role
-                </DropdownMenuItem>)}
-               
-               
+                {!["customer", "admin"].includes(role.name.toLowerCase()) && (
+                  <DropdownMenuItem onClick={() => handleEdit(role)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit Role
+                  </DropdownMenuItem>
+                )}
+
                 <DropdownMenuSeparator />
                 {!role.isDefault && (
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => handleDelete(role)}
                     className="text-red-600 focus:text-red-600"
                   >
@@ -151,7 +152,7 @@ export const RoleTable = ({
             </DropdownMenu>
           </TableCell>
         </TableRow>
-      )
+      );
     })
   , [roles, handleEdit, handleView, handleDelete])
 

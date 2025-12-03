@@ -50,12 +50,12 @@ class SecurityPolicyService {
 
   let response = await fetch(url, fetchOptions);
 
-  // Nếu token hết hạn, thử refresh token và gửi lại request
+  
   if (response.status === 401 && retryCount === 0) {
     try {
       const newToken = await authService.handleTokenRefresh();
       
-      // Cập nhật header với token mới
+      
       const retryHeaders = {
         ...headers,
         'Authorization': `Bearer ${newToken}`
