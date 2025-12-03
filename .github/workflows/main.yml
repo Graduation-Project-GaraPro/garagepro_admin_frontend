@@ -36,4 +36,4 @@ jobs:
           curl -sS -X POST "http://103.216.119.34:8000/api/v1/deploy?uuid=v8owg0s8ckckg0go8gwww00s&force=false" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"tag":"'"${{ github.sha }}"'"}'
+            -d '{}'
