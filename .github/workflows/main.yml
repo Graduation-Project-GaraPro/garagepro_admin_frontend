@@ -21,7 +21,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
-          context: ./garagepro_admin_frontend                       # thư mục chứa Dockerfile và source
+          context: .                      # thư mục chứa Dockerfile và source
           file: ./garapro-admin-frontend/Dockerfile                 # đường dẫn tới Dockerfile (đổi nếu Dockerfile trong subfolder)
           push: true
           tags: hoangminhcb/garapro-frontend-admin:${{ github.sha }}

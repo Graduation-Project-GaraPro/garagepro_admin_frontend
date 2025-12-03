@@ -11,7 +11,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package manifests for caching
-COPY package.json package-lock.json ./
+COPY package*.json ./
 
 # Install all deps including devDependencies (needed for building TS next.config, etc.)
 # trước khi chạy npm ci
