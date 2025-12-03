@@ -18,7 +18,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: ./garapro-admin-frontend
@@ -27,13 +27,13 @@ jobs:
           tags: |
             hoangminhfcb/garapro-frontend-admin:latest
             hoangminhfcb/garapro-frontend-admin:${{ github.sha }}
-
-      - name: Wait for registry (optional)
-        run: sleep 10
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
+            NEXT_PUBLIC_HUB_BASE_URL=${{ secrets.NEXT_PUBLIC_HUB_BASE_URL }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
 
       - name: Trigger Coolify deploy
         run: |
-          curl -sS -X POST "http://103.216.119.34:8000/api/v1/deploy?uuid=v8owg0s8ckckg0go8gwww00s&force=false" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d '{}'
+          curl -sS -X POST \
+            "http://103.216.119.34:8000/api/v1/deploy?uuid=v8owg0s8ckckg0go8gwww00s&force=true" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"

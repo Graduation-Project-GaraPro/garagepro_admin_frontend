@@ -1,15 +1,11 @@
 version: "3.8"
 services:
   web:
-    build:
-      context: .
-      target: runner
-      dockerfile: Dockerfile
-    image: garapro-frontend-admin:prod
+    image: hoangminhfcb/garapro-frontend-admin:latest
     ports:
       - "3000:3000"
     env_file:
-      - .env.production
+      - .env
     environment:
       - NODE_ENV=production
       - PORT=3000
