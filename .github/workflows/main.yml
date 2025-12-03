@@ -18,6 +18,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Create .env.production
+        run: |
+          cat > garapro-admin-frontend/.env.production <<EOF
+          NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
+          NEXT_PUBLIC_HUB_BASE_URL=${{ secrets.NEXT_PUBLIC_HUB_BASE_URL }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          EOF
+
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
