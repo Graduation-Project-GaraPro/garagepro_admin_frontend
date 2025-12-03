@@ -1,7 +1,10 @@
 name: Build Push & Trigger Coolify
+
 on:
   push:
-    branches: [ deploy1 ]
+    branches:
+      - deploy
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -18,6 +21,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
+          context: ./garapro-admin-frontend                        # thư mục chứa Dockerfile và source
+          file: ./Dockerfile                 # đường dẫn tới Dockerfile (đổi nếu Dockerfile trong subfolder)
           push: true
           tags: hoangminhcb/garapro-frontend-admin:${{ github.sha }}
 
