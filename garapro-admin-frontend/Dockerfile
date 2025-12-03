@@ -20,8 +20,19 @@ RUN npm config set registry https://registry.npmjs.org/ \
     && npm config set fetch-retry-factor 10 \
     && npm config set fetch-retry-mintimeout 20000 \
     && npm config set fetch-retry-maxtimeout 120000
-RUN npm ci
+#RUN npm ci
+# Install all deps including devDependencies (needed for building)
+RUN npm config set registry https://registry.npmjs.org/ \
+    && npm config set fetch-retries 5 \
+    && npm config set fetch-retry-factor 10 \
+    && npm config set fetch-retry-mintimeout 20000 \
+    && npm config set fetch-retry-maxtimeout 120000
 
+# debug-friendly npm ci: in log khi fail
+RUN npm ci --verbose || (echo "=== NPM CI FAILED - DUMP LOGS ===" && \
+    ls -la /root/.npm/_logs || true && \
+    cat /root/.npm/_logs/*-debug-*.log || true && \
+    echo "=== END LOGS ===" && false)
 
 # Copy source
 COPY . .
