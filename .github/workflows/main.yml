@@ -21,10 +21,12 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
-          context: ./garapro-admin-frontend                      # thư mục chứa Dockerfile và source
-          file: ./garapro-admin-frontend/Dockerfile                 # đường dẫn tới Dockerfile (đổi nếu Dockerfile trong subfolder)
+          context: ./garapro-admin-frontend
+          file: ./garapro-admin-frontend/Dockerfile
           push: true
-          tags: hoangminhfcb/garapro-frontend-admin:${{ github.sha }}
+          tags: |
+            hoangminhfcb/garapro-frontend-admin:latest
+            hoangminhfcb/garapro-frontend-admin:${{ github.sha }}
 
       - name: Wait for registry (optional)
         run: sleep 10
