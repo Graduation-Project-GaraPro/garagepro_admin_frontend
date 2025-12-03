@@ -87,7 +87,7 @@ export class LogService {
       },
     });
 
-    // 401: token hết hạn -> refresh 1 lần rồi retry
+    
     if (response.status === 401 && retryCount === 0) {
       try {
         await authService.handleTokenRefresh();
@@ -97,7 +97,7 @@ export class LogService {
       }
     }
 
-    // 403: không có quyền
+    
     if (response.status === 403) {
       if (typeof window !== "undefined") {
         window.location.href = "/access-denied";
@@ -107,7 +107,7 @@ export class LogService {
       );
     }
 
-    // Các lỗi HTTP khác
+    
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(
@@ -119,7 +119,7 @@ export class LogService {
   } catch (error: any) {
     const msg = error?.message || "";
 
-    // Lỗi mạng / HTTP2 / stream reset -> retry
+    
     const isNetworkError =
       msg.includes("Failed to fetch") ||
       msg.includes("NetworkError") ||

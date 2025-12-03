@@ -231,7 +231,7 @@ private async authenticatedFetch(
       }
     }
 
-    // 403 -> không có quyền
+    
     if (response.status === 403) {
       if (typeof window !== "undefined") {
         window.location.href = "/access-denied";
@@ -239,7 +239,7 @@ private async authenticatedFetch(
       throw new Error("Access denied: You do not have permission to access this resource.");
     }
 
-    // Các case status khác nhưng không ok
+    
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `HTTP error! status: ${response.status}`;
@@ -261,7 +261,7 @@ private async authenticatedFetch(
   } catch (error: any) {
     const msg = error?.message || "";
 
-    // Nhận diện lỗi mạng / HTTP2 / stream reset để retry
+    
     const isNetworkError =
       msg.includes("Failed to fetch") ||
       msg.includes("NetworkError") ||
