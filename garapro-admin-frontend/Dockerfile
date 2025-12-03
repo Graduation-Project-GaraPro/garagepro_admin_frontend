@@ -11,7 +11,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy lockfiles/manifests for caching. includes yarn.lock if present.
-COPY package*.json yarn.lock* ./
+COPY package*.json yarn.lock* ./garapro-admin-frontend
 
 # Configure npm resilience
 RUN npm config set registry https://registry.npmjs.org/ \
