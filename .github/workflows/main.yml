@@ -3,7 +3,7 @@ name: Build Push & Trigger Coolify
 on:
   push:
     branches:
-      - deploy
+      - deploy1
   workflow_dispatch:
 
 jobs:
