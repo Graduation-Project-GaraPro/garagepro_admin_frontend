@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +26,6 @@ jobs:
           NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           EOF
 
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
@@ -40,9 +39,61 @@ jobs:
             NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
             NEXT_PUBLIC_HUB_BASE_URL=${{ secrets.NEXT_PUBLIC_HUB_BASE_URL }}
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            
+  deploy:
+    name: Deploy to VPS
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 24700 }}
+          script: |
+            echo "🚀 Starting deployment..."
+            
+            cd ${{ secrets.VPS_PROJECT_PATH || '/deploy/fe-admin' }}
 
-      - name: Trigger Coolify deploy
-        run: |
-          curl -sS -X POST \
-            "http://103.216.119.34:8000/api/v1/deploy?uuid=v8owg0s8ckckg0go8gwww00s&force=true" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}"
+            echo "🛑 Stopping existing container..."
+            docker compose down || true
+
+            echo "🗑️ Removing old image..."
+            docker rmi hoangminhfcb/garapro-frontend-admin:latest || true
+
+            echo "⬇️ Pulling latest image..."
+            docker pull hoangminhfcb/garapro-frontend-admin:latest
+
+            echo "🔄 Starting container..."
+            docker compose up -d --force-recreate
+
+            echo "🧹 Cleaning unused images..."
+            docker image prune -af || true
+
+            echo "📊 Final container status:"
+            docker compose ps
+
+            echo "📝 Recent logs:"
+            docker compose logs --tail=50 web
+
+      - name: Verify Deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            cd ${{ secrets.VPS_PROJECT_PATH || '/deploy/fe-admin' }}
+            
+            if docker compose ps | grep -q "web.*Up"; then
+              echo "✅ Frontend admin is running!"
+              exit 0
+            else
+              echo "❌ Deployment failed!"
+              docker compose logs web
+              exit 1
+            fi
