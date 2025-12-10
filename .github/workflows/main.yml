@@ -39,7 +39,7 @@ jobs:
             NEXT_PUBLIC_API_BASE_URL=${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
             NEXT_PUBLIC_HUB_BASE_URL=${{ secrets.NEXT_PUBLIC_HUB_BASE_URL }}
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
-            
+
   deploy:
     name: Deploy to VPS
     needs: build-and-push
@@ -56,7 +56,7 @@ jobs:
           script: |
             echo "🚀 Starting deployment..."
             
-            cd ${{ secrets.VPS_PROJECT_PATH || '/deploy/fe-admin' }}
+            cd ${{ secrets.VPS_PROJECT_PATH || '~/deploy/fe-admin' }}
 
             echo "🛑 Stopping existing container..."
             docker compose down || true
@@ -87,7 +87,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || 22 }}
           script: |
-            cd ${{ secrets.VPS_PROJECT_PATH || '/deploy/fe-admin' }}
+            cd ${{ secrets.VPS_PROJECT_PATH || '~/deploy/fe-admin' }}
             
             if docker compose ps | grep -q "web.*Up"; then
               echo "✅ Frontend admin is running!"
