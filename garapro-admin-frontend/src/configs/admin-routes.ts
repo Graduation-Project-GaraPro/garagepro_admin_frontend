@@ -112,6 +112,12 @@ export const adminMenuItems: AdminMenuItem[] = [
         showInMenu: true,
       },
       {
+        title: "Feedback Reports",
+        href: "/admin/statistics/feedback",
+        requiredPermissions: ["VIEW_STAT"],
+        showInMenu: true,
+      },
+      {
         title: "Revenue Reports",
         href: "/admin/financial-reports",
         requiredPermissions: ["VIEW_STAT"],

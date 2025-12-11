@@ -36,7 +36,7 @@ export default function TotalBranchCard() {
   return (
     <Card className="relative overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">Garage Partners</CardTitle>
+        <CardTitle className="text-sm font-medium">Garage Branches</CardTitle>
         <div className="p-2 rounded-full bg-purple-50">
           <Building2 className="h-4 w-4 text-purple-600" />
         </div>
