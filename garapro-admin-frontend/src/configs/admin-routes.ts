@@ -1,4 +1,3 @@
-
 // configs/admin-routes.ts
 import React from "react";
 import {
@@ -107,14 +106,7 @@ export const adminMenuItems: AdminMenuItem[] = [
     showInMenu: true,
     submenu: [
       {
-        title: "Overview",
-        href: "/admin/statistics",
-        requiredPermissions: ["VIEW_STAT"],
-        showInMenu: true,
-      },
-
-      {
-        title: "Real-time Analytics",
+        title: "Overview Statistics",
         href: "/admin/statistics/realtime",
         requiredPermissions: ["VIEW_STAT"],
         showInMenu: true,

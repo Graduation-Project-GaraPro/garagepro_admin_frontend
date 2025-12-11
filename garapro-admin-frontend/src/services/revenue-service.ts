@@ -25,7 +25,7 @@ export interface TopService {
   orderCount: number;
   percentageOfTotal: number;
 
-  [key: string]: string | number; 
+  [key: string]: string | number;
 }
 
 export interface TaskContribution {
@@ -62,7 +62,7 @@ export interface ServiceCategory {
   name: string;
   revenue: number;
   percentage: number;
-  [key: string]: string | number; 
+  [key: string]: string | number;
 }
 
 export interface ServiceTrend {
@@ -82,6 +82,7 @@ export interface RepairOrderItem {
   technician?: string;
   amount?: number;
   status?: string;
+  paidStatus?: number;
   note?: string;
 }
 
@@ -310,13 +311,14 @@ class RevenueService {
                 o.status ||
                 ""
               ).toString(),
+              paidStatus: Number(o.paidStatus || 0),
               note: o.note,
             };
           } catch (err) {
             console.error("Error mapping order:", o, err);
             return {
-                    id: "",
-                  } satisfies RepairOrderItem;
+              id: "",
+            } satisfies RepairOrderItem;
           }
         })
         .filter(Boolean); // Remove null entries
