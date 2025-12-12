@@ -58,27 +58,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!isAuthenticated) return null;
 
   const LayoutShell = (content: React.ReactNode) => (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        <AdminSidebar
-          collapsed={sidebarCollapsed}
-          mobileOpen={mobileSidebarOpen}
-          onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
-          onCloseMobile={() => setMobileSidebarOpen(false)}
-        />
+  <div className="min-h-dvh bg-gray-50">
+    {/* Sidebar (fixed) */}
+    <AdminSidebar
+      collapsed={sidebarCollapsed}
+      mobileOpen={mobileSidebarOpen}
+      onToggleCollapse={() => setSidebarCollapsed((v) => !v)}
+      onCloseMobile={() => setMobileSidebarOpen(false)}
+    />
 
-        {/* Main */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <AdminHeader
-            // thêm props nếu bạn muốn header có nút mở sidebar mobile/collapse
-            onOpenSidebar={() => setMobileSidebarOpen(true)}
-            onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
-          />
-          <main className="flex-1 p-4 sm:p-6">{content}</main>
-        </div>
-      </div>
+    {/* Main: chừa chỗ cho sidebar ở desktop */}
+    <div
+      className={[
+        "min-w-0 flex flex-col",
+        sidebarCollapsed ? "md:pl-16" : "md:pl-64",
+      ].join(" ")}
+    >
+      <AdminHeader
+        onOpenSidebar={() => setMobileSidebarOpen(true)}
+        onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
+      />
+      <main className="flex-1 p-4 sm:p-6">{content}</main>
     </div>
-  );
+  </div>
+);
+
 
   if (isAdminRoute && permLoaded && !hasAccess) {
     return LayoutShell(<AccessDenied />);

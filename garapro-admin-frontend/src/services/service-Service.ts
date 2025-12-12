@@ -4,6 +4,7 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api';
 
 import { authService } from '@/services/authService';
+import { da } from 'date-fns/locale';
 
 // =======================
 // Domain Types
@@ -442,7 +443,8 @@ export const serviceService = {
       const response = await authenticatedFetch(
         `${API_BASE_URL}/ServiceCategories/parents`
       );
-      return response.json();
+      
+      return await response.json();
     } catch (error) {
       console.error('Error fetching parent categories:', error);
       throw error;
@@ -480,11 +482,12 @@ export const serviceService = {
   async getPartCategories(): Promise<PartCategory[]> {
     try {
       const response = await authenticatedFetch(
-        `${API_BASE_URL}/PartCategories`
+        `${API_BASE_URL}/PartCategories/for-service`
       );
 
       const data: ApiPartCategory[] = await response.json();
 
+      console.log("PartCate", data)
       return data.map(
         (category): PartCategory => ({
           partCategoryId: category.partCategoryId,

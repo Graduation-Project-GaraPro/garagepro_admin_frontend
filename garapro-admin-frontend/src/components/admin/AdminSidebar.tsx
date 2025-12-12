@@ -73,7 +73,7 @@ export function AdminSidebar({
   const SidebarContent = (
     <div
       className={cn(
-        'bg-white border-r border-gray-200 flex flex-col h-screen',
+        'bg-white border-r border-gray-200 flex flex-col h-dvh',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
@@ -114,7 +114,7 @@ export function AdminSidebar({
         </div>
       </div>
 
-      <nav className={cn('flex-1 p-3 space-y-2', collapsed && 'px-2')}>
+      <nav className={cn('flex-1 p-3 space-y-2 overflow-y-auto', collapsed && 'px-2')}>
         {adminMenuItems.map((item) => {
           if (item.showInMenu === false) return null
           if (item.requiredPermissions && !hasAnyPermission(...item.requiredPermissions)) {
@@ -231,7 +231,14 @@ export function AdminSidebar({
   return (
     <>
       {/* Desktop */}
-      <div className="hidden md:block sticky top-0">{SidebarContent}</div>
+      <div
+      className={cn(
+        "hidden md:block fixed left-0 top-0 z-40",
+        collapsed ? "w-16" : "w-64"
+      )}
+    >
+      {SidebarContent}
+    </div>
 
       {/* Mobile Drawer */}
       <div
