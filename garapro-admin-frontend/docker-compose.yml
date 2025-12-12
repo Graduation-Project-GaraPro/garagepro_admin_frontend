@@ -1,17 +1,15 @@
-version: "3.8"
 services:
   web:
-    image: hoangminhfcb/garapro-frontend-admin:latest
-    ports:
-      - "3000:3000"
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+        NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
+        NEXT_PUBLIC_HUB_BASE_URL: ${NEXT_PUBLIC_HUB_BASE_URL}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+    image: garapro-frontend-admin:latest
     env_file:
       - .env
-    environment:
-      - NODE_ENV=production
-      - PORT=3000
+    ports:
+      - "3000:3000"
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 512M
