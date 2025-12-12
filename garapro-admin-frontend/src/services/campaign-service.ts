@@ -250,6 +250,7 @@ private async authenticatedFetch(
           (errorData.message
             ? errorData.message + (errorData.detail ? " " + errorData.detail : "")
             : errorData.error) || errorMessage;
+        console.log("error", errorMessage)
       } catch {
         errorMessage = errorText || errorMessage;
       }

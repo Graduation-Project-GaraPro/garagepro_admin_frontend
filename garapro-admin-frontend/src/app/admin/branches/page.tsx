@@ -263,53 +263,69 @@ export default function BranchesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Garage Branches</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Garage Branches
+          </h1>
           <p className="text-muted-foreground">
             Manage multiple branches with their own locations, services, and
             staff
           </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-end">
           {selectedIds.length > 0 && (
-            <>
+            <div className="flex flex-wrap items-center gap-2">
               {canToggle && (
                 <>
-                  <Button variant="outline" onClick={bulkActivate}>
+                  <Button
+                    className="w-full sm:w-auto"
+                    variant="outline"
+                    onClick={bulkActivate}
+                  >
                     <Play className="mr-1 h-4 w-4" /> Activate (
                     {selectedIds.length})
                   </Button>
-
-                  <Button variant="outline" onClick={bulkDeactivate}>
+                  <Button
+                    className="w-full sm:w-auto"
+                    variant="outline"
+                    onClick={bulkDeactivate}
+                  >
                     <Pause className="mr-1 h-4 w-4" /> Deactivate (
                     {selectedIds.length})
                   </Button>
                 </>
               )}
-
               {canDelete && (
-                <Button variant="destructive" onClick={bulkDelete}>
+                <Button
+                  className="w-full sm:w-auto"
+                  variant="destructive"
+                  onClick={bulkDelete}
+                >
                   Delete ({selectedIds.length})
                 </Button>
               )}
-
-              <div className="w-px h-6 bg-gray-200 mx-1" />
-            </>
+              <div className="hidden sm:block w-px h-6 bg-gray-200 mx-1" />
+            </div>
           )}
 
-          <Link href="/admin/branches/import">
-            <Button variant="outline">Import Master Data</Button>
-          </Link>
-
-          {canCreate && (
-            <Link href="/admin/branches/create">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Branch
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Link href="/admin/branches/import">
+              <Button className="w-full sm:w-auto" variant="outline">
+                Import Master Data
               </Button>
             </Link>
-          )}
+
+            {canCreate && (
+              <Link href="/admin/branches/create">
+                <Button className="w-full sm:w-auto">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Branch
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
       </div>
 
@@ -410,50 +426,46 @@ export default function BranchesPage() {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Input
-                placeholder="Search branches by name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-              />
-            </div>
-            <Select
-              value={cityFilter || "all"}
-              onValueChange={(v) => setCityFilter(v === "all" ? "" : v)}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Cities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Cities</SelectItem>
-                {uniqueCities.map((city) => (
-                  <SelectItem key={city} value={city}>
-                    {city}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={statusFilter || "all"}
-              onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={handleSearch}>
-              <Search className="mr-2 h-4 w-4" />
-              Search
-            </Button>
+        <div className="flex flex-col lg:flex-row gap-3 lg:gap-4">
+          <div className="flex-1">
+            <Input
+              placeholder="Search branches by name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            />
           </div>
-        </CardContent>
+
+          <Select value={cityFilter || "all"} onValueChange={(v) => setCityFilter(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-full lg:w-48">
+              <SelectValue placeholder="All Cities" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Cities</SelectItem>
+              {uniqueCities.map((city) => (
+                <SelectItem key={city} value={city}>{city}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-full lg:w-48">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button className="w-full lg:w-auto" onClick={handleSearch}>
+            <Search className="mr-2 h-4 w-4" />
+            Search
+          </Button>
+        </div>
+      </CardContent>
+
       </Card>
 
       {/* Branches Table */}
@@ -632,68 +644,71 @@ export default function BranchesPage() {
                       <TableCell>{getStatusBadge(branch.isActive)}</TableCell>
 
                       <TableCell className="text-right">
-  <DropdownMenu>
-    <DropdownMenuTrigger asChild>
-      <Button variant="ghost" size="sm">
-        <MoreHorizontal className="h-4 w-4" />
-      </Button>
-    </DropdownMenuTrigger>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
 
-    <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuContent align="end" className="w-40">
+                            {/* View */}
+                            <DropdownMenuItem asChild>
+                              <Link href={`/admin/branches/${branch.branchId}`}>
+                                <div className="flex items-center gap-2">
+                                  <Eye className="h-4 w-4" /> View
+                                </div>
+                              </Link>
+                            </DropdownMenuItem>
 
-      {/* View */}
-      <DropdownMenuItem asChild>
-        <Link href={`/admin/branches/${branch.branchId}`}>
-          <div className="flex items-center gap-2">
-            <Eye className="h-4 w-4" /> View
-          </div>
-        </Link>
-      </DropdownMenuItem>
+                            {/* Edit */}
+                            {canEdit && (
+                              <DropdownMenuItem asChild>
+                                <Link
+                                  href={`/admin/branches/${branch.branchId}/edit`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Edit className="h-4 w-4" /> Edit
+                                  </div>
+                                </Link>
+                              </DropdownMenuItem>
+                            )}
 
-      {/* Edit */}
-      {canEdit && (
-        <DropdownMenuItem asChild>
-          <Link href={`/admin/branches/${branch.branchId}/edit`}>
-            <div className="flex items-center gap-2">
-              <Edit className="h-4 w-4" /> Edit
-            </div>
-          </Link>
-        </DropdownMenuItem>
-      )}
+                            {/* Toggle Status */}
+                            {canToggle && (
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleStatusToggle(
+                                    branch.branchId,
+                                    branch.isActive
+                                  )
+                                }
+                              >
+                                <div className="flex items-center gap-2">
+                                  {branch.isActive ? (
+                                    <Pause className="h-4 w-4" />
+                                  ) : (
+                                    <Play className="h-4 w-4" />
+                                  )}
+                                  {branch.isActive ? "Deactivate" : "Activate"}
+                                </div>
+                              </DropdownMenuItem>
+                            )}
 
-      {/* Toggle Status */}
-      {canToggle && (
-        <DropdownMenuItem
-          onClick={() =>
-            handleStatusToggle(branch.branchId, branch.isActive)
-          }
-        >
-          <div className="flex items-center gap-2">
-            {branch.isActive ? (
-              <Pause className="h-4 w-4" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-            {branch.isActive ? "Deactivate" : "Activate"}
-          </div>
-        </DropdownMenuItem>
-      )}
-
-      {/* Delete */}
-      {canDelete && (
-        <DropdownMenuItem
-          className="text-red-600 focus:text-red-600"
-          onClick={() => handleDelete(branch.branchId)}
-        >
-          <div className="flex items-center gap-2">
-            <Trash2 className="h-4 w-4" /> Delete
-          </div>
-        </DropdownMenuItem>
-      )}
-    </DropdownMenuContent>
-  </DropdownMenu>
-</TableCell>
-
+                            {/* Delete */}
+                            {canDelete && (
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600"
+                                onClick={() => handleDelete(branch.branchId)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Trash2 className="h-4 w-4" /> Delete
+                                </div>
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -701,8 +716,6 @@ export default function BranchesPage() {
 
               {/* Pagination */}
               <div className="flex items-center justify-between mt-6">
-                
-                
                 <div className="text-sm text-muted-foreground">
                   Page {currentPage} of {totalPages}
                 </div>

@@ -208,13 +208,19 @@ class BranchService {
 
     // API error but not network error
     if (!response.ok) {
-      const text = await response.text();
+      const errorText = await response.text();
+      let errorMessage = `HTTP error! status: ${response.status}`;
       try {
-        const data = JSON.parse(text);
-        throw new Error(data.message || data.error || text);
+        const errorData = JSON.parse(errorText);
+        errorMessage =
+          (errorData.message
+            ? errorData.message + (errorData.detail ? " " + errorData.detail : "")
+            : errorData.error) || errorMessage;
+        console.log("error", errorMessage)
       } catch {
-        throw new Error(text || `HTTP Error ${response.status}`);
+        errorMessage = errorText || errorMessage;
       }
+      throw new Error(errorMessage);
     }
 
     // 204 No Content
