@@ -38,7 +38,7 @@ function CategorySelector({
   const subSelected = availableSubCategories.find(
     (s: any) => s.serviceCategoryId === selectedSubCategory
   );
-console.log("categgvo")
+console.log("categgvo", serviceCategories)
   return (
     <Card>
       <CardHeader>

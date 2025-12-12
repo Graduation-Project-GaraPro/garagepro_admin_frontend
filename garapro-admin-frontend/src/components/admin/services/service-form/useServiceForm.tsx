@@ -21,6 +21,7 @@ export type Touched = {
   durationEstimate: boolean;
   description: boolean;
 };
+
 export const useServiceForm = (service?: Service) => {
   const router = useRouter();
   const [serviceCategories, setServiceCategories] = useState<any[]>([]);
@@ -31,10 +32,8 @@ export const useServiceForm = (service?: Service) => {
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  // const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const [selectedPartCategoryIds, setSelectedPartCategoryIds] = useState<string[]>(
-  // nếu service đang edit có sẵn categoryIds thì dùng, không thì []
     (service as any)?.partCategoryIds ?? []
   );
 
@@ -48,9 +47,7 @@ export const useServiceForm = (service?: Service) => {
   const [selectedParentCategory, setSelectedParentCategory] = useState<string>(
     () => {
       const st = service?.serviceType;
-      // nếu có parentServiceCategoryId => parent là category cha
       if (st?.parentServiceCategoryId) return st.parentServiceCategoryId;
-      // nếu không có => serviceType chính là parent (nút lá)
       if (st?.id) return st.id;
       return "";
     }
@@ -58,19 +55,15 @@ export const useServiceForm = (service?: Service) => {
 
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>(() => {
     const st = service?.serviceType;
-    // nếu có parent => sub ban đầu là chính serviceTypeId
     if (st?.parentServiceCategoryId && st?.id) return st.id;
-    // nếu không có parent => parent là lá, sub để rỗng
     return "";
   });
 
-  // ===== constants & helpers =====
   const NAME_MIN = 3;
   const NAME_MAX = 100;
   const DESC_MIN = 10;
   const DESC_MAX = 500;
 
-  // form
   const [formData, setFormData] = useState({
     name: service?.name || "",
     description: service?.description || "",
@@ -85,6 +78,7 @@ export const useServiceForm = (service?: Service) => {
   const [basePriceInput, setBasePriceInput] = useState(
     service?.basePrice ? formatNumber(service.basePrice) : ""
   );
+
   const [touched, setTouched] = useState<Touched>({
     name: false,
     serviceType: false,
@@ -93,7 +87,7 @@ export const useServiceForm = (service?: Service) => {
     durationEstimate: false,
     description: false,
   });
-  // derived
+
   const availableSubCategories = useMemo(() => {
     const parent = serviceCategories.find(
       (c) => c.serviceCategoryId === selectedParentCategory
@@ -101,25 +95,16 @@ export const useServiceForm = (service?: Service) => {
     return parent?.childCategories ?? [];
   }, [serviceCategories, selectedParentCategory]);
 
-  
-
-  
-
-  
-  
-
-  // validation
   const inRange = (n: number, min: number, max: number) => n >= min && n <= max;
+
   const hasSubChoice = (
     subs: Array<{ serviceCategoryId: string }>,
     id?: string
   ) => !!id && subs.some((s) => s.serviceCategoryId === id);
 
-  // ===== derived lengths (đã trim để tránh tên toàn space) =====
   const nameLen = formData.name.trim().length;
   const descLen = formData.description.trim().length;
 
-  // ===== memo hóa validation =====
   const { isNameValid, isDescriptionValid, mustChooseSub, hasValidCategory } =
     useMemo(() => {
       const mustChoose = availableSubCategories.length > 0;
@@ -149,7 +134,6 @@ export const useServiceForm = (service?: Service) => {
     formData.basePrice < 1000 ||
     (selectedParentCategory && availableSubCategories.length === 0);
 
-  // effects: load once
   useEffect(() => {
     const load = async () => {
       try {
@@ -177,27 +161,21 @@ export const useServiceForm = (service?: Service) => {
     load();
   }, []);
 
-  // initialize category from service after categories loaded
-  //  luôn reset sub + serviceTypeId khi parent đổi
   useEffect(() => {
     if (!categoriesLoaded) return;
     if (!initSubDoneRef.current) return;
 
     setSelectedSubCategory("");
 
-    // kiểm tra sub
     const parent = serviceCategories.find(
       (c) => c.serviceCategoryId === selectedParentCategory
     );
     const hasSubs = !!parent?.childCategories?.length;
 
-    // luôn clear serviceTypeId (chỉ gán khi có sub được chọn)
     setFormData((p) => ({ ...p, serviceTypeId: "" }));
 
-    // nếu parent không có sub -> báo lỗi & vẫn không cho submit
     if (!hasSubs && selectedParentCategory) {
       setTouched((t) => ({ ...t, serviceType: true }));
-      // có thể toast ở đây nếu muốn:
       toast.error(
         "This category has no sub-categories. Please choose another main category."
       );
@@ -205,11 +183,8 @@ export const useServiceForm = (service?: Service) => {
   }, [selectedParentCategory, categoriesLoaded, serviceCategories]);
 
   useEffect(() => {
-    // Chưa load xong data thì thôi
     if (!categoriesLoaded) return;
-    // Chưa init parent xong thì đừng đụng
     if (!initParentDoneRef.current) return;
-    // Chưa init sub xong (Bước 2) thì đừng clear, tránh tranh chấp
     if (!initSubDoneRef.current) return;
 
     if (
@@ -221,7 +196,7 @@ export const useServiceForm = (service?: Service) => {
       setSelectedSubCategory("");
     }
   }, [categoriesLoaded, availableSubCategories, selectedSubCategory]);
-  // Bước 1: set parent khi load xong categories
+
   useEffect(() => {
     if (initParentDoneRef.current) return;
     if (!categoriesLoaded || !service?.serviceType) return;
@@ -231,37 +206,31 @@ export const useServiceForm = (service?: Service) => {
 
     initParentDoneRef.current = true;
   }, [categoriesLoaded, service]);
-  // Bước 2: khi sub list sẵn sàng, set sub nếu tồn tại
+
   useEffect(() => {
     if (!initSubDoneRef.current) return;
-    console.log("target");
 
     if (!service?.serviceType?.id || !selectedParentCategory) return;
     const targetSubId = service.serviceType.id;
-    console.log("target", targetSubId);
 
     const existsInSubs = availableSubCategories.some(
       (s: ServiceCategory) => s.serviceCategoryId === targetSubId
     );
 
-    // Chỉ đánh dấu done khi đã tính được sublist (kể cả trống)
     if (existsInSubs) {
       setSelectedSubCategory(targetSubId);
       initSubDoneRef.current = true;
     } else if (!availableSubCategories.length) {
-      // parent là lá
       setSelectedSubCategory("");
       initSubDoneRef.current = true;
     }
   }, [availableSubCategories, selectedParentCategory, service]);
 
-  // write serviceTypeId depending on chosen level
-  // ✅ ghi serviceTypeId chỉ từ lá (sub) hoặc parent-lá
   useEffect(() => {
     const validSub =
       selectedSubCategory &&
       availableSubCategories.some(
-        (s : ServiceCategory) => s.serviceCategoryId === selectedSubCategory
+        (s: ServiceCategory) => s.serviceCategoryId === selectedSubCategory
       );
 
     setFormData((p) => ({
@@ -270,60 +239,47 @@ export const useServiceForm = (service?: Service) => {
     }));
   }, [selectedSubCategory, availableSubCategories]);
 
-  // handlers
   const markTouched = useCallback(
     (k: keyof Touched) => setTouched((t) => ({ ...t, [k]: true })),
     []
   );
 
-const filteredPartCategories = useMemo(
-  () => {
+  const filteredPartCategories = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return partCategories;
     return partCategories.filter((cat) =>
       cat.categoryName.toLowerCase().includes(term)
     );
-  },
-  [partCategories, searchTerm]
-);
+  }, [partCategories, searchTerm]);
 
-//  toggle chọn / bỏ chọn PartCategory
-const togglePartCategory = useCallback(
-  (id: string) => {
-    setSelectedPartCategoryIds((prev) => {
-      if (formData.isAdvanced) {
-        //  Advanced: cho chọn nhiều
-        return prev.includes(id)
-          ? prev.filter((x) => x !== id)
-          : [...prev, id];
-      }
+  const togglePartCategory = useCallback(
+    (id: string) => {
+      setSelectedPartCategoryIds((prev) => {
+        if (formData.isAdvanced) {
+          return prev.includes(id)
+            ? prev.filter((x) => x !== id)
+            : [...prev, id];
+        }
 
-      //  Không advanced: chỉ 1 category
-      if (prev.includes(id)) {
-        // click lại cái đang chọn -> bỏ chọn hết
-        return [];
-      }
-      // chọn mới -> chỉ giữ đúng id này
-      return [id];
-    });
-  },
-  [formData.isAdvanced]
-);
+        if (prev.includes(id)) {
+          return [];
+        }
+        return [id];
+      });
+    },
+    [formData.isAdvanced]
+  );
 
-useEffect(() => {
-  if (!formData.isAdvanced && selectedPartCategoryIds.length > 1) {
-    setSelectedPartCategoryIds((prev) => (prev.length ? [prev[0]] : []));
-  }
-}, [formData.isAdvanced, selectedPartCategoryIds.length]);
+  useEffect(() => {
+    if (!formData.isAdvanced && selectedPartCategoryIds.length > 1) {
+      setSelectedPartCategoryIds((prev) => (prev.length ? [prev[0]] : []));
+    }
+  }, [formData.isAdvanced, selectedPartCategoryIds.length]);
 
-
-//  clear chỉ search, không còn filter category nữa
-const clearSearch = useCallback(() => {
-  setSearchTerm("");
-  toast.info("Filters cleared");
-}, []);
-
-
+  const clearSearch = useCallback(() => {
+    setSearchTerm("");
+    toast.info("Filters cleared");
+  }, []);
 
   const toggleBranch = useCallback(
     (branchId: string) => {
@@ -337,8 +293,6 @@ const clearSearch = useCallback(() => {
     },
     [formData.branchIds]
   );
-
-  
 
   const handleBasePriceChange = (value: string) => {
     const raw = value.replace(/\./g, "");
@@ -403,14 +357,14 @@ const clearSearch = useCallback(() => {
       setIsSubmitting(false);
     }
   };
+
   return {
-    // data
     serviceCategories,
     partCategories,
     branches,
     isLoading,
     isSubmitting,
-    // form state
+
     formData,
     setFormData,
     touched,
@@ -418,32 +372,29 @@ const clearSearch = useCallback(() => {
     basePriceInput,
     handleBasePriceChange,
     handleBasePriceBlur,
-    // category selection
+
     selectedParentCategory,
     setSelectedParentCategory,
     selectedSubCategory,
     setSelectedSubCategory,
     availableSubCategories,
-    // parts
+
     searchTerm,
     setSearchTerm,
-    
     filteredPartCategories,
     selectedPartCategoryIds,
     togglePartCategory,
-
     clearSearch,
-    // validations
+
     isDescriptionValid,
     isNameValid,
     hasValidCategory,
     isSubmitDisabled,
-    // helpers
+
     formatCurrency,
     formatNumber,
-    // branches
+
     toggleBranch,
-    // actions
     submit,
   };
 };

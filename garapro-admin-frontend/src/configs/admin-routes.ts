@@ -303,11 +303,11 @@ export const routePermissionRules: RoutePermissionRule[] = [
     pattern: /^\/admin\/services\/?$/,
     permissions: ["SERVICE_VIEW"],
   },
-  // CREATE  /admin/services/new/[id]
+  // CREATE  /admin/services/new
   {
-    pattern: /^\/admin\/services\/new\/?$/,
-    permissions: ["SERVICE_CREATE"],
-  },
+  pattern: /^\/admin\/services\/new\/?$/,
+  permissions: ["SERVICE_CREATE"],
+  } ,
   // EDIT  /admin/services/edit/[id]
   {
     pattern: /^\/admin\/services\/edit\/[^\/]+\/?$/,
