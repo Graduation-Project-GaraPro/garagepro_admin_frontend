@@ -19,8 +19,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OtoGarage",
-  description: "OtoGarage Management System",
+  title: "GaragePro",
+  icons: {
+    icon: "/gr_logo.png",
+  },
 };
 
 export default function RootLayout({
