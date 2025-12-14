@@ -11,8 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"; // ví dụ Modal from shadcn/ui
-import { Loader2 } from "lucide-react";
+} from "@/components/ui/dialog";
+import { Loader2, Star, Calendar, TrendingUp, Filter } from "lucide-react";
 import { apiClient } from "@/services/api-client";
 
 interface Feedback {
@@ -32,7 +32,7 @@ export default function FeedbackPage() {
 
   // FILTER / SORT / PAGINATION
   const [filterRating, setFilterRating] = useState<number | "">("");
-  const [filterFromDate, setFilterFromDate] = useState<string>(""); // yyyy-mm-dd
+  const [filterFromDate, setFilterFromDate] = useState<string>("");
   const [filterToDate, setFilterToDate] = useState<string>("");
 
   const [sortBy, setSortBy] = useState<"createdAt" | "rating">("createdAt");
@@ -102,192 +102,423 @@ export default function FeedbackPage() {
       counts[fb.rating] = (counts[fb.rating] || 0) + 1;
     }
     const percents: Record<number, number> = {};
+    const avgRating =
+      total > 0 ? filtered.reduce((sum, fb) => sum + fb.rating, 0) / total : 0;
     for (let r = 1; r <= 5; r++) {
       percents[r] = total > 0 ? Math.round((counts[r] / total) * 100) : 0;
     }
-    return { total, counts, percents };
+    return { total, counts, percents, avgRating };
   }, [filtered]);
 
+  const renderStars = (rating: number) => {
+    return (
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`w-4 h-4 ${
+              star <= rating
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-300"
+            }`}
+          />
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <Card className="rounded-2xl shadow mb-6">
-        <CardHeader>
-          <CardTitle className="text-xl">
-            Feedback — Thống kê & Danh sách
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* --- Filters --- */}
-          <div className="flex flex-wrap gap-4 mb-4">
-            <div>
-              <label className="block text-sm">Filter Rating</label>
-              <select
-                className="border p-1 rounded"
-                value={filterRating}
-                onChange={(e) =>
-                  setFilterRating(
-                    e.target.value === "" ? "" : Number(e.target.value)
-                  )
-                }
-              >
-                <option value="">All</option>
-                {[5, 4, 3, 2, 1].map((r) => (
-                  <option key={r} value={r}>
-                    {r} stars
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm">From Date</label>
-              <input
-                type="date"
-                className="border p-1 rounded"
-                value={filterFromDate}
-                onChange={(e) => setFilterFromDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm">To Date</label>
-              <input
-                type="date"
-                className="border p-1 rounded"
-                value={filterToDate}
-                onChange={(e) => setFilterToDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm">Sort by</label>
-              <select
-                className="border p-1 rounded"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-              >
-                <option value="createdAt">Date</option>
-                <option value="rating">Rating</option>
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                className="border rounded px-3 py-1 ml-2"
-                onClick={() =>
-                  setSortDir((d) => (d === "asc" ? "desc" : "asc"))
-                }
-              >
-                {sortDir === "asc" ? "Asc ↑" : "Desc ↓"}
-              </button>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">
+            Customer Feedback
+          </h1>
+          <p className="text-slate-600">
+            View and analyze customer satisfaction ratings
+          </p>
+        </div>
 
-          {/* --- Statistics --- */}
-          <div className="mb-6">
-            <p>
-              Total feedback: <strong>{stats.total}</strong>
-            </p>
-            <div className="flex gap-2 mt-2">
-              {Object.entries(stats.counts).map(([r, cnt]) => (
-                <div key={r} className="text-sm">
-                  <strong>{r}★:</strong> {cnt} ({stats.percents[Number(r)]}%)
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card className="bg-white shadow-sm border-slate-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-600 mb-1">Total Feedback</p>
+                  <p className="text-3xl font-bold text-slate-800">
+                    {stats.total}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="bg-blue-100 p-3 rounded-full">
+                  <TrendingUp className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* --- Table or Loading / Empty --- */}
-          {loading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="animate-spin w-8 h-8" />
+          <Card className="bg-white shadow-sm border-slate-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-600 mb-1">Average Rating</p>
+                  <p className="text-3xl font-bold text-slate-800">
+                    {stats.avgRating.toFixed(1)}
+                  </p>
+                </div>
+                <div className="bg-yellow-100 p-3 rounded-full">
+                  <Star className="w-6 h-6 text-yellow-600 fill-yellow-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm border-slate-200 md:col-span-2">
+            <CardContent className="p-6">
+              <p className="text-sm text-slate-600 mb-3">Rating Distribution</p>
+              <div className="flex gap-4">
+                {[5, 4, 3, 2, 1].map((r) => (
+                  <div key={r} className="flex-1">
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className="text-xs font-medium text-slate-700">
+                        {r}★
+                      </span>
+                    </div>
+                    <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all"
+                        style={{ width: `${stats.percents[r]}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {stats.counts[r]} ({stats.percents[r]}%)
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content Card */}
+        <Card className="bg-white shadow-sm border-slate-200">
+          <CardHeader className="border-b border-slate-200 bg-slate-50">
+            <div className="flex items-center gap-2">
+              <Filter className="w-5 h-5 text-slate-600" />
+              <CardTitle className="text-lg font-semibold text-slate-800">
+                Filters & Sorting
+              </CardTitle>
             </div>
-          ) : filtered.length === 0 ? (
-            <p className="text-center text-gray-500 py-6">
-              No feedback available
-            </p>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-gray-100 text-left">
-                      <th className="p-3 border">User</th>
-                      <th className="p-3 border">Rating</th>
-                      <th className="p-3 border">Created At</th>
-                      <th className="p-3 border">Details</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paged.map((fb) => (
-                      <tr key={fb.feedBackId} className="hover:bg-gray-50">
-                        <td className="p-3 border">{fb.userName}</td>
-                        <td className="p-3 border font-medium">
-                          {fb.rating}/5
-                        </td>
-                        <td className="p-3 border">
-                          {new Date(fb.createdAt).toLocaleString()}
-                        </td>
-                        <td className="p-3 border">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button size="sm">View</Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-md">
-                              <DialogHeader>
-                                <DialogTitle>Feedback Detail</DialogTitle>
-                              </DialogHeader>
-                              <div className="space-y-2">
-                                <p>
-                                  <strong>User:</strong> {fb.userName}
+          </CardHeader>
+          <CardContent className="p-6">
+            {/* Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Rating
+                </label>
+                <select
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={filterRating}
+                  onChange={(e) =>
+                    setFilterRating(
+                      e.target.value === "" ? "" : Number(e.target.value)
+                    )
+                  }
+                >
+                  <option value="">All Ratings</option>
+                  {[5, 4, 3, 2, 1].map((r) => (
+                    <option key={r} value={r}>
+                      {r} Stars
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={filterFromDate}
+                  onChange={(e) => setFilterFromDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={filterToDate}
+                  onChange={(e) => setFilterToDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Sort By
+                </label>
+                <select
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                >
+                  <option value="createdAt">Date</option>
+                  <option value="rating">Rating</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Order
+                </label>
+                <button
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-medium hover:bg-slate-50 transition-colors"
+                  onClick={() =>
+                    setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+                  }
+                >
+                  {sortDir === "asc" ? "Ascending ↑" : "Descending ↓"}
+                </button>
+              </div>
+            </div>
+
+            {/* Table or Loading / Empty */}
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 className="animate-spin w-12 h-12 text-blue-500 mb-4" />
+                <p className="text-slate-600">Loading feedback...</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="bg-slate-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Star className="w-8 h-8 text-slate-400" />
+                </div>
+                <p className="text-slate-600 font-medium mb-1">
+                  No feedback found
+                </p>
+                <p className="text-sm text-slate-500">
+                  Try adjusting your filters
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200">
+                        <th className="text-left p-4 text-sm font-semibold text-slate-700">
+                          Customer
+                        </th>
+                        <th className="text-left p-4 text-sm font-semibold text-slate-700">
+                          Rating
+                        </th>
+                        <th className="text-left p-4 text-sm font-semibold text-slate-700">
+                          Date
+                        </th>
+                        <th className="text-left p-4 text-sm font-semibold text-slate-700">
+                          Order ID
+                        </th>
+                        <th className="text-center p-4 text-sm font-semibold text-slate-700">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {paged.map((fb) => (
+                        <tr
+                          key={fb.feedBackId}
+                          className="hover:bg-slate-50 transition-colors"
+                        >
+                          <td className="p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold">
+                                {fb.userName.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-medium text-slate-800">
+                                  {fb.userName}
                                 </p>
-                                <p>
-                                  <strong>Rating:</strong> {fb.rating}/5
-                                </p>
-                                <p>
-                                  <strong>Description:</strong> {fb.description}
-                                </p>
-                                <p>
-                                  <strong>Repair Order:</strong>{" "}
-                                  {fb.repairOrderId}
-                                </p>
-                                <p>
-                                  <strong>Created At:</strong>{" "}
-                                  {new Date(fb.createdAt).toLocaleString()}
+                                <p className="text-xs text-slate-500">
+                                  User ID: {fb.userId.slice(0, 8)}...
                                 </p>
                               </div>
-                              <DialogFooter>
-                                <Button>Close</Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              {renderStars(fb.rating)}
+                              <span className="text-sm font-semibold text-slate-700">
+                                {fb.rating}.0
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <Calendar className="w-4 h-4" />
+                              {new Date(fb.createdAt).toLocaleDateString(
+                                "en-US",
+                                {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                }
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <span className="text-sm font-mono text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                              {fb.repairOrderId.slice(0, 12)}...
+                            </span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                  View Details
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-lg">
+                                <DialogHeader>
+                                  <DialogTitle className="text-xl font-bold text-slate-800">
+                                    Feedback Details
+                                  </DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-4 py-4">
+                                  <div className="flex items-center gap-3 pb-4 border-b border-slate-200">
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-lg">
+                                      {fb.userName.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-slate-800">
+                                        {fb.userName}
+                                      </p>
+                                      <p className="text-sm text-slate-500">
+                                        {new Date(
+                                          fb.createdAt
+                                        ).toLocaleString()}
+                                      </p>
+                                    </div>
+                                  </div>
 
-              {/* --- Pagination Controls --- */}
-              <div className="flex justify-between items-center mt-4">
-                <button
-                  className="border rounded px-3 py-1 disabled:opacity-50"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                >
-                  Prev
-                </button>
-                <span>
-                  Page {page} of {pageCount}
-                </span>
-                <button
-                  className="border rounded px-3 py-1 disabled:opacity-50"
-                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                  disabled={page >= pageCount}
-                >
-                  Next
-                </button>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-600 mb-2">
+                                      Rating
+                                    </p>
+                                    <div className="flex items-center gap-2">
+                                      {renderStars(fb.rating)}
+                                      <span className="text-lg font-bold text-slate-800">
+                                        {fb.rating}.0 / 5.0
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-600 mb-2">
+                                      Feedback
+                                    </p>
+                                    <p className="text-slate-700 bg-slate-50 p-3 rounded-lg">
+                                      {fb.description}
+                                    </p>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <p className="text-sm font-medium text-slate-600 mb-1">
+                                        Repair Order ID
+                                      </p>
+                                      <p className="text-sm font-mono text-slate-700 bg-slate-100 px-2 py-1 rounded">
+                                        {fb.repairOrderId}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium text-slate-600 mb-1">
+                                        User ID
+                                      </p>
+                                      <p className="text-sm font-mono text-slate-700 bg-slate-100 px-2 py-1 rounded">
+                                        {fb.userId}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                                <DialogFooter>
+                                  <Button className="w-full bg-slate-600 hover:bg-slate-700">
+                                    Close
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex items-center justify-between mt-6">
+                  <p className="text-sm text-slate-600">
+                    Showing {(page - 1) * ITEMS_PER_PAGE + 1} to{" "}
+                    {Math.min(page * ITEMS_PER_PAGE, sorted.length)} of{" "}
+                    {sorted.length} results
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                    >
+                      Previous
+                    </button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: pageCount }, (_, i) => i + 1)
+                        .filter(
+                          (p) =>
+                            p === 1 ||
+                            p === pageCount ||
+                            Math.abs(p - page) <= 1
+                        )
+                        .map((p, idx, arr) => (
+                          <div key={p} className="flex items-center">
+                            {idx > 0 && arr[idx - 1] !== p - 1 && (
+                              <span className="px-2 text-slate-400">...</span>
+                            )}
+                            <button
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                p === page
+                                  ? "bg-blue-600 text-white"
+                                  : "hover:bg-slate-100 text-slate-700"
+                              }`}
+                              onClick={() => setPage(p)}
+                            >
+                              {p}
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                    <button
+                      className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                      disabled={page >= pageCount}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
