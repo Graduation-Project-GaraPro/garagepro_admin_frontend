@@ -8,13 +8,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import * as signalR from "@microsoft/signalr";
 import { useAuth } from "@/contexts/auth-context";
 import { authService } from "@/services/authService";
 
+/* ================= TYPES ================= */
+
 type PermissionContextType = {
   permissions: Set<string>;
-  loaded: boolean; // = permissionsLoaded
+  loaded: boolean;
   hasPermission: (...codes: string[]) => boolean;
   hasAnyPermission: (...codes: string[]) => boolean;
   reload: () => Promise<void>;
@@ -24,20 +25,33 @@ const PermissionContext = createContext<PermissionContextType | undefined>(
   undefined
 );
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "https://localhost:7113/api";
-const HUB_BASE_URL = API_BASE_URL.replace(/\/api$/, ""); // https://localhost:7113
+/* ================= ENV ================= */
 
-export const PermissionProvider = ({ children }: { children: React.ReactNode }) => {
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000/api";
+
+const HUB_BASE_URL = API_BASE_URL.replace(/\/api$/, "");
+
+/* ================= PROVIDER ================= */
+
+export const PermissionProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const { user, isAuthenticated } = useAuth();
+
   const [permissions, setPermissions] = useState<Set<string>>(new Set());
-  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
-  const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  const connectionRef = useRef<any>(null);
+
+  /* ================= FETCH PERMISSIONS ================= */
 
   const fetchPermissions = useCallback(async () => {
     if (!isAuthenticated) {
       setPermissions(new Set());
-      setPermissionsLoaded(true);
+      setLoaded(true);
       return;
     }
 
@@ -53,51 +67,43 @@ export const PermissionProvider = ({ children }: { children: React.ReactNode }) 
       });
 
       if (!res.ok) {
-        console.error("Get permissions failed", await res.text());
+        console.error("[Permission] fetch failed:", await res.text());
         setPermissions(new Set());
         return;
       }
 
       const data = await res.json();
-      const codes: string[] = data.permissions ?? [];
-      console.log("permission", new Set(codes));
+      const codes: string[] = data?.permissions ?? [];
       setPermissions(new Set(codes));
     } catch (err) {
-      console.error("Error load permissions", err);
+      console.error("[Permission] fetch error:", err);
       setPermissions(new Set());
     } finally {
-      setPermissionsLoaded(true);
+      setLoaded(true);
     }
   }, [isAuthenticated]);
 
-  console.log("[Perm]", {
-    loaded: permissionsLoaded,
-    permissions: Array.from(permissions),
-  });
-
-  const reload = useCallback(async () => {
-    // tuỳ bạn: có thể set false trước khi reload, hoặc không
-    setPermissionsLoaded(false);
-    await fetchPermissions();
-  }, [fetchPermissions]);
+  /* ================= SIGNALR CONNECT ================= */
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
       setPermissions(new Set());
-      setPermissionsLoaded(true);
+      setLoaded(true);
 
       if (connectionRef.current) {
-        connectionRef.current.stop();
+        connectionRef.current.stop?.();
         connectionRef.current = null;
       }
       return;
     }
 
     let cancelled = false;
-    setPermissionsLoaded(false); // bắt đầu load
 
     const connect = async () => {
       try {
+        // ✅ QUAN TRỌNG: dynamic import (SSR safe)
+        const signalR = await import("@microsoft/signalr");
+
         if (connectionRef.current) {
           await fetchPermissions();
           return;
@@ -112,34 +118,41 @@ export const PermissionProvider = ({ children }: { children: React.ReactNode }) 
           .build();
 
         conn.on("PermissionsUpdated", async () => {
-          console.log("PermissionsUpdated from hub");
           await fetchPermissions();
         });
 
         await conn.start();
-        console.log("Permission hub connected");
-
         connectionRef.current = conn;
 
         if (!cancelled) {
           await fetchPermissions();
         }
-      } catch (e) {
-        console.error("SignalR connect error", e);
-        if (!cancelled) await fetchPermissions();
+      } catch (err) {
+        console.error("[Permission] SignalR error:", err);
+        if (!cancelled) {
+          await fetchPermissions();
+        }
       }
     };
 
+    setLoaded(false);
     connect();
 
     return () => {
       cancelled = true;
       if (connectionRef.current) {
-        connectionRef.current.stop();
+        connectionRef.current.stop?.();
         connectionRef.current = null;
       }
     };
   }, [isAuthenticated, user, fetchPermissions]);
+
+  /* ================= HELPERS ================= */
+
+  const reload = useCallback(async () => {
+    setLoaded(false);
+    await fetchPermissions();
+  }, [fetchPermissions]);
 
   const hasPermission = (...codes: string[]) => {
     if (!codes.length) return true;
@@ -151,9 +164,11 @@ export const PermissionProvider = ({ children }: { children: React.ReactNode }) 
     return codes.some((c) => permissions.has(c));
   };
 
+  /* ================= CONTEXT VALUE ================= */
+
   const value: PermissionContextType = {
     permissions,
-    loaded: permissionsLoaded,
+    loaded,
     hasPermission,
     hasAnyPermission,
     reload,
@@ -166,10 +181,14 @@ export const PermissionProvider = ({ children }: { children: React.ReactNode }) 
   );
 };
 
+/* ================= HOOK ================= */
+
 export const usePermissionContext = () => {
   const ctx = useContext(PermissionContext);
   if (!ctx) {
-    throw new Error("usePermissionContext must be used within PermissionProvider");
+    throw new Error(
+      "usePermissionContext must be used within PermissionProvider"
+    );
   }
   return ctx;
 };
