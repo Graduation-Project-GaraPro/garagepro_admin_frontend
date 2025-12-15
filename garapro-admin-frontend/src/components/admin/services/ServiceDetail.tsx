@@ -389,17 +389,7 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
                 })}
 
                 {/* Stock Alert (global theo allParts) */}
-                {allParts.some((part) => part.stock < 5) && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-amber-800">
-                      <BarChart3 className="h-4 w-4" />
-                      <p className="text-sm font-medium">Low Stock Alert</p>
-                    </div>
-                    <p className="text-xs text-amber-700 mt-1">
-                      Some parts are running low on stock. Consider restocking.
-                    </p>
-                  </div>
-                )}
+                
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
