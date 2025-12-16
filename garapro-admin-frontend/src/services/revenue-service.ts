@@ -81,6 +81,7 @@ export interface RepairOrderItem {
   vehicle?: string;
   technician?: string;
   amount?: number;
+  cost?: number;
   status?: string;
   paidStatus?: number;
   note?: string;
@@ -120,6 +121,7 @@ export interface DetailedRepairOrder {
     inStock?: boolean;
   }>;
   totalAmount?: number;
+  cost?: number;
   status?: string;
   notes?: string;
   estimatedCompletion?: string;
@@ -294,9 +296,9 @@ class RevenueService {
                   o.jobs.map((j: any) => j.service?.serviceName).join(", ")) ||
                 undefined,
               amount: Number(
-                o.paidAmount ?? o.estimatedAmount ?? o.totalAmount ?? 0
+                o.cost ?? 0
               ),
-              paidAmount: Number(o.paidAmount || 0),
+              paidAmount: Number(o.cost || 0),
               estimatedAmount: Number(o.estimatedAmount || 0),
               partCount:
                 o.parts?.length ??
