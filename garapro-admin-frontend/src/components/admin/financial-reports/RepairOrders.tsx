@@ -89,7 +89,7 @@ export default function RepairOrders() {
       setLoadingOrders(true);
       setError(null);
       const orders = await revenueService.getRepairOrders(
-        { period: "monthly" },
+        { period: "yearly" },
         p,
         pageSize
       );
@@ -148,7 +148,7 @@ export default function RepairOrders() {
 
     repairOrders.forEach((order) => {
       const status = getPaidStatus(order.paidStatus);
-      const amount = Number(order.amount ?? 0);
+      const amount = Number(order.paidAmount ?? 0);
       const partialAmount = Number(order.paidAmount ?? 0);
       const estimatedAmount = Number(order.estimatedAmount ?? 0);
 
@@ -176,11 +176,7 @@ export default function RepairOrders() {
         revenue: revenueStats.paidRevenue,
         count: revenueStats.paidCount,
       },
-      {
-        name: "Partial",
-        revenue: revenueStats.partialRevenue,
-        count: revenueStats.partialCount,
-      },
+      
       {
         name: "Pending",
         revenue: revenueStats.pendingRevenue,
@@ -276,7 +272,7 @@ export default function RepairOrders() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm font-medium">
-                    Total Revenue
+                    Estimated Revenue
                   </p>
                   <p className="text-2xl font-bold mt-2">
                     {formatCurrency(revenueStats.totalRevenue)}
@@ -307,25 +303,7 @@ export default function RepairOrders() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-0 shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-amber-100 text-sm font-medium">
-                    Partial Payment
-                  </p>
-                  <p className="text-2xl font-bold mt-2">
-                    {formatCurrency(revenueStats.partialRevenue)}
-                  </p>
-                  <p className="text-amber-100 text-xs mt-1">
-                    {revenueStats.partialCount} orders
-                  </p>
-                </div>
-                <Clock className="w-10 h-10 text-amber-200" />
-              </div>
-            </CardContent>
-          </Card>
-
+          
           <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -541,9 +519,7 @@ export default function RepairOrders() {
                       </div>
                       <div className="font-bold text-2xl text-green-600 mt-1">
                         {formatCurrency(
-                          orderDetails.paidAmount ??
-                            orderDetails.estimatedAmount ??
-                            orderDetails.totalAmount ??
+                          orderDetails.cost ??
                             0
                         )}
                       </div>
