@@ -328,7 +328,7 @@ private async authenticatedFetch(
     };
   }
 
-  async getCampaignById(id: string): Promise<PromotionalCampaign> {
+  async getCampaignById(id: any): Promise<PromotionalCampaign> {
     const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}`);
 
     const campaign = await response.json();
@@ -538,7 +538,7 @@ private getNumericDiscountType(discountTypeString: string): number {
   return discountTypeMap[discountTypeString] || DiscountType.Percentage;
 }
 
-  async getCampaignAnalytics(campaignId: string): Promise<CampaignAnalytics> {
+  async getCampaignAnalytics(campaignId: any): Promise<CampaignAnalytics> {
   const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${campaignId}/analytics`);
   const analytics = await response.json();
 
@@ -550,7 +550,7 @@ private getNumericDiscountType(discountTypeString: string): number {
   };
 }
 
-  async getCampaignAnalyticsMock(campaignId: string): Promise<CampaignAnalytics> {
+  async getCampaignAnalyticsMock(campaignId: any): Promise<CampaignAnalytics> {
   const mockAnalytics: CampaignAnalytics = {
     totalUsage: Math.floor(Math.random() * 500) + 50,
 
