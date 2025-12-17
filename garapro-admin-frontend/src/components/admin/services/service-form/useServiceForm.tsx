@@ -4,12 +4,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { serviceService } from "@/services/service-Service";
-import type {
-  Service,
-  ServiceType,
-  PartCategory,
-  Branch,
-} from "@/services/service-Service";
+import type { Service, ServiceType, PartCategory, Branch } from "@/services/service-Service";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { ServiceCategory } from "@/services/branch-service";
 
@@ -33,8 +28,16 @@ export const useServiceForm = (service?: Service) => {
 
   const [searchTerm, setSearchTerm] = useState("");
 
+  // UI vẫn chọn theo ID (để dùng PartsPicker như cũ)
   const [selectedPartCategoryIds, setSelectedPartCategoryIds] = useState<string[]>(
     (service as any)?.partCategoryIds ?? []
+  );
+
+  // NEW: nếu backend trả về tên partCategory thì dùng để map ngược ra ids khi edit
+  const initialPartCategoryNamesRef = useRef<string[]>(
+    (service as any)?.partCategoryNames ??
+      (service as any)?.parts?.map((p: any) => p?.categoryName || p?.partCategoryName || p?.name).filter(Boolean) ??
+      []
   );
 
   const initParentDoneRef = useRef(false);
@@ -43,15 +46,13 @@ export const useServiceForm = (service?: Service) => {
   const initialServiceTypeId = service?.serviceType?.parentServiceCategoryId
     ? service?.serviceType?.id
     : service?.serviceType?.id ?? "";
-  
-  const [selectedParentCategory, setSelectedParentCategory] = useState<string>(
-    () => {
-      const st = service?.serviceType;
-      if (st?.parentServiceCategoryId) return st.parentServiceCategoryId;
-      if (st?.id) return st.id;
-      return "";
-    }
-  );
+
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string>(() => {
+    const st = service?.serviceType;
+    if (st?.parentServiceCategoryId) return st.parentServiceCategoryId;
+    if (st?.id) return st.id;
+    return "";
+  });
 
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>(() => {
     const st = service?.serviceType;
@@ -89,42 +90,29 @@ export const useServiceForm = (service?: Service) => {
   });
 
   const availableSubCategories = useMemo(() => {
-    const parent = serviceCategories.find(
-      (c) => c.serviceCategoryId === selectedParentCategory
-    );
+    const parent = serviceCategories.find((c) => c.serviceCategoryId === selectedParentCategory);
     return parent?.childCategories ?? [];
   }, [serviceCategories, selectedParentCategory]);
 
   const inRange = (n: number, min: number, max: number) => n >= min && n <= max;
 
-  const hasSubChoice = (
-    subs: Array<{ serviceCategoryId: string }>,
-    id?: string
-  ) => !!id && subs.some((s) => s.serviceCategoryId === id);
+  const hasSubChoice = (subs: Array<{ serviceCategoryId: string }>, id?: string) =>
+    !!id && subs.some((s) => s.serviceCategoryId === id);
 
   const nameLen = formData.name.trim().length;
   const descLen = formData.description.trim().length;
 
-  const { isNameValid, isDescriptionValid, mustChooseSub, hasValidCategory } =
-    useMemo(() => {
-      const mustChoose = availableSubCategories.length > 0;
+  const { isNameValid, isDescriptionValid, hasValidCategory } = useMemo(() => {
+    const mustChoose = availableSubCategories.length > 0;
 
-      return {
-        isNameValid: inRange(nameLen, NAME_MIN, NAME_MAX),
-        isDescriptionValid:
-          descLen === 0 || inRange(descLen, DESC_MIN, DESC_MAX),
-        mustChooseSub: mustChoose,
-        hasValidCategory:
-          !!formData.serviceTypeId &&
-          (!mustChoose ||
-            hasSubChoice(availableSubCategories, formData.serviceTypeId)),
-      };
-    }, [
-      nameLen,
-      descLen,
-      formData.serviceTypeId,
-      availableSubCategories.length,
-    ]);
+    return {
+      isNameValid: inRange(nameLen, NAME_MIN, NAME_MAX),
+      isDescriptionValid: descLen === 0 || inRange(descLen, DESC_MIN, DESC_MAX),
+      hasValidCategory:
+        !!formData.serviceTypeId &&
+        (!mustChoose || hasSubChoice(availableSubCategories, formData.serviceTypeId)),
+    };
+  }, [nameLen, descLen, formData.serviceTypeId, availableSubCategories.length]);
 
   const isSubmitDisabled =
     !isNameValid ||
@@ -138,12 +126,11 @@ export const useServiceForm = (service?: Service) => {
     const load = async () => {
       try {
         setIsLoading(true);
-        const [categoriesData, partCategoriesData, branchesData] =
-          await Promise.all([
-            serviceService.getParentCategories(),
-            serviceService.getPartCategories(),
-            serviceService.getBranches(),
-          ]);
+        const [categoriesData, partCategoriesData, branchesData] = await Promise.all([
+          serviceService.getParentCategories(),
+          serviceService.getPartCategories(),
+          serviceService.getBranches(),
+        ]);
         setServiceCategories(categoriesData);
         setPartCategories(partCategoriesData);
         setBranches(branchesData);
@@ -161,15 +148,34 @@ export const useServiceForm = (service?: Service) => {
     load();
   }, []);
 
+  // NEW: Khi edit và backend trả về partCategoryNames/parts(name),
+  // map name -> id để UI preselect.
+  useEffect(() => {
+    if (!partCategories.length) return;
+    if (selectedPartCategoryIds.length) return;
+
+    const names = initialPartCategoryNamesRef.current;
+    if (!names?.length) return;
+
+    const nameSet = new Set(names.map((x) => String(x).toLowerCase().trim()));
+
+    const matchedIds = partCategories
+      .filter((c: any) => nameSet.has(String(c.categoryName).toLowerCase().trim()))
+      .map((c: any) => String(c.laborCategoryId ?? c.partCategoryId ?? c.id))
+      .filter(Boolean);
+
+    if (matchedIds.length) {
+      setSelectedPartCategoryIds(matchedIds);
+    }
+  }, [partCategories, selectedPartCategoryIds.length]);
+
   useEffect(() => {
     if (!categoriesLoaded) return;
     if (!initSubDoneRef.current) return;
 
     setSelectedSubCategory("");
 
-    const parent = serviceCategories.find(
-      (c) => c.serviceCategoryId === selectedParentCategory
-    );
+    const parent = serviceCategories.find((c) => c.serviceCategoryId === selectedParentCategory);
     const hasSubs = !!parent?.childCategories?.length;
 
     setFormData((p) => ({ ...p, serviceTypeId: "" }));
@@ -189,9 +195,7 @@ export const useServiceForm = (service?: Service) => {
 
     if (
       selectedSubCategory &&
-      !availableSubCategories.some(
-        (s: ServiceCategory) => s.serviceCategoryId === selectedSubCategory
-      )
+      !availableSubCategories.some((s: ServiceCategory) => s.serviceCategoryId === selectedSubCategory)
     ) {
       setSelectedSubCategory("");
     }
@@ -201,7 +205,7 @@ export const useServiceForm = (service?: Service) => {
     if (initParentDoneRef.current) return;
     if (!categoriesLoaded || !service?.serviceType) return;
 
-    const { id: serviceTypeId, parentServiceCategoryId } = service.serviceType;
+    const { id: serviceTypeId, parentServiceCategoryId } = service.serviceType as any;
     setSelectedParentCategory(parentServiceCategoryId ?? serviceTypeId);
 
     initParentDoneRef.current = true;
@@ -211,7 +215,7 @@ export const useServiceForm = (service?: Service) => {
     if (!initSubDoneRef.current) return;
 
     if (!service?.serviceType?.id || !selectedParentCategory) return;
-    const targetSubId = service.serviceType.id;
+    const targetSubId = (service.serviceType as any).id;
 
     const existsInSubs = availableSubCategories.some(
       (s: ServiceCategory) => s.serviceCategoryId === targetSubId
@@ -229,9 +233,7 @@ export const useServiceForm = (service?: Service) => {
   useEffect(() => {
     const validSub =
       selectedSubCategory &&
-      availableSubCategories.some(
-        (s: ServiceCategory) => s.serviceCategoryId === selectedSubCategory
-      );
+      availableSubCategories.some((s: ServiceCategory) => s.serviceCategoryId === selectedSubCategory);
 
     setFormData((p) => ({
       ...p,
@@ -247,8 +249,8 @@ export const useServiceForm = (service?: Service) => {
   const filteredPartCategories = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return partCategories;
-    return partCategories.filter((cat) =>
-      cat.categoryName.toLowerCase().includes(term)
+    return partCategories.filter((cat: any) =>
+      String(cat.categoryName).toLowerCase().includes(term)
     );
   }, [partCategories, searchTerm]);
 
@@ -256,14 +258,9 @@ export const useServiceForm = (service?: Service) => {
     (id: string) => {
       setSelectedPartCategoryIds((prev) => {
         if (formData.isAdvanced) {
-          return prev.includes(id)
-            ? prev.filter((x) => x !== id)
-            : [...prev, id];
+          return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
         }
-
-        if (prev.includes(id)) {
-          return [];
-        }
+        if (prev.includes(id)) return [];
         return [id];
       });
     },
@@ -310,12 +307,29 @@ export const useServiceForm = (service?: Service) => {
     }
   };
 
+  // NEW: convert selectedPartCategoryIds -> partCategoryNames (string[])
+  const buildPartCategoryNames = useCallback((): string[] => {
+    if (!selectedPartCategoryIds?.length) return [];
+
+    const mapIdToName = (id: string) => {
+      const found: any = partCategories.find((c: any) => {
+        const cid = String(c.laborCategoryId ?? c.partCategoryId ?? c.id);
+        return cid === String(id);
+      });
+      return found?.categoryName ? String(found.categoryName) : null;
+    };
+
+    return selectedPartCategoryIds
+      .map(mapIdToName)
+      .filter((x): x is string => !!x && x.trim().length > 0);
+  }, [selectedPartCategoryIds, partCategories]);
+
   const submit = async () => {
     setIsSubmitting(true);
-    const toastId = toast.loading(
-      service ? "Updating service..." : "Creating new service...",
-      { description: "Please wait while we save your changes." }
-    );
+    const toastId = toast.loading(service ? "Updating service..." : "Creating new service...", {
+      description: "Please wait while we save your changes.",
+    });
+
     try {
       const payload = {
         name: formData.name,
@@ -326,8 +340,11 @@ export const useServiceForm = (service?: Service) => {
         isActive: formData.isActive,
         isAdvanced: formData.isAdvanced,
         branchIds: formData.branchIds,
-        partCategoryIds: selectedPartCategoryIds,
+
+        // IMPORTANT: backend mới nhận tên, không nhận ids
+        partCategoryNames: buildPartCategoryNames(),
       };
+
       if (service) {
         await serviceService.updateService(service.id, payload);
         toast.success("Service updated successfully", {
@@ -341,6 +358,7 @@ export const useServiceForm = (service?: Service) => {
           id: toastId,
         });
       }
+
       setTimeout(() => {
         router.push("/admin/services");
         router.refresh();
@@ -382,6 +400,8 @@ export const useServiceForm = (service?: Service) => {
     searchTerm,
     setSearchTerm,
     filteredPartCategories,
+
+    // UI vẫn dùng ids để render & toggle
     selectedPartCategoryIds,
     togglePartCategory,
     clearSearch,

@@ -13,7 +13,9 @@ import { usePermissionContext } from '@/contexts/permission-context'
 
 export default function BranchDetailPage() {
   const params = useParams()
-  const branchId = params.id as string
+  
+  const raw = params?.id
+  const branchId = Array.isArray(raw) ? raw[0] : raw
   const [branch, setBranch] = useState<GarageBranch | null>(null)
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [loading, setLoading] = useState(true)
