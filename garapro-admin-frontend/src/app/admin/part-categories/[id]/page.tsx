@@ -45,24 +45,27 @@ export default function PartCategoryDetailPage() {
   const { id } = useParams();
   const searchParams = useSearchParams();
   const branchId = searchParams.get("branchId");
-
+  const modelId = searchParams.get("modelId");
   const [detail, setDetail] = useState<any>(null);
   const [stockFilter, setStockFilter] = useState<StockFilter>(StockFilter.All);
   const [loading, setLoading] = useState(true);
 
-  /* =======================
-     LOAD DETAIL
-  ======================= */
-  useEffect(() => {
-    if (!id || !branchId) return;
+  
+ useEffect(() => {
+  if (!id || !branchId) return;
 
-    setLoading(true);
+  setLoading(true);
 
-    partManagementService
-      .getPartCategoryDetail(id as string, branchId, stockFilter)
-      .then(setDetail)
-      .finally(() => setLoading(false));
-  }, [id, branchId, stockFilter]);
+  partManagementService
+    .getPartCategoryDetail(
+      id as string,
+      branchId,
+      stockFilter,
+      modelId ?? undefined
+    )
+    .then(setDetail)
+    .finally(() => setLoading(false));
+}, [id, branchId, modelId, stockFilter]);
 
   if (loading) {
     return (

@@ -151,23 +151,20 @@ export const useServiceForm = (service?: Service) => {
   // NEW: Khi edit và backend trả về partCategoryNames/parts(name),
   // map name -> id để UI preselect.
   useEffect(() => {
-    if (!partCategories.length) return;
-    if (selectedPartCategoryIds.length) return;
+  if (!partCategories.length) return;
+  if (selectedPartCategoryIds.length) return;
 
-    const names = initialPartCategoryNamesRef.current;
-    if (!names?.length) return;
+  const names = initialPartCategoryNamesRef.current; // ["Lốp xe", "Phanh"]
+  const nameSet = new Set(names.map(x => x.toLowerCase().trim()));
 
-    const nameSet = new Set(names.map((x) => String(x).toLowerCase().trim()));
+  // Map tên → ids từ getAllPartCategory
+  const matchedIds = partCategories
+    .filter(c => nameSet.has(c.categoryName.toLowerCase().trim()))
+    .map(c => c.partCategoryId)
+    .filter(Boolean);
 
-    const matchedIds = partCategories
-      .filter((c: any) => nameSet.has(String(c.categoryName).toLowerCase().trim()))
-      .map((c: any) => String(c.laborCategoryId ?? c.partCategoryId ?? c.id))
-      .filter(Boolean);
-
-    if (matchedIds.length) {
-      setSelectedPartCategoryIds(matchedIds);
-    }
-  }, [partCategories, selectedPartCategoryIds.length]);
+  setSelectedPartCategoryIds(matchedIds); // UI select đúng categories
+}, [partCategories]);
 
   useEffect(() => {
     if (!categoriesLoaded) return;

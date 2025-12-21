@@ -27,6 +27,7 @@ export interface Service {
   parts?: PartService[];
   partIds?: string[];
   partCategoryIds?: string[];
+  partCategoryNames?: string[];
 }
 
 export interface ServiceType {
@@ -63,6 +64,7 @@ export interface Part {
 export interface PartCategory {
   partCategoryId: string;
   categoryName: string;
+  description: string;
   parts?: Part[];
 }
 
@@ -132,6 +134,7 @@ interface ApiServiceCategory {
 interface ApiPartCategory {
   partCategoryId: string;
   categoryName: string;
+  description : string;
   parts: ApiPart[];
 }
 
@@ -341,7 +344,7 @@ const mapApiServiceToService = (
     'parts' in item && item.parts
       ? item.parts.map((p) => p.partId)
       : undefined,
-  partCategoryIds: item.partCategories?.map((pc) => pc.partCategoryId) || [],
+  partCategoryNames: item.partCategories?.map((pc) => pc.categoryName || pc.categoryName || '') || [],
 });
 
 // =======================
@@ -403,8 +406,9 @@ export const serviceService = {
       if (response.status === 404) {
         return null;
       }
-
       const item: ApiService = await response.json();
+      console.log("item",mapApiServiceToService(item))
+
       return mapApiServiceToService(item);
     } catch (error) {
       console.error('Error fetching service:', error);
@@ -505,6 +509,7 @@ export const serviceService = {
         (category): PartCategory => ({
           partCategoryId: category.partCategoryId,
           categoryName: category.categoryName,
+          description: category.description,
           parts: category.parts.map(
             (part): Part => ({
               id: part.partId,

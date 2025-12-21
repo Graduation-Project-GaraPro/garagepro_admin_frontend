@@ -159,7 +159,9 @@ export function AdminHeader({ onOpenSidebar, onToggleSidebar }: AdminHeaderProps
         {/* Right */}
         <div className="flex items-center space-x-2 sm:space-x-4">
           {/* Notifications */}
-          <Dialog open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
+
+          
+          {/* <Dialog open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="sm" className="relative">
                 <Bell className="h-5 w-5" />
@@ -185,7 +187,7 @@ export function AdminHeader({ onOpenSidebar, onToggleSidebar }: AdminHeaderProps
               </DialogHeader>
 
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {/* {notifications.map(renderNotificationItem)} */}
+                {notifications.map(renderNotificationItem)}
               </div>
 
               <DialogFooter>
@@ -198,7 +200,7 @@ export function AdminHeader({ onOpenSidebar, onToggleSidebar }: AdminHeaderProps
                 </Button>
               </DialogFooter>
             </DialogContent>
-          </Dialog>
+          </Dialog> */}
 
           {/* User menu */}
           <DropdownMenu>

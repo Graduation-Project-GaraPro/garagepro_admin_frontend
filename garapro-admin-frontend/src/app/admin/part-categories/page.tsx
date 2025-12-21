@@ -267,7 +267,7 @@ export default function PartCategoriesPage() {
                               <button
                                 onClick={() =>
                                   router.push(
-                                    `/admin/part-categories/${c.partCategoryId}?branchId=${branchId}`
+                                      `/admin/part-categories/${c.partCategoryId}?branchId=${branchId}&modelId=${modelId}`
                                   )
                                 }
                                 className="

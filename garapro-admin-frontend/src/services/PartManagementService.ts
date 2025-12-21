@@ -102,15 +102,27 @@ class PartManagementService {
 
   // ===== PART CATEGORY DETAIL =====
   async getPartCategoryDetail(
-    categoryId: string,
-    branchId: string,
-    stockFilter: StockFilter
-  ) {
-    const res = await this.authenticatedFetch(
-      `${API_BASE}/AdminPartCategories/part-categories/${categoryId}?branchId=${branchId}&stockFilter=${stockFilter}`
-    );
-    return res.json();
+  categoryId: string,
+  branchId: string,
+  stockFilter: StockFilter,
+  modelId?: string
+) {
+  const params = new URLSearchParams({
+    branchId,
+    stockFilter: stockFilter.toString(),
+  });
+
+  if (modelId) {
+    params.append("modelId", modelId);
   }
+
+  const res = await this.authenticatedFetch(
+    `${API_BASE}/AdminPartCategories/part-categories/${categoryId}?${params.toString()}`
+  );
+
+  return res.json();
+}
+
 }
 
 export const partManagementService = new PartManagementService();

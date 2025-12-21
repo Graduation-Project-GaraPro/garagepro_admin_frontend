@@ -445,9 +445,7 @@ export default function BranchDetailPage() {
                     {staff.email}
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className={staff.gender ? 'text-blue-600' : 'text-pink-600'}>
-                      {staff.gender ? 'Male' : 'Female'}
-                    </span>
+                    
                     <span className="text-muted-foreground">
                       Joined: {new Date(staff.createdAt).toLocaleDateString()}
                     </span>

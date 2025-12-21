@@ -128,9 +128,7 @@ function PartsPicker({
                           <p className="font-medium text-sm">
                             {cat.categoryName}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {cat.parts?.length ?? 0} parts in this category
-                          </p>
+                          
                         </div>
                       </div>
                       <Badge variant={isSelected ? "default" : "outline"} className="ml-2">
@@ -158,28 +156,30 @@ function PartsPicker({
                 Selected Categories ({selectedCategories.length})
               </h4>
             </div>
-            <div className="border rounded-lg">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Category Name</TableHead>
-                    <TableHead className="text-right">Parts Count</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedCategories.map((cat) => (
-                    <TableRow key={cat.partCategoryId}>
-                      <TableCell className="font-medium">
-                        {cat.categoryName}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {cat.parts?.length ?? 0}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <div className="overflow-x-auto border rounded-lg shadow-md">
+  <Table className="min-w-full divide-y divide-gray-200">
+    <TableHeader className="bg-gray-100">
+      <TableRow>
+        <TableHead className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+          Category Name
+        </TableHead>
+      </TableRow>
+    </TableHeader>
+    <TableBody className="bg-white divide-y divide-gray-200">
+      {selectedCategories.map((cat) => (
+        <TableRow 
+          key={cat.partCategoryId} 
+          className="hover:bg-gray-50 transition-colors duration-200"
+        >
+          <TableCell className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+            {cat.categoryName}
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  </Table>
+          </div>
+
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg bg-muted/20">
@@ -196,7 +196,7 @@ function PartsPicker({
   );
 }
 
-// ✅ comparator: chỉ re-render khi props liên quan đổi thật sự
+//  comparator: chỉ re-render khi props liên quan đổi thật sự
 function areEqual(prev: Props, next: Props) {
   const diffs: string[] = [];
 
