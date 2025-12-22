@@ -233,14 +233,14 @@ export function LogsTable({ logs, showDetails, onClearLogs, onToggleDetails, get
                                       {selectedLog.userName}
                                     </p>
                                   </div>
-                                  <div>
+                                  {/* <div>
                                     <label className="text-sm font-medium text-gray-600">
                                       User ID
                                     </label>
                                     <p className="text-sm">
                                       {selectedLog.userId || "N/A"}
                                     </p>
-                                  </div>
+                                  </div> */}
                                   <div>
                                     <label className="text-sm font-medium text-gray-600">
                                       IP Address
@@ -281,9 +281,9 @@ export function LogsTable({ logs, showDetails, onClearLogs, onToggleDetails, get
 
                               {/* Technical Details */}
                               <div>
-                                <h3 className="text-lg font-semibold mb-3">
+                                {/* <h3 className="text-lg font-semibold mb-3">
                                   Technical Details
-                                </h3>
+                                </h3> */}
                                 <div className="grid grid-cols-2 gap-4">
                                   {selectedLog.requestId && (
                                     <div>
