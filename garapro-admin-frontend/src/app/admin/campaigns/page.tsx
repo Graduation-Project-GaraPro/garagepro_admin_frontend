@@ -197,8 +197,11 @@ export default function CampaignsPage() {
 
       await apiCall;
       loadCampaigns();
-    } catch {
-      toast.error("Failed to toggle campaign");
+    } catch (error) {
+      
+      toast.error('Failed to '+status, {
+        description: error instanceof Error ? error.message:'Please try again.'
+      })
     }
   };
 
@@ -224,8 +227,11 @@ export default function CampaignsPage() {
       toast.success("Activated selected campaigns");
       setSelectedIds([]);
       loadCampaigns();
-    } catch {
-      toast.error("Bulk activate failed");
+    }catch (error) {
+      
+      toast.error('Failed to Activate', {
+        description: error instanceof Error ? error.message:'Please try again.'
+      })
     }
   };
 
@@ -235,9 +241,14 @@ export default function CampaignsPage() {
       toast.success("Deactivated selected campaigns");
       setSelectedIds([]);
       loadCampaigns();
-    } catch {
-      toast.error("Bulk deactivate failed");
+    } 
+      catch (error) {
+      
+      toast.error('Failed to DeActivated', {
+        description: error instanceof Error ? error.message:'Please try again.'
+      })
     }
+    
   };
 
   const bulkDelete = async () => {
@@ -247,8 +258,11 @@ export default function CampaignsPage() {
       setSelectedIds([]);
       setConfirmBulkDelete(false);
       loadCampaigns();
-    } catch {
-      toast.error("Bulk delete failed");
+    } catch (error) {
+      
+      toast.error('Failed to Bulk Delete', {
+        description: error instanceof Error ? error.message:'Please try again.'
+      })
     }
   };
 
@@ -406,7 +420,7 @@ export default function CampaignsPage() {
               onKeyDown={(e) => e.key === "Enter" && loadCampaigns(1)}
             />
 
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            {/* <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-44">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
@@ -414,7 +428,7 @@ export default function CampaignsPage() {
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="discount">Discount</SelectItem>
               </SelectContent>
-            </Select>
+            </Select> */}
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-44">
@@ -518,7 +532,9 @@ export default function CampaignsPage() {
                           </Badge>
                         </TableCell>
 
-                        <TableCell>{renderUsage(c.usedCount, c.usageLimit)}</TableCell>
+                        <TableCell>
+                          {renderUsage(c.usedCount, c.usageLimit)}
+                        </TableCell>
 
                         <TableCell>
                           <DropdownMenu>
@@ -544,26 +560,31 @@ export default function CampaignsPage() {
                               )}
 
                               <DropdownMenuItem asChild>
-                                <Link href={`/admin/campaigns/${c.id}/analytics`}>
-                                  <BarChart3 className="h-4 w-4 mr-2" /> Analytics
+                                <Link
+                                  href={`/admin/campaigns/${c.id}/analytics`}
+                                >
+                                  <BarChart3 className="h-4 w-4 mr-2" />{" "}
+                                  Analytics
                                 </Link>
                               </DropdownMenuItem>
-
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  handleStatusToggle(c.id, c.isActive)
-                                }
-                              >
-                                {c.isActive ? (
-                                  <>
-                                    <Pause className="h-4 w-4 mr-2" /> Deactivate
-                                  </>
-                                ) : (
-                                  <>
-                                    <Play className="h-4 w-4 mr-2" /> Activate
-                                  </>
-                                )}
-                              </DropdownMenuItem>
+                              {canToggle && (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    handleStatusToggle(c.id, c.isActive)
+                                  }
+                                >
+                                  {c.isActive ? (
+                                    <>
+                                      <Pause className="h-4 w-4 mr-2" />{" "}
+                                      Deactivate
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Play className="h-4 w-4 mr-2" /> Activate
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                              )}
 
                               {canDelete && (
                                 <DropdownMenuItem
@@ -609,9 +630,12 @@ export default function CampaignsPage() {
                     toast.success("Deleted successfully");
                     setConfirmDeleteId(null);
                     loadCampaigns();
-                  } catch {
-                    toast.error("Failed to delete");
-                  }
+                  } catch (error) {
+      
+                  toast.error('Failed to Delete', {
+                    description: error instanceof Error ? error.message:'Please try again.'
+                  })
+                }
                 }}
               >
                 Delete

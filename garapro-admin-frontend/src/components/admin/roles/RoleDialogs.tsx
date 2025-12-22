@@ -963,7 +963,7 @@ const handleEditClearCategory = useCallback((category: PermissionCategory) => {
                         </div>
                         <div>
                           <div className="font-medium">
-                            {user.name || "No name"}
+                            {user.firstName + " "+user.lastName }
                           </div>
                           <div className="text-sm text-gray-500">
                             {user.email}

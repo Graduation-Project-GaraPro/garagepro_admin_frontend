@@ -84,7 +84,7 @@ export default function BranchesPage() {
     } catch (error) {
       console.error('Failed to toggle branch status:', error)
       toast.error('Failed to toggle branch status', {
-        description: 'Please try again.'
+        description: error instanceof Error ? error.message:'Please try again.'
       })
     }
   }

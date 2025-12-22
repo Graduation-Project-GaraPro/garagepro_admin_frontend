@@ -31,7 +31,7 @@ export function AdvancedSystemLogs() {
     warnings: 0,
     info: 0,
     debug: 0,
-    critical: 0,
+   
     today: 0,
     thisWeek: 0,
     thisMonth: 0
@@ -146,7 +146,7 @@ export function AdvancedSystemLogs() {
         warnings: 0,
         info: 0,
         debug: 0,
-        critical: 0,
+        
         today: 0,
         thisWeek: 0,
         thisMonth: 0
@@ -288,7 +288,7 @@ export function AdvancedSystemLogs() {
       0: 'Information',
       1: 'Warning',
       2: 'Error',     
-      4: 'Critical'
+      
     }
     return levelMap[level] || `Level ${level}`
   }

@@ -185,6 +185,21 @@ export const adminMenuItems: AdminMenuItem[] = [
       },
     ],
   },
+  {
+    title: "Part List",
+    href: "/admin/part-categories",
+    icon: Wrench,
+    requiredPermissions: ["SERVICE_VIEW"],
+    showInMenu: true,
+    submenu: [
+      {
+        title: "All Part Categories",
+        href: "/admin/part-categories",
+        requiredPermissions: ["PART_VIEW_ADMIN"],
+        showInMenu: true,
+      },
+    ],
+  }
 ];
 
 export const routePermissionRules: RoutePermissionRule[] = [
@@ -317,6 +332,18 @@ export const routePermissionRules: RoutePermissionRule[] = [
   {
     pattern: /^\/admin\/services\/view\/[^\/]+\/?$/,
     permissions: ["SERVICE_VIEW"],
+  },
+
+// PartList admin/part-categories
+  {
+    pattern: /^\/admin\/part-categories\/?$/,
+    permissions: ["PART_VIEW_ADMIN"],
+  },
+// PartList admin/part-categories/id
+
+  {
+    pattern: /^\/admin\/part-categories\/[^\/]+\/?$/,
+    permissions: ["PART_VIEW_ADMIN"],
   },
 ];
 

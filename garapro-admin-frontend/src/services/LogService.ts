@@ -23,7 +23,7 @@ export interface LogStats {
   warnings: number
   info: number
   debug: number
-  critical: number
+ 
   today: number
   thisWeek: number
   thisMonth: number
