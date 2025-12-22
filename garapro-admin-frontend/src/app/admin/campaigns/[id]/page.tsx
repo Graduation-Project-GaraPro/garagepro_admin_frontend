@@ -216,9 +216,9 @@ export default function CampaignDetailPage() {
               <Edit className="h-4 w-4 mr-2" /> Edit
             </Button>
           </Link>
-          <Button variant="destructive" size="sm" onClick={handleDelete}>
+          {/* <Button variant="destructive" size="sm" onClick={handleDelete}>
             <Trash2 className="h-4 w-4 mr-2" /> Delete
-          </Button>
+          </Button> */}
         </div>
       </div>
 
