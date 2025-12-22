@@ -192,46 +192,51 @@ export default function ServiceList() {
 
 
 
-  const loadServices = async () => {
-    try {
-      setIsLoading(true);
-      
-      const filterParams: ServiceFilterParams = {
-          searchTerm: debouncedSearchTerm || undefined,
-          status: statusFilter !== 'all' ? statusFilter : undefined,
-          serviceTypeId: subCategoryFilter !== 'all' ? subCategoryFilter : 
-                        categoryFilter !== 'all' ? categoryFilter : undefined,
-          pageNumber: pagination.pageNumber,
-          pageSize: pagination.pageSize
-        };
+  const loadServices = async (pageOverride?: number) => {
+  try {
+    setIsLoading(true);
 
-      const response: PaginatedResponse = await serviceService.getServicesWithPagination(filterParams);
-      
-      setServices(response.data);
-      
-      // Update pagination info from API response
-      setPagination({
-        pageNumber: response.pageNumber,
-        pageSize: response.pageSize,
-        totalPages: response.totalPages,
-        totalCount: response.totalCount,
-        hasPrevious: response.pageNumber > 1,
-        hasNext: response.pageNumber < response.totalPages
-      });
-      
-      // Reset selection when services change
-      setSelectedServices(new Set());
-      setIsAllSelected(false);
-      
-    } catch (error) {
-      console.error('Error loading services:', error);
-      toast.error('Failed to load services', {
-        description: 'Please try again later.'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    const pageNumberToLoad = pageOverride ?? pagination.pageNumber;
+
+    const filterParams: ServiceFilterParams = {
+      searchTerm: debouncedSearchTerm || undefined,
+      status: statusFilter !== 'all' ? statusFilter : undefined,
+      serviceTypeId:
+        subCategoryFilter !== 'all'
+          ? subCategoryFilter
+          : categoryFilter !== 'all'
+          ? categoryFilter
+          : undefined,
+      pageNumber: pageNumberToLoad,
+      pageSize: pagination.pageSize,
+    };
+
+    const response: PaginatedResponse =
+      await serviceService.getServicesWithPagination(filterParams);
+
+    setServices(response.data);
+
+    setPagination({
+      pageNumber: response.pageNumber,
+      pageSize: response.pageSize,
+      totalPages: response.totalPages,
+      totalCount: response.totalCount,
+      hasPrevious: response.pageNumber > 1,
+      hasNext: response.pageNumber < response.totalPages,
+    });
+
+    setSelectedServices(new Set());
+    setIsAllSelected(false);
+  } catch (error) {
+    console.error('Error loading services:', error);
+    toast.error('Failed to load services', {
+      description: 'Please try again later.',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   // Sửa hàm loadServiceTypes thành loadServiceCategories
   const loadServiceCategories = async () => {
@@ -301,6 +306,25 @@ export default function ServiceList() {
       });
     }
     
+    const deletedCount = isBulkAction && bulkAction ? bulkAction.services.length : 1;
+
+    // Tổng còn lại (ước lượng) để tính totalPages mới
+    const remainingCount = Math.max(0, pagination.totalCount - deletedCount);
+    const newTotalPages = remainingCount === 0 ? 1 : Math.ceil(remainingCount / pagination.pageSize);
+
+    // Nếu đang đứng ở trang vượt quá totalPages mới → kéo về trang cuối hợp lệ
+    const targetPage = Math.min(pagination.pageNumber, newTotalPages);
+
+    // setPagination trước để UI không bị “Page 2 of 1” trong nháy mắt (optional nhưng nên có)
+    setPagination(prev => ({
+      ...prev,
+      pageNumber: targetPage,
+      hasPrevious: targetPage > 1,
+      hasNext: targetPage < newTotalPages,
+    }));
+
+    await loadServices(targetPage);
+
     loadServices(); // Reload the list
     setSelectedServices(new Set());
     setIsAllSelected(false);
@@ -694,7 +718,7 @@ export default function ServiceList() {
             </div>
             {pagination.totalCount > 0 && !isLoading && (
               <Badge variant="secondary" className="text-sm">
-                Page {pagination.pageNumber} of {pagination.totalPages}
+                Page {pagination.pageNumber} of {Math.max(1, pagination.totalPages)}
               </Badge>
             )}
           </div>
@@ -878,7 +902,7 @@ export default function ServiceList() {
 
                 <div className="flex items-center space-x-6 lg:space-x-8">
                   <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-                    Page {pagination.pageNumber} of {pagination.totalPages}
+                   Page {pagination.pageNumber} of {Math.max(1, pagination.totalPages)}
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button

@@ -22,7 +22,9 @@ export default function EditCampaignPage() {
   const params = useParams()
   const router = useRouter()
   
-  const campaignId = params.id as string
+  
+  const raw = params?.id
+  const campaignId = Array.isArray(raw) ? raw[0] : raw
 
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -434,7 +436,7 @@ export default function EditCampaignPage() {
         setLoading(true)
         setErrors({})
 
-        await campaignService.updateCampaign(campaignId, formData)
+        await campaignService.updateCampaign(campaignId as string, formData)
         resolve(true)
       } catch (error) {
         console.error('Error updating campaign:', error)

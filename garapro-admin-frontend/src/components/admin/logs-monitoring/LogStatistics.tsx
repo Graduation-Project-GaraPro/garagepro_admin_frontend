@@ -8,7 +8,7 @@ interface LogStats {
   warnings: number
   info: number
   debug: number
-  critical: number
+  
   today: number
   thisWeek: number
   thisMonth: number
@@ -106,6 +106,16 @@ export function LogStatistics({ stats, onTimeRangeChange }: LogStatisticsProps) 
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Information</CardTitle>
+            <FileText className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{stats.info}</div>
+            <p className="text-xs text-gray-500">Info logs</p>
+          </CardContent>
+        </Card>
+        {/* <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Critical</CardTitle>
             <AlertCircle className="h-4 w-4 text-red-800" />
           </CardHeader>
@@ -115,12 +125,12 @@ export function LogStatistics({ stats, onTimeRangeChange }: LogStatisticsProps) 
               {selectedRange === 1 ? 'Today' : selectedRange === 7 ? 'This week' : `Last ${getRangeLabel()}`}
             </p>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       {/* Additional Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
+        {/* <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Information</CardTitle>
             <FileText className="h-4 w-4 text-blue-500" />
@@ -129,7 +139,7 @@ export function LogStatistics({ stats, onTimeRangeChange }: LogStatisticsProps) 
             <div className="text-2xl font-bold text-blue-600">{stats.info}</div>
             <p className="text-xs text-gray-500">Info logs</p>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
