@@ -231,7 +231,7 @@ private async authenticatedFetch(
       }
     }
 
-    // 403 -> không có quyền
+    
     if (response.status === 403) {
       if (typeof window !== "undefined") {
         window.location.href = "/access-denied";
@@ -239,7 +239,7 @@ private async authenticatedFetch(
       throw new Error("Access denied: You do not have permission to access this resource.");
     }
 
-    // Các case status khác nhưng không ok
+    
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `HTTP error! status: ${response.status}`;
@@ -250,6 +250,7 @@ private async authenticatedFetch(
           (errorData.message
             ? errorData.message + (errorData.detail ? " " + errorData.detail : "")
             : errorData.error) || errorMessage;
+        console.log("error", errorMessage)
       } catch {
         errorMessage = errorText || errorMessage;
       }
@@ -261,7 +262,7 @@ private async authenticatedFetch(
   } catch (error: any) {
     const msg = error?.message || "";
 
-    // Nhận diện lỗi mạng / HTTP2 / stream reset để retry
+    
     const isNetworkError =
       msg.includes("Failed to fetch") ||
       msg.includes("NetworkError") ||
@@ -327,7 +328,7 @@ private async authenticatedFetch(
     };
   }
 
-  async getCampaignById(id: string): Promise<PromotionalCampaign> {
+  async getCampaignById(id: any): Promise<PromotionalCampaign> {
     const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${id}`);
 
     const campaign = await response.json();
@@ -537,7 +538,7 @@ private getNumericDiscountType(discountTypeString: string): number {
   return discountTypeMap[discountTypeString] || DiscountType.Percentage;
 }
 
-  async getCampaignAnalytics(campaignId: string): Promise<CampaignAnalytics> {
+  async getCampaignAnalytics(campaignId: any): Promise<CampaignAnalytics> {
   const response = await this.authenticatedFetch(`${this.baseURL}/PromotionalCampaigns/${campaignId}/analytics`);
   const analytics = await response.json();
 
@@ -549,7 +550,7 @@ private getNumericDiscountType(discountTypeString: string): number {
   };
 }
 
-  async getCampaignAnalyticsMock(campaignId: string): Promise<CampaignAnalytics> {
+  async getCampaignAnalyticsMock(campaignId: any): Promise<CampaignAnalytics> {
   const mockAnalytics: CampaignAnalytics = {
     totalUsage: Math.floor(Math.random() * 500) + 50,
 

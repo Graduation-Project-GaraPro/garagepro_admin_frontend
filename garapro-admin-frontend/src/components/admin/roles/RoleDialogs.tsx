@@ -208,6 +208,7 @@ export const RoleDialogs = ({
 
 
   
+  
 const handleCreateClearCategory = useCallback((category: PermissionCategory) => {
   setShouldValidateCreate(true)
   setCreateForm(prev => {
@@ -407,7 +408,7 @@ const handleEditClearCategory = useCallback((category: PermissionCategory) => {
                           const hasAnySelectedInCategory = category.permissions.some(p =>
                             createForm.permissionIds.includes(p.id)
                           )
-
+                          const containsSystemPermission = category.permissions.some(p => p.isSystem)
                           return (
                             <div key={category.id} className="border rounded-md p-3">
                               <div className="flex items-center justify-between mb-2">
@@ -423,7 +424,7 @@ const handleEditClearCategory = useCallback((category: PermissionCategory) => {
                                     size="sm"
                                     className="text-xs"
                                     onClick={() => handleCreateClearCategory(category)}
-                                    disabled={loading}
+                                    disabled={loading || containsSystemPermission}
                                   >
                                     Clear
                                   </Button>
@@ -438,30 +439,52 @@ const handleEditClearCategory = useCallback((category: PermissionCategory) => {
                                     .some((p) => createForm.permissionIds.includes(p.id));
 
                                   return (
-                                    <div key={permission.id} className="flex items-center space-x-2">
+                                    <div
+                                      key={permission.id}
+                                      className="flex items-center space-x-2"
+                                    >
                                       <Switch
                                         id={`create-${permission.id}`}
                                         checked={isChecked}
                                         onCheckedChange={() =>
-                                          handleCreatePermissionToggle(category, permission)
+                                          handleCreatePermissionToggle(
+                                            category,
+                                            permission
+                                          )
                                         }
-                                        disabled={loading || (permission.isDefault && hasOtherSelected)}
+                                        disabled={
+                                          loading ||
+                                          permission.isSystem ||
+                                          (permission.isDefault &&
+                                            hasOtherSelected)
+                                        }
                                       />
                                       <Label
                                         htmlFor={`create-${permission.id}`}
                                         className="text-sm cursor-pointer"
                                       >
-                                        <div className="flex items-center gap-2">
-                                          <span>{permission.name}</span>
-                                          {permission.isDefault && (
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
-                                              Default
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="text-xs text-gray-500">
-                                          {permission.description}
-                                        </div>
+                                        <div className="flex flex-col">
+                                            {/* NAME + BADGE */}
+                                            <div className="flex items-center gap-2">
+                                              <span>{permission.name}</span>
+
+                                              
+                                              {permission.isSystem ? (
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                                                  System
+                                                </span>
+                                              ) : permission.isDefault ? (
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                                  Default
+                                                </span>
+                                              ) : null}
+                                            </div>
+
+                                            {/* DESCRIPTION - luôn nằm dưới, không bị lệch */}
+                                            <div className="text-xs text-gray-500 mt-0.5">
+                                              {permission.description}
+                                            </div>
+                                          </div>
                                       </Label>
                                     </div>
                                   );
@@ -572,7 +595,7 @@ const handleEditClearCategory = useCallback((category: PermissionCategory) => {
                             const hasAnySelectedInCategory = category.permissions.some(p =>
                               editForm.permissionIds.includes(p.id)
                             )
-
+                              const containsSystemPermission = category.permissions.some(p => p.isSystem)
                             return (
                               <div key={category.id} className="border rounded-md p-3">
                                 <div className="flex items-center justify-between mb-2">
@@ -588,7 +611,7 @@ const handleEditClearCategory = useCallback((category: PermissionCategory) => {
                                       size="sm"
                                       className="text-xs"
                                       onClick={() => handleEditClearCategory(category)}
-                                      disabled={loading}
+                                      disabled={loading || containsSystemPermission}
                                     >
                                       Clear
                                     </Button>
@@ -603,26 +626,55 @@ const handleEditClearCategory = useCallback((category: PermissionCategory) => {
                                       .some(p => editForm.permissionIds.includes(p.id))
 
                                     return (
-                                      <div key={permission.id} className="flex items-center space-x-2">
+                                      <div
+                                        key={permission.id}
+                                        className="flex items-center space-x-2"
+                                      >
                                         <Switch
                                           id={`edit-${permission.id}`}
                                           checked={isChecked}
-                                          onCheckedChange={() => handleEditPermissionToggle(category, permission)}
-                                          disabled={loading || (permission.isDefault && hasOtherSelected)}
+                                          onCheckedChange={() =>
+                                            handleEditPermissionToggle(
+                                              category,
+                                              permission
+                                            )
+                                          }
+                                          disabled={
+                                            loading ||
+                                            permission.isSystem ||
+                                            (permission.isDefault &&
+                                              hasOtherSelected)
+                                          }
                                         />
-                                        <Label htmlFor={`edit-${permission.id}`} className="text-sm cursor-pointer">
-                                          <div className="flex items-center gap-2">
-                                            <span>{permission.name}</span>
-                                            {permission.isDefault && (
-                                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
-                                                Default
-                                              </span>
-                                            )}
+                                        <Label
+                                          htmlFor={`edit-${permission.id}`}
+                                          className="text-sm cursor-pointer"
+                                        >
+                                          <div className="flex flex-col">
+                                            {/* NAME + BADGE */}
+                                            <div className="flex items-center gap-2">
+                                              <span>{permission.name}</span>
+
+                                              {/* Ưu tiên SYSTEM → ẩn DEFAULT nếu System = true */}
+                                              {permission.isSystem ? (
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-700">
+                                                  System
+                                                </span>
+                                              ) : permission.isDefault ? (
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                                  Default
+                                                </span>
+                                              ) : null}
+                                            </div>
+
+                                            {/* DESCRIPTION - luôn nằm dưới, không bị lệch */}
+                                            <div className="text-xs text-gray-500 mt-0.5">
+                                              {permission.description}
+                                            </div>
                                           </div>
-                                          <div className="text-xs text-gray-500">{permission.description}</div>
                                         </Label>
                                       </div>
-                                    )
+                                    );
                                   })}
                                 </div>
                               </div>

@@ -4,6 +4,7 @@ const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api';
 
 import { authService } from '@/services/authService';
+import { da } from 'date-fns/locale';
 
 // =======================
 // Domain Types
@@ -152,7 +153,20 @@ interface CreateServiceRequest {
   isActive: boolean;
   isAdvanced: boolean;
   branchIds: string[];
-  partCategoryIds: string[];
+  partCategoryNames: string[];
+}
+interface UpdateServiceRequest {
+  serviceId : string;
+  serviceCategoryId: string;
+  serviceName: string;
+  serviceStatus: string;
+  description: string;
+  price: number;
+  estimatedDuration: number;
+  isActive: boolean;
+  isAdvanced: boolean;
+  branchIds: string[];
+  partCategoryNames: string[];
 }
 
 interface PaginatedResponse<T> {
@@ -442,7 +456,8 @@ export const serviceService = {
       const response = await authenticatedFetch(
         `${API_BASE_URL}/ServiceCategories/parents`
       );
-      return response.json();
+      
+      return await response.json();
     } catch (error) {
       console.error('Error fetching parent categories:', error);
       throw error;
@@ -480,11 +495,12 @@ export const serviceService = {
   async getPartCategories(): Promise<PartCategory[]> {
     try {
       const response = await authenticatedFetch(
-        `${API_BASE_URL}/PartCategories`
+        `${API_BASE_URL}/PartCategories/for-service`
       );
 
       const data: ApiPartCategory[] = await response.json();
 
+      console.log("PartCate", data)
       return data.map(
         (category): PartCategory => ({
           partCategoryId: category.partCategoryId,
@@ -532,7 +548,7 @@ export const serviceService = {
         isActive: serviceData.isActive,
         isAdvanced: serviceData.isAdvanced ,
         branchIds: serviceData.branchIds || [],
-        partCategoryIds: serviceData.partCategoryIds || serviceData.partIds || [],
+        partCategoryNames: serviceData.partCategoryNames || [],
       };
       console.log(requestData)
       await authenticatedFetch(`${API_BASE_URL}/Services`, {
@@ -550,7 +566,9 @@ export const serviceService = {
   // Update service
   async updateService(id: string, serviceData: any): Promise<boolean> {
     try {
-      const requestData: CreateServiceRequest = {
+      const requestData: UpdateServiceRequest = {
+       
+        serviceId : id,
         serviceCategoryId: serviceData.serviceTypeId,
         serviceName: serviceData.name,
         serviceStatus: serviceData.serviceStatus || 'Active',
@@ -560,7 +578,7 @@ export const serviceService = {
         isActive: serviceData.isActive,
         isAdvanced: serviceData.isAdvanced || false,
         branchIds: serviceData.branchIds || [],
-        partCategoryIds: serviceData.partCategoryIds ,
+        partCategoryNames: serviceData.partCategoryNames || [],
       };
 
       console.log(requestData)

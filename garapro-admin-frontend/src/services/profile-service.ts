@@ -2,24 +2,18 @@
 
 import { authService } from "@/services/authService";
 
-// =======================
-// BASE URL
-// =======================
+
 const RAW_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api";
 
 const API_BASE_URL = RAW_BASE_URL.replace(/\/+$/, ""); // remove trailing slash
 
-// =======================
-// GET TOKEN
-// =======================
+
 async function getAuthToken(): Promise<string | null> {
   return authService.getToken();
 }
 
-// =======================
-// REQUEST CLIENT
-// =======================
+
 export async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -55,7 +49,7 @@ export async function request<T>(
 
     console.log("📡 Response:", response.status);
 
-    // 401 → refresh token
+    
     if (response.status === 401 && retryCount === 0) {
       console.log("🔄 Token expired → refreshing...");
       try {
@@ -66,12 +60,12 @@ export async function request<T>(
       }
     }
 
-    // 403 → no permission
+    
     if (response.status === 403) {
       throw new Error("Access denied.");
     }
 
-    // Non-OK Response
+    
     if (!response.ok) {
       const errorText = await response.text();
       let message = `HTTP error ${response.status}`;

@@ -68,7 +68,7 @@ class HistoryChangePolicyService {
       credentials: "include",
     });
 
-    // 401 -> thử refresh token 1 lần
+    
     if (response.status === 401 && retryCount === 0) {
       try {
         await authService.handleTokenRefresh();

@@ -21,6 +21,7 @@ import debounce from 'lodash.debounce'
 export default function EditCampaignPage() {
   const params = useParams()
   const router = useRouter()
+  
   const campaignId = params.id as string
 
   const [loading, setLoading] = useState(false)

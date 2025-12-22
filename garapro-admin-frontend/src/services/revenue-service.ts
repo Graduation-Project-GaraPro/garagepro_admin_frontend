@@ -25,7 +25,7 @@ export interface TopService {
   orderCount: number;
   percentageOfTotal: number;
 
-  [key: string]: string | number; 
+  [key: string]: string | number;
 }
 
 export interface TaskContribution {
@@ -62,7 +62,7 @@ export interface ServiceCategory {
   name: string;
   revenue: number;
   percentage: number;
-  [key: string]: string | number; 
+  [key: string]: string | number;
 }
 
 export interface ServiceTrend {
@@ -81,7 +81,9 @@ export interface RepairOrderItem {
   vehicle?: string;
   technician?: string;
   amount?: number;
+  cost?: number;
   status?: string;
+  paidStatus?: number;
   note?: string;
 }
 
@@ -119,6 +121,7 @@ export interface DetailedRepairOrder {
     inStock?: boolean;
   }>;
   totalAmount?: number;
+  cost?: number;
   status?: string;
   notes?: string;
   estimatedCompletion?: string;
@@ -293,9 +296,9 @@ class RevenueService {
                   o.jobs.map((j: any) => j.service?.serviceName).join(", ")) ||
                 undefined,
               amount: Number(
-                o.paidAmount ?? o.estimatedAmount ?? o.totalAmount ?? 0
+                o.cost ?? 0
               ),
-              paidAmount: Number(o.paidAmount || 0),
+              paidAmount: Number(o.cost || 0),
               estimatedAmount: Number(o.estimatedAmount || 0),
               partCount:
                 o.parts?.length ??
@@ -310,13 +313,14 @@ class RevenueService {
                 o.status ||
                 ""
               ).toString(),
+              paidStatus: Number(o.paidStatus || 0),
               note: o.note,
             };
           } catch (err) {
             console.error("Error mapping order:", o, err);
             return {
-                    id: "",
-                  } satisfies RepairOrderItem;
+              id: "",
+            } satisfies RepairOrderItem;
           }
         })
         .filter(Boolean); // Remove null entries

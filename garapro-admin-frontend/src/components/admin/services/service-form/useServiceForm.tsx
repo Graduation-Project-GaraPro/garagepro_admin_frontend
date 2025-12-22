@@ -4,12 +4,7 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { serviceService } from "@/services/service-Service";
-import type {
-  Service,
-  ServiceType,
-  PartCategory,
-  Branch,
-} from "@/services/service-Service";
+import type { Service, ServiceType, PartCategory, Branch } from "@/services/service-Service";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { ServiceCategory } from "@/services/branch-service";
 
@@ -21,6 +16,7 @@ export type Touched = {
   durationEstimate: boolean;
   description: boolean;
 };
+
 export const useServiceForm = (service?: Service) => {
   const router = useRouter();
   const [serviceCategories, setServiceCategories] = useState<any[]>([]);
@@ -31,11 +27,17 @@ export const useServiceForm = (service?: Service) => {
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
-  // const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
+  // UI vẫn chọn theo ID (để dùng PartsPicker như cũ)
   const [selectedPartCategoryIds, setSelectedPartCategoryIds] = useState<string[]>(
-  // nếu service đang edit có sẵn categoryIds thì dùng, không thì []
     (service as any)?.partCategoryIds ?? []
+  );
+
+  // NEW: nếu backend trả về tên partCategory thì dùng để map ngược ra ids khi edit
+  const initialPartCategoryNamesRef = useRef<string[]>(
+    (service as any)?.partCategoryNames ??
+      (service as any)?.parts?.map((p: any) => p?.categoryName || p?.partCategoryName || p?.name).filter(Boolean) ??
+      []
   );
 
   const initParentDoneRef = useRef(false);
@@ -44,33 +46,25 @@ export const useServiceForm = (service?: Service) => {
   const initialServiceTypeId = service?.serviceType?.parentServiceCategoryId
     ? service?.serviceType?.id
     : service?.serviceType?.id ?? "";
-  
-  const [selectedParentCategory, setSelectedParentCategory] = useState<string>(
-    () => {
-      const st = service?.serviceType;
-      // nếu có parentServiceCategoryId => parent là category cha
-      if (st?.parentServiceCategoryId) return st.parentServiceCategoryId;
-      // nếu không có => serviceType chính là parent (nút lá)
-      if (st?.id) return st.id;
-      return "";
-    }
-  );
 
-  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(() => {
+  const [selectedParentCategory, setSelectedParentCategory] = useState<string>(() => {
     const st = service?.serviceType;
-    // nếu có parent => sub ban đầu là chính serviceTypeId
-    if (st?.parentServiceCategoryId && st?.id) return st.id;
-    // nếu không có parent => parent là lá, sub để rỗng
+    if (st?.parentServiceCategoryId) return st.parentServiceCategoryId;
+    if (st?.id) return st.id;
     return "";
   });
 
-  // ===== constants & helpers =====
+  const [selectedSubCategory, setSelectedSubCategory] = useState<string>(() => {
+    const st = service?.serviceType;
+    if (st?.parentServiceCategoryId && st?.id) return st.id;
+    return "";
+  });
+
   const NAME_MIN = 3;
   const NAME_MAX = 100;
   const DESC_MIN = 10;
   const DESC_MAX = 500;
 
-  // form
   const [formData, setFormData] = useState({
     name: service?.name || "",
     description: service?.description || "",
@@ -85,6 +79,7 @@ export const useServiceForm = (service?: Service) => {
   const [basePriceInput, setBasePriceInput] = useState(
     service?.basePrice ? formatNumber(service.basePrice) : ""
   );
+
   const [touched, setTouched] = useState<Touched>({
     name: false,
     serviceType: false,
@@ -93,53 +88,31 @@ export const useServiceForm = (service?: Service) => {
     durationEstimate: false,
     description: false,
   });
-  // derived
+
   const availableSubCategories = useMemo(() => {
-    const parent = serviceCategories.find(
-      (c) => c.serviceCategoryId === selectedParentCategory
-    );
+    const parent = serviceCategories.find((c) => c.serviceCategoryId === selectedParentCategory);
     return parent?.childCategories ?? [];
   }, [serviceCategories, selectedParentCategory]);
 
-  
-
-  
-
-  
-  
-
-  // validation
   const inRange = (n: number, min: number, max: number) => n >= min && n <= max;
-  const hasSubChoice = (
-    subs: Array<{ serviceCategoryId: string }>,
-    id?: string
-  ) => !!id && subs.some((s) => s.serviceCategoryId === id);
 
-  // ===== derived lengths (đã trim để tránh tên toàn space) =====
+  const hasSubChoice = (subs: Array<{ serviceCategoryId: string }>, id?: string) =>
+    !!id && subs.some((s) => s.serviceCategoryId === id);
+
   const nameLen = formData.name.trim().length;
   const descLen = formData.description.trim().length;
 
-  // ===== memo hóa validation =====
-  const { isNameValid, isDescriptionValid, mustChooseSub, hasValidCategory } =
-    useMemo(() => {
-      const mustChoose = availableSubCategories.length > 0;
+  const { isNameValid, isDescriptionValid, hasValidCategory } = useMemo(() => {
+    const mustChoose = availableSubCategories.length > 0;
 
-      return {
-        isNameValid: inRange(nameLen, NAME_MIN, NAME_MAX),
-        isDescriptionValid:
-          descLen === 0 || inRange(descLen, DESC_MIN, DESC_MAX),
-        mustChooseSub: mustChoose,
-        hasValidCategory:
-          !!formData.serviceTypeId &&
-          (!mustChoose ||
-            hasSubChoice(availableSubCategories, formData.serviceTypeId)),
-      };
-    }, [
-      nameLen,
-      descLen,
-      formData.serviceTypeId,
-      availableSubCategories.length,
-    ]);
+    return {
+      isNameValid: inRange(nameLen, NAME_MIN, NAME_MAX),
+      isDescriptionValid: descLen === 0 || inRange(descLen, DESC_MIN, DESC_MAX),
+      hasValidCategory:
+        !!formData.serviceTypeId &&
+        (!mustChoose || hasSubChoice(availableSubCategories, formData.serviceTypeId)),
+    };
+  }, [nameLen, descLen, formData.serviceTypeId, availableSubCategories.length]);
 
   const isSubmitDisabled =
     !isNameValid ||
@@ -149,17 +122,15 @@ export const useServiceForm = (service?: Service) => {
     formData.basePrice < 1000 ||
     (selectedParentCategory && availableSubCategories.length === 0);
 
-  // effects: load once
   useEffect(() => {
     const load = async () => {
       try {
         setIsLoading(true);
-        const [categoriesData, partCategoriesData, branchesData] =
-          await Promise.all([
-            serviceService.getParentCategories(),
-            serviceService.getPartCategories(),
-            serviceService.getBranches(),
-          ]);
+        const [categoriesData, partCategoriesData, branchesData] = await Promise.all([
+          serviceService.getParentCategories(),
+          serviceService.getPartCategories(),
+          serviceService.getBranches(),
+        ]);
         setServiceCategories(categoriesData);
         setPartCategories(partCategoriesData);
         setBranches(branchesData);
@@ -177,27 +148,40 @@ export const useServiceForm = (service?: Service) => {
     load();
   }, []);
 
-  // initialize category from service after categories loaded
-  //  luôn reset sub + serviceTypeId khi parent đổi
+  // NEW: Khi edit và backend trả về partCategoryNames/parts(name),
+  // map name -> id để UI preselect.
+  useEffect(() => {
+    if (!partCategories.length) return;
+    if (selectedPartCategoryIds.length) return;
+
+    const names = initialPartCategoryNamesRef.current;
+    if (!names?.length) return;
+
+    const nameSet = new Set(names.map((x) => String(x).toLowerCase().trim()));
+
+    const matchedIds = partCategories
+      .filter((c: any) => nameSet.has(String(c.categoryName).toLowerCase().trim()))
+      .map((c: any) => String(c.laborCategoryId ?? c.partCategoryId ?? c.id))
+      .filter(Boolean);
+
+    if (matchedIds.length) {
+      setSelectedPartCategoryIds(matchedIds);
+    }
+  }, [partCategories, selectedPartCategoryIds.length]);
+
   useEffect(() => {
     if (!categoriesLoaded) return;
     if (!initSubDoneRef.current) return;
 
     setSelectedSubCategory("");
 
-    // kiểm tra sub
-    const parent = serviceCategories.find(
-      (c) => c.serviceCategoryId === selectedParentCategory
-    );
+    const parent = serviceCategories.find((c) => c.serviceCategoryId === selectedParentCategory);
     const hasSubs = !!parent?.childCategories?.length;
 
-    // luôn clear serviceTypeId (chỉ gán khi có sub được chọn)
     setFormData((p) => ({ ...p, serviceTypeId: "" }));
 
-    // nếu parent không có sub -> báo lỗi & vẫn không cho submit
     if (!hasSubs && selectedParentCategory) {
       setTouched((t) => ({ ...t, serviceType: true }));
-      // có thể toast ở đây nếu muốn:
       toast.error(
         "This category has no sub-categories. Please choose another main category."
       );
@@ -205,64 +189,51 @@ export const useServiceForm = (service?: Service) => {
   }, [selectedParentCategory, categoriesLoaded, serviceCategories]);
 
   useEffect(() => {
-    // Chưa load xong data thì thôi
     if (!categoriesLoaded) return;
-    // Chưa init parent xong thì đừng đụng
     if (!initParentDoneRef.current) return;
-    // Chưa init sub xong (Bước 2) thì đừng clear, tránh tranh chấp
     if (!initSubDoneRef.current) return;
 
     if (
       selectedSubCategory &&
-      !availableSubCategories.some(
-        (s: ServiceCategory) => s.serviceCategoryId === selectedSubCategory
-      )
+      !availableSubCategories.some((s: ServiceCategory) => s.serviceCategoryId === selectedSubCategory)
     ) {
       setSelectedSubCategory("");
     }
   }, [categoriesLoaded, availableSubCategories, selectedSubCategory]);
-  // Bước 1: set parent khi load xong categories
+
   useEffect(() => {
     if (initParentDoneRef.current) return;
     if (!categoriesLoaded || !service?.serviceType) return;
 
-    const { id: serviceTypeId, parentServiceCategoryId } = service.serviceType;
+    const { id: serviceTypeId, parentServiceCategoryId } = service.serviceType as any;
     setSelectedParentCategory(parentServiceCategoryId ?? serviceTypeId);
 
     initParentDoneRef.current = true;
   }, [categoriesLoaded, service]);
-  // Bước 2: khi sub list sẵn sàng, set sub nếu tồn tại
+
   useEffect(() => {
     if (!initSubDoneRef.current) return;
-    console.log("target");
 
     if (!service?.serviceType?.id || !selectedParentCategory) return;
-    const targetSubId = service.serviceType.id;
-    console.log("target", targetSubId);
+    const targetSubId = (service.serviceType as any).id;
 
     const existsInSubs = availableSubCategories.some(
       (s: ServiceCategory) => s.serviceCategoryId === targetSubId
     );
 
-    // Chỉ đánh dấu done khi đã tính được sublist (kể cả trống)
     if (existsInSubs) {
       setSelectedSubCategory(targetSubId);
       initSubDoneRef.current = true;
     } else if (!availableSubCategories.length) {
-      // parent là lá
       setSelectedSubCategory("");
       initSubDoneRef.current = true;
     }
   }, [availableSubCategories, selectedParentCategory, service]);
 
-  // write serviceTypeId depending on chosen level
-  // ✅ ghi serviceTypeId chỉ từ lá (sub) hoặc parent-lá
   useEffect(() => {
     const validSub =
       selectedSubCategory &&
-      availableSubCategories.some(
-        (s : ServiceCategory) => s.serviceCategoryId === selectedSubCategory
-      );
+      availableSubCategories.some((s: ServiceCategory) => s.serviceCategoryId === selectedSubCategory);
 
     setFormData((p) => ({
       ...p,
@@ -270,60 +241,42 @@ export const useServiceForm = (service?: Service) => {
     }));
   }, [selectedSubCategory, availableSubCategories]);
 
-  // handlers
   const markTouched = useCallback(
     (k: keyof Touched) => setTouched((t) => ({ ...t, [k]: true })),
     []
   );
 
-const filteredPartCategories = useMemo(
-  () => {
+  const filteredPartCategories = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
     if (!term) return partCategories;
-    return partCategories.filter((cat) =>
-      cat.categoryName.toLowerCase().includes(term)
+    return partCategories.filter((cat: any) =>
+      String(cat.categoryName).toLowerCase().includes(term)
     );
-  },
-  [partCategories, searchTerm]
-);
+  }, [partCategories, searchTerm]);
 
-//  toggle chọn / bỏ chọn PartCategory
-const togglePartCategory = useCallback(
-  (id: string) => {
-    setSelectedPartCategoryIds((prev) => {
-      if (formData.isAdvanced) {
-        //  Advanced: cho chọn nhiều
-        return prev.includes(id)
-          ? prev.filter((x) => x !== id)
-          : [...prev, id];
-      }
+  const togglePartCategory = useCallback(
+    (id: string) => {
+      setSelectedPartCategoryIds((prev) => {
+        if (formData.isAdvanced) {
+          return prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+        }
+        if (prev.includes(id)) return [];
+        return [id];
+      });
+    },
+    [formData.isAdvanced]
+  );
 
-      //  Không advanced: chỉ 1 category
-      if (prev.includes(id)) {
-        // click lại cái đang chọn -> bỏ chọn hết
-        return [];
-      }
-      // chọn mới -> chỉ giữ đúng id này
-      return [id];
-    });
-  },
-  [formData.isAdvanced]
-);
+  useEffect(() => {
+    if (!formData.isAdvanced && selectedPartCategoryIds.length > 1) {
+      setSelectedPartCategoryIds((prev) => (prev.length ? [prev[0]] : []));
+    }
+  }, [formData.isAdvanced, selectedPartCategoryIds.length]);
 
-useEffect(() => {
-  if (!formData.isAdvanced && selectedPartCategoryIds.length > 1) {
-    setSelectedPartCategoryIds((prev) => (prev.length ? [prev[0]] : []));
-  }
-}, [formData.isAdvanced, selectedPartCategoryIds.length]);
-
-
-//  clear chỉ search, không còn filter category nữa
-const clearSearch = useCallback(() => {
-  setSearchTerm("");
-  toast.info("Filters cleared");
-}, []);
-
-
+  const clearSearch = useCallback(() => {
+    setSearchTerm("");
+    toast.info("Filters cleared");
+  }, []);
 
   const toggleBranch = useCallback(
     (branchId: string) => {
@@ -337,8 +290,6 @@ const clearSearch = useCallback(() => {
     },
     [formData.branchIds]
   );
-
-  
 
   const handleBasePriceChange = (value: string) => {
     const raw = value.replace(/\./g, "");
@@ -356,12 +307,29 @@ const clearSearch = useCallback(() => {
     }
   };
 
+  // NEW: convert selectedPartCategoryIds -> partCategoryNames (string[])
+  const buildPartCategoryNames = useCallback((): string[] => {
+    if (!selectedPartCategoryIds?.length) return [];
+
+    const mapIdToName = (id: string) => {
+      const found: any = partCategories.find((c: any) => {
+        const cid = String(c.laborCategoryId ?? c.partCategoryId ?? c.id);
+        return cid === String(id);
+      });
+      return found?.categoryName ? String(found.categoryName) : null;
+    };
+
+    return selectedPartCategoryIds
+      .map(mapIdToName)
+      .filter((x): x is string => !!x && x.trim().length > 0);
+  }, [selectedPartCategoryIds, partCategories]);
+
   const submit = async () => {
     setIsSubmitting(true);
-    const toastId = toast.loading(
-      service ? "Updating service..." : "Creating new service...",
-      { description: "Please wait while we save your changes." }
-    );
+    const toastId = toast.loading(service ? "Updating service..." : "Creating new service...", {
+      description: "Please wait while we save your changes.",
+    });
+
     try {
       const payload = {
         name: formData.name,
@@ -372,8 +340,11 @@ const clearSearch = useCallback(() => {
         isActive: formData.isActive,
         isAdvanced: formData.isAdvanced,
         branchIds: formData.branchIds,
-        partCategoryIds: selectedPartCategoryIds,
+
+        // IMPORTANT: backend mới nhận tên, không nhận ids
+        partCategoryNames: buildPartCategoryNames(),
       };
+
       if (service) {
         await serviceService.updateService(service.id, payload);
         toast.success("Service updated successfully", {
@@ -387,6 +358,7 @@ const clearSearch = useCallback(() => {
           id: toastId,
         });
       }
+
       setTimeout(() => {
         router.push("/admin/services");
         router.refresh();
@@ -403,14 +375,14 @@ const clearSearch = useCallback(() => {
       setIsSubmitting(false);
     }
   };
+
   return {
-    // data
     serviceCategories,
     partCategories,
     branches,
     isLoading,
     isSubmitting,
-    // form state
+
     formData,
     setFormData,
     touched,
@@ -418,32 +390,31 @@ const clearSearch = useCallback(() => {
     basePriceInput,
     handleBasePriceChange,
     handleBasePriceBlur,
-    // category selection
+
     selectedParentCategory,
     setSelectedParentCategory,
     selectedSubCategory,
     setSelectedSubCategory,
     availableSubCategories,
-    // parts
+
     searchTerm,
     setSearchTerm,
-    
     filteredPartCategories,
+
+    // UI vẫn dùng ids để render & toggle
     selectedPartCategoryIds,
     togglePartCategory,
-
     clearSearch,
-    // validations
+
     isDescriptionValid,
     isNameValid,
     hasValidCategory,
     isSubmitDisabled,
-    // helpers
+
     formatCurrency,
     formatNumber,
-    // branches
+
     toggleBranch,
-    // actions
     submit,
   };
 };

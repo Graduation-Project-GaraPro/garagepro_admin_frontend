@@ -6,8 +6,8 @@ import { Toaster } from "sonner";
 import { OnlineUserProvider } from "@/constants/OnlineUserProvider";
 import { RepairOrderHubProvider } from "@/constants/RepairOrderHubProvider";
 import { AuthProvider } from "@/contexts/auth-context";
-import { PermissionProvider } from "@/contexts/permission-context"; // 👈 THÊM DÒNG NÀY
-
+import { PermissionProvider } from "@/contexts/permission-context"; 
+import Providers from "./providers";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -19,29 +19,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OtoGarage",
-  description: "OtoGarage Management System",
+  title: "GaragePro",
+  icons: {
+    icon: "/gr_logo.png",
+  },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <AuthProvider>
-         
-          <PermissionProvider>
-            <OnlineUserProvider>
-              <RepairOrderHubProvider>{children}</RepairOrderHubProvider>
-            </OnlineUserProvider>
-            <Toaster />
-          </PermissionProvider>
-        </AuthProvider>
+      <body>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

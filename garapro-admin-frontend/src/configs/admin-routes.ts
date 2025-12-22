@@ -1,4 +1,3 @@
-
 // configs/admin-routes.ts
 import React from "react";
 import {
@@ -107,15 +106,14 @@ export const adminMenuItems: AdminMenuItem[] = [
     showInMenu: true,
     submenu: [
       {
-        title: "Overview",
-        href: "/admin/statistics",
+        title: "Overview Statistics",
+        href: "/admin/statistics/realtime",
         requiredPermissions: ["VIEW_STAT"],
         showInMenu: true,
       },
-
       {
-        title: "Real-time Analytics",
-        href: "/admin/statistics/realtime",
+        title: "Feedback Reports",
+        href: "/admin/statistics/feedback",
         requiredPermissions: ["VIEW_STAT"],
         showInMenu: true,
       },
@@ -305,11 +303,11 @@ export const routePermissionRules: RoutePermissionRule[] = [
     pattern: /^\/admin\/services\/?$/,
     permissions: ["SERVICE_VIEW"],
   },
-  // CREATE  /admin/services/new/[id]
+  // CREATE  /admin/services/new
   {
-    pattern: /^\/admin\/services\/new\/?$/,
-    permissions: ["SERVICE_CREATE"],
-  },
+  pattern: /^\/admin\/services\/new\/?$/,
+  permissions: ["SERVICE_CREATE"],
+  } ,
   // EDIT  /admin/services/edit/[id]
   {
     pattern: /^\/admin\/services\/edit\/[^\/]+\/?$/,

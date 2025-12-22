@@ -5,7 +5,10 @@ import BranchForm from '@/components/admin/branches/BranchForm'
 
 export default function EditBranchPage() {
   const params = useParams()
-  const id = params.id as string
+  const raw = params?.id
+  const id = Array.isArray(raw) ? raw[0] : raw
+
+  if (!id) return <div>Loading...</div>
 
   return <BranchForm mode="edit" branchId={id} />
 }

@@ -161,7 +161,7 @@ export interface ImportResult {
 class BranchService {
   private baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://localhost:7113/api'
   private dbUrl = '/data/db.json'
-   private getAuthToken(): string | null {
+  private getAuthToken(): string | null {
     return authService.getToken(); // CHỈ DÙNG GETTOKEN
   }
 
@@ -191,7 +191,7 @@ class BranchService {
       headers,
     });
 
-    // 401 → Try refresh token once
+    
     if (response.status === 401 && retryCount === 0) {
       try {
         await authService.handleTokenRefresh();
@@ -201,20 +201,26 @@ class BranchService {
       }
     }
 
-    // 403 → No permission
+    
     if (response.status === 403) {
       throw new Error("Access denied");
     }
 
     // API error but not network error
     if (!response.ok) {
-      const text = await response.text();
+      const errorText = await response.text();
+      let errorMessage = `HTTP error! status: ${response.status}`;
       try {
-        const data = JSON.parse(text);
-        throw new Error(data.message || data.error || text);
+        const errorData = JSON.parse(errorText);
+        errorMessage =
+          (errorData.message
+            ? errorData.message + (errorData.detail ? " " + errorData.detail : "")
+            : errorData.error) || errorMessage;
+        console.log("error", errorMessage)
       } catch {
-        throw new Error(text || `HTTP Error ${response.status}`);
+        errorMessage = errorText || errorMessage;
       }
+      throw new Error(errorMessage);
     }
 
     // 204 No Content
@@ -275,7 +281,7 @@ class BranchService {
     }
   }
 
-  async getBranchById(id: string): Promise<GarageBranch> {
+  async getBranchById(id: any): Promise<GarageBranch> {
     const url = `${this.baseURL}/Branch/${id}`
     console.log('Fetching branch from:', url)
     const response = await this.request<GarageBranch>(url)
