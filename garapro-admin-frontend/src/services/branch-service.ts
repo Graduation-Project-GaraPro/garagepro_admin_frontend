@@ -281,7 +281,7 @@ class BranchService {
     }
   }
 
-  async getBranchById(id: string): Promise<GarageBranch> {
+  async getBranchById(id: any): Promise<GarageBranch> {
     const url = `${this.baseURL}/Branch/${id}`
     console.log('Fetching branch from:', url)
     const response = await this.request<GarageBranch>(url)

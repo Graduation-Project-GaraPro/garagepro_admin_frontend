@@ -27,6 +27,7 @@ export interface Service {
   parts?: PartService[];
   partIds?: string[];
   partCategoryIds?: string[];
+  partCategoryNames?: string[];
 }
 
 export interface ServiceType {
@@ -63,6 +64,7 @@ export interface Part {
 export interface PartCategory {
   partCategoryId: string;
   categoryName: string;
+  description: string;
   parts?: Part[];
 }
 
@@ -132,6 +134,7 @@ interface ApiServiceCategory {
 interface ApiPartCategory {
   partCategoryId: string;
   categoryName: string;
+  description : string;
   parts: ApiPart[];
 }
 
@@ -153,7 +156,20 @@ interface CreateServiceRequest {
   isActive: boolean;
   isAdvanced: boolean;
   branchIds: string[];
-  partCategoryIds: string[];
+  partCategoryNames: string[];
+}
+interface UpdateServiceRequest {
+  serviceId : string;
+  serviceCategoryId: string;
+  serviceName: string;
+  serviceStatus: string;
+  description: string;
+  price: number;
+  estimatedDuration: number;
+  isActive: boolean;
+  isAdvanced: boolean;
+  branchIds: string[];
+  partCategoryNames: string[];
 }
 
 interface PaginatedResponse<T> {
@@ -328,7 +344,7 @@ const mapApiServiceToService = (
     'parts' in item && item.parts
       ? item.parts.map((p) => p.partId)
       : undefined,
-  partCategoryIds: item.partCategories?.map((pc) => pc.partCategoryId) || [],
+  partCategoryNames: item.partCategories?.map((pc) => pc.categoryName || pc.categoryName || '') || [],
 });
 
 // =======================
@@ -390,8 +406,9 @@ export const serviceService = {
       if (response.status === 404) {
         return null;
       }
-
       const item: ApiService = await response.json();
+      console.log("item",mapApiServiceToService(item))
+
       return mapApiServiceToService(item);
     } catch (error) {
       console.error('Error fetching service:', error);
@@ -492,6 +509,7 @@ export const serviceService = {
         (category): PartCategory => ({
           partCategoryId: category.partCategoryId,
           categoryName: category.categoryName,
+          description: category.description,
           parts: category.parts.map(
             (part): Part => ({
               id: part.partId,
@@ -535,7 +553,7 @@ export const serviceService = {
         isActive: serviceData.isActive,
         isAdvanced: serviceData.isAdvanced ,
         branchIds: serviceData.branchIds || [],
-        partCategoryIds: serviceData.partCategoryIds || serviceData.partIds || [],
+        partCategoryNames: serviceData.partCategoryNames || [],
       };
       console.log(requestData)
       await authenticatedFetch(`${API_BASE_URL}/Services`, {
@@ -553,7 +571,9 @@ export const serviceService = {
   // Update service
   async updateService(id: string, serviceData: any): Promise<boolean> {
     try {
-      const requestData: CreateServiceRequest = {
+      const requestData: UpdateServiceRequest = {
+       
+        serviceId : id,
         serviceCategoryId: serviceData.serviceTypeId,
         serviceName: serviceData.name,
         serviceStatus: serviceData.serviceStatus || 'Active',
@@ -563,7 +583,7 @@ export const serviceService = {
         isActive: serviceData.isActive,
         isAdvanced: serviceData.isAdvanced || false,
         branchIds: serviceData.branchIds || [],
-        partCategoryIds: serviceData.partCategoryIds ,
+        partCategoryNames: serviceData.partCategoryNames || [],
       };
 
       console.log(requestData)

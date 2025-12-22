@@ -8,9 +8,14 @@ import ServiceForm from '@/components/admin/services/ServiceForm';
 import { serviceService,Service } from '@/services/service-Service';
 
 export default function EditServicePage() {
-  const { id } = useParams<{ id: string }>();
+  
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const params = useParams()
+
+  const raw = params?.id
+  const id = Array.isArray(raw) ? raw[0] : raw
 
   useEffect(() => {
     let alive = true;

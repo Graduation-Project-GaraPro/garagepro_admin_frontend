@@ -6,7 +6,8 @@ import ServiceDetail from '@/components/admin/services/ServiceDetail';
 
 export default function ViewServicePage() {
   const params = useParams();
-  const serviceId = params.id as string;
+  const raw = params?.id
+  const serviceId = Array.isArray(raw) ? raw[0] : raw
 
   return (
     <div className="container mx-auto py-6">

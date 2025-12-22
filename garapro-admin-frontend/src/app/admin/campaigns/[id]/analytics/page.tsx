@@ -13,7 +13,10 @@ import type { PromotionAppliedNotificationDto } from '@/services/campaign-servic
 import { authService } from '@/services/authService'
 export default function CampaignAnalyticsPage() {
   const params = useParams()
-  const campaignId = params.id as string
+
+  const raw = params?.id
+  const campaignId = Array.isArray(raw) ? raw[0] : raw
+  
   const [campaign, setCampaign] = useState<PromotionalCampaign | null>(null)
   const [analytics, setAnalytics] = useState<CampaignAnalytics | null>(null)
   const [loading, setLoading] = useState(true)

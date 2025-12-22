@@ -13,7 +13,9 @@ import { usePermissionContext } from '@/contexts/permission-context'
 
 export default function BranchDetailPage() {
   const params = useParams()
-  const branchId = params.id as string
+  
+  const raw = params?.id
+  const branchId = Array.isArray(raw) ? raw[0] : raw
   const [branch, setBranch] = useState<GarageBranch | null>(null)
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [loading, setLoading] = useState(true)
@@ -443,9 +445,7 @@ export default function BranchDetailPage() {
                     {staff.email}
                   </div>
                   <div className="flex justify-between items-center text-sm">
-                    <span className={staff.gender ? 'text-blue-600' : 'text-pink-600'}>
-                      {staff.gender ? 'Male' : 'Female'}
-                    </span>
+                    
                     <span className="text-muted-foreground">
                       Joined: {new Date(staff.createdAt).toLocaleDateString()}
                     </span>

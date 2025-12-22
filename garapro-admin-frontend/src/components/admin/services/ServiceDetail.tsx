@@ -39,7 +39,7 @@ import { toast } from "sonner";
 import { usePermissionContext } from '@/contexts/permission-context'
 
 interface ServiceDetailProps {
-  serviceId: string;
+  serviceId: any;
 }
 
 // Format currency for Vietnamese Dong
@@ -56,7 +56,7 @@ const formatNumber = (number: number): string => {
 };
 
 export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
-  const router = useRouter();
+  
   const [service, setService] = useState<ApiService | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const {hasAnyPermission} = usePermissionContext();
@@ -290,9 +290,9 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
                 </Badge>
               )}
             </CardTitle>
-            <CardDescription>
+            {/* <CardDescription>
               Click a category to view its parts
-            </CardDescription>
+            </CardDescription> */}
           </CardHeader>
           <CardContent>
             {service.partCategories && service.partCategories.length > 0 ? (
@@ -311,27 +311,27 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
                       {/* Header category (clickable) */}
                       <button
                         type="button"
-                        onClick={() => toggleCategory(cat.partCategoryId)}
+                        // onClick={() => toggleCategory(cat.partCategoryId)}
                         className="w-full flex items-center justify-between px-3 py-2 text-left"
                       >
                         <div>
                           <p className="font-medium text-sm">
                             {cat.categoryName}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          {/* <p className="text-xs text-muted-foreground">
                             {parts.length} part{parts.length !== 1 ? "s" : ""}{" "}
                             in this category
-                          </p>
+                          </p> */}
                         </div>
-                        <ChevronDown
+                        {/* <ChevronDown
                           className={`h-4 w-4 text-muted-foreground transition-transform ${
                             isExpanded ? "rotate-180" : ""
                           }`}
-                        />
+                        /> */}
                       </button>
 
                       {/* Content: bảng parts nếu expand */}
-                      {isExpanded && (
+                      {/* {isExpanded && (
                         <div className="border-t">
                           {parts.length > 0 ? (
                             <div className="max-h-64 overflow-y-auto">
@@ -383,7 +383,7 @@ export default function ServiceDetail({ serviceId }: ServiceDetailProps) {
                             </div>
                           )}
                         </div>
-                      )}
+                      )} */}
                     </div>
                   );
                 })}
