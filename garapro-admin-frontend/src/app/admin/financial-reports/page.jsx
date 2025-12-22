@@ -79,9 +79,6 @@ export default function FinancialReports() {
             <h1 className="text-3xl font-bold tracking-tight">Financial Reports</h1>
             <p className="text-muted-foreground">Analyze revenue performance across your business</p>
           </div>
-          <div className="header-actions">
-            <ExportButton filters={filters} />
-          </div>
         </div>
       </header>
 
