@@ -139,6 +139,10 @@ export default function ServiceForm({ service, isReady = true }: { service?: any
               togglePartCategory={vm.togglePartCategory}
               clearSearch={vm.clearSearch}
               isAdvanced={vm.formData.isAdvanced}   
+
+              touched={vm.touched.partCategories}
+              isValid={vm.hasValidPartCategories}
+              markTouched={() => vm.markTouched("partCategories")}
             />
             <BranchesPicker
               branches={vm.branches}

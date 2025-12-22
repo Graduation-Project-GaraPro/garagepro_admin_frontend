@@ -30,7 +30,10 @@ type Props = {
   selectedPartCategoryIds: string[];
   togglePartCategory: (id: string) => void;
   clearSearch: () => void;
-  isAdvanced: boolean;      
+  isAdvanced: boolean;
+  touched?: boolean;        
+  isValid?: boolean;        
+  markTouched?: () => void;      
 };
 
 function PartsPicker({
@@ -41,7 +44,10 @@ function PartsPicker({
   selectedPartCategoryIds,
   togglePartCategory,
   clearSearch,
-  isAdvanced,               
+  isAdvanced, 
+  touched,
+  isValid,
+  markTouched,              
 }: Props) {
   console.log("PartsPicker render");
 
@@ -54,8 +60,14 @@ function PartsPicker({
       <CardHeader>
         <CardTitle className="flex items-center gap-2">Required Parts</CardTitle>
         <CardDescription>
-          Select part categories needed for this service (optional)
-        </CardDescription>
+            Select part categories needed for this service <span className="text-destructive">*</span>
+          </CardDescription>
+
+          {touched && isValid === false && (
+            <div className="text-sm text-destructive">
+              Please select at least 1 part category.
+            </div>
+          )}
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -114,7 +126,10 @@ function PartsPicker({
                           ? "bg-primary/10 border-primary shadow-sm"
                           : "hover:bg-muted/50 border-muted"
                       }`}
-                      onClick={() => togglePartCategory(cat.partCategoryId)}
+                      onClick={() => {
+                                markTouched?.();
+                                togglePartCategory(cat.partCategoryId);
+                              }}
                     >
                       <div className="flex-1 flex items-center gap-3">
                         <div
@@ -212,6 +227,9 @@ function areEqual(prev: Props, next: Props) {
   check("setSearchTerm");
   check("clearSearch");
   check("isAdvanced");
+  check("touched");
+  check("isValid");
+  check("markTouched");
   if (diffs.length) {
     console.log("%c[PartsPicker] props changed:", "color:orange", diffs);
     return false; // có thay đổi -> cho re-render
