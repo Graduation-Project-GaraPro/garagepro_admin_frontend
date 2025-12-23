@@ -88,45 +88,197 @@ export interface RepairOrderItem {
 }
 
 export interface DetailedRepairOrder {
-  id: string;
-  date?: string;
-  customerName?: string;
-  customerPhone?: string;
-  customerEmail?: string;
-  vehicle?: {
-    make?: string;
-    model?: string;
-    year?: number;
-    vin?: string;
-    licensePlate?: string;
-    mileage?: number;
+  repairOrderId: string;
+  receiveDate: string;
+  roType: number;
+  estimatedCompletionDate: string;
+  completionDate: string | null;
+  cost: number;
+  estimatedAmount: number;
+  paidAmount: number;
+  paidStatus: number;
+  estimatedRepairTime: number;
+  note: string;
+  createdAt: string;
+  updatedAt: string | null;
+  isArchived: boolean;
+  archivedAt: string | null;
+  isCancelled: boolean;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  archivedByUserId: string | null;
+  branchId: string;
+  statusId: number;
+  vehicleId: string;
+  userId: string;
+  repairRequestId: string | null;
+  feedBackId: string | null;
+  repairRequest: any | null;
+  carPickupStatus: number;
+  labelId: string | null;
+  
+  orderStatus: {
+    orderStatusId: number;
+    statusName: string;
+    repairOrders: any[];
+    labels: any | null;
   };
-  technician?: { id?: string; name?: string };
-  services?: Array<{
-    id?: string;
-    name?: string;
-    description?: string;
-    price?: number;
-    quantity?: number;
-    total?: number;
-    technician?: string;
-    durationMinutes?: number;
+  
+  branch: {
+    branchId: string;
+    branchName: string;
+    phoneNumber: string;
+    email: string;
+    street: string;
+    commune: string;
+    province: string;
+    latitude: number;
+    longitude: number;
+    description: string;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+    arrivalWindowMinutes: number;
+    maxBookingsPerWindow: number;
+    operatingHours: any[];
+    repairOrders: any[];
+    repairRequests: any | null;
+    staffs: any[];
+    branchServices: any[];
+    quotations: any[];
+    partInventories: any[];
+  };
+  
+  vehicle: {
+    vehicleId: string;
+    brandId: string;
+    userId: string;
+    modelId: string;
+    colorId: string;
+    licensePlate: string;
+    vin: string;
+    year: number;
+    odometer: number;
+    lastServiceDate: string;
+    nextServiceDate: string | null;
+    warrantyStatus: string | null;
+    createdAt: string;
+    updatedAt: string | null;
+    brand: {
+      brandID: string;
+      brandName: string;
+      country: string;
+      createdAt: string;
+      vehicleModels: any[];
+      vehicles: any[];
+    };
+    model: {
+      modelID: string;
+      modelName: string;
+      manufacturingYear: number;
+      brandID: string;
+      createdAt: string;
+      updatedAt: string | null;
+      brand: any | null;
+      vehicles: any[];
+      vehicleModelColors: any | null;
+      partCategories: any[];
+    };
+    color: {
+      colorID: string;
+      colorName: string;
+      hexCode: string;
+      createdAt: string;
+      vehicles: any[];
+      vehicleModelColors: any[];
+    };
+    repairRequests: any[];
+    repairOrders: any[];
+    user: any | null;
+  };
+  
+  user: {
+    avatarUrl: string | null;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string | null;
+    gender: string | null;
+    birthday: string | null;
+    status: string | null;
+    firstName: string;
+    lastName: string;
+    fullName: string;
+    lastLogin: string | null;
+    avatar: string | null;
+    dateOfBirth: string | null;
+    deviceId: string;
+    lastPasswordChangeDate: string | null;
+    systemLogs: any[];
+    notifications: any[];
+    technician: any | null;
+    repairRequests: any[];
+    feedBacks: any[];
+    assignedEmergencyRequests: any[];
+    branchId: string | null;
+    branch: any | null;
+    id: string;
+    userName: string;
+    normalizedUserName: string;
+    email: string;
+    normalizedEmail: string;
+    emailConfirmed: boolean;
+    passwordHash: string;
+    securityStamp: string;
+    concurrencyStamp: string;
+    phoneNumber: string;
+    phoneNumberConfirmed: boolean;
+    twoFactorEnabled: boolean;
+    lockoutEnd: string | null;
+    lockoutEnabled: boolean;
+    accessFailedCount: number;
+  };
+  
+  repairOrderServices: Array<{
+    repairOrderServiceId: string;
+    repairOrderId: string;
+    serviceId: string;
+    actualDuration: number;
+    notes: string | null;
+    createdAt: string;
+    repairOrder: any | null;
+    service: {
+      serviceId: string;
+      serviceCategoryId: string;
+      serviceName: string;
+      description: string;
+      price: number;
+      estimatedDuration: number;
+      isActive: boolean;
+      isAdvanced: boolean;
+      branchId: string | null;
+      createdAt: string;
+      updatedAt: string | null;
+      serviceCategory: any | null;
+      repairOrderServices: any[];
+      serviceInspections: any[];
+      jobs: any[];
+      branchServices: any[];
+      promotionalCampaignServices: any[];
+      quotationServices: any[];
+      requestServices: any[];
+      servicePartCategories: any | null;
+    };
+    repairOrderServiceParts: any[];
   }>;
-  parts?: Array<{
-    id?: string;
-    name?: string;
-    price?: number;
-    quantity?: number;
-    total?: number;
-    inStock?: boolean;
-  }>;
-  totalAmount?: number;
-  cost?: number;
-  status?: string;
-  notes?: string;
-  estimatedCompletion?: string;
+  
+  inspections: any | null;
+  jobs: any[];
+  payments: any[];
+  feedBack: any | null;
+  quotations: any[];
+  voucherUsages: any[];
+  label: any | null;
 }
-
 export interface RevenueReport {
   period: string;
   totalRevenue: number;

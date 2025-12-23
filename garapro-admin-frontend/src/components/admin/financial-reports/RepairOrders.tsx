@@ -43,17 +43,6 @@ import {
 import { formatCurrency } from "@/utils/formatters";
 import { RepairOrderItem, revenueService } from "@/services/revenue-service";
 
-// type RepairOrderItem = {
-//   id: string;
-//   date?: string;
-//   customerName?: string;
-//   vehicle?: string;
-//   technician?: string;
-//   amount?: number;
-//   status?: string;
-//   note?: string;
-// };
-
 type DetailedRepairOrder = any;
 
 const STATUS_COLORS = {
@@ -93,7 +82,6 @@ export default function RepairOrders() {
         p,
         pageSize
       );
-      // console.log("Fetched orders:", orders);
       const sorted = (orders || []).sort((a, b) => {
         const dateA = new Date(a.date || 0).getTime();
         const dateB = new Date(b.date || 0).getTime();
@@ -120,6 +108,7 @@ export default function RepairOrders() {
     setOrderDetails(null);
     try {
       const details = await revenueService.getRepairOrderDetail(id);
+      console.log("Order details:", details);
       setOrderDetails(details);
     } catch (err) {
       console.error("Failed to load order details:", err);
@@ -134,7 +123,6 @@ export default function RepairOrders() {
     loadOrderDetails(order.id);
   };
 
-  // Thống kê doanh thu thực tế
   const revenueStats = useMemo(() => {
     const stats = {
       totalRevenue: 0,
@@ -176,7 +164,6 @@ export default function RepairOrders() {
         revenue: revenueStats.paidRevenue,
         count: revenueStats.paidCount,
       },
-      
       {
         name: "Pending",
         revenue: revenueStats.pendingRevenue,
@@ -303,7 +290,6 @@ export default function RepairOrders() {
             </CardContent>
           </Card>
 
-          
           <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white border-0 shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -500,17 +486,10 @@ export default function RepairOrders() {
                         Order ID
                       </div>
                       <div className="font-bold text-2xl text-slate-900 mt-1">
-                        #
-                        {String(
-                          orderDetails.repairOrderId ??
-                            orderDetails.id ??
-                            selectedOrder?.id
-                        ).slice(0, 12)}
+                        #{String(orderDetails.repairOrderId).slice(0, 12)}
                       </div>
                       <div className="text-sm text-slate-600 mt-2">
-                        {orderDetails.receiveDate ??
-                          orderDetails.completionDate ??
-                          orderDetails.date}
+                        {new Date(orderDetails.receiveDate).toLocaleDateString("en-GB")} {new Date(orderDetails.receiveDate).toLocaleTimeString("en-GB", { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                     <div className="text-right">
@@ -518,31 +497,18 @@ export default function RepairOrders() {
                         Total Amount
                       </div>
                       <div className="font-bold text-2xl text-green-600 mt-1">
-                        {formatCurrency(
-                          orderDetails.cost ??
-                            0
-                        )}
+                        {formatCurrency(orderDetails.estimatedAmount ?? 0)}
                       </div>
                       <span
                         className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                          getPaidStatus(
-                            orderDetails.paidStatus ??
-                              orderDetails.statusName ??
-                              orderDetails.status
-                          ) === "Paid"
+                          orderDetails.orderStatus?.statusName === "Completed"
                             ? "bg-green-100 text-green-800"
-                            : getPaidStatus(
-                                orderDetails.paidStatus ??
-                                  orderDetails.statusName ??
-                                  orderDetails.status
-                              ) === "Partial"
+                            : orderDetails.orderStatus?.statusName === "In Progress"
                             ? "bg-amber-100 text-amber-800"
                             : "bg-indigo-100 text-indigo-800"
                         }`}
                       >
-                        {orderDetails.paidStatus ??
-                          orderDetails.statusName ??
-                          orderDetails.status}
+                        {orderDetails.orderStatus?.statusName ?? "Pending"}
                       </span>
                     </div>
                   </div>
@@ -556,18 +522,16 @@ export default function RepairOrders() {
                     </div>
                     <div className="space-y-2">
                       <div className="font-semibold text-lg text-slate-900">
-                        {orderDetails.customerName ??
-                          orderDetails.user?.fullName ??
-                          "—"}
+                        {orderDetails.user?.fullName ?? "—"}
                       </div>
-                      {orderDetails.customerPhone && (
+                      {orderDetails.user?.phoneNumber && (
                         <div className="text-sm text-slate-600">
-                          📞 {orderDetails.customerPhone}
+                          📞 {orderDetails.user.phoneNumber}
                         </div>
                       )}
-                      {orderDetails.customerEmail && (
+                      {orderDetails.user?.email && (
                         <div className="text-sm text-slate-600">
-                          ✉️ {orderDetails.customerEmail}
+                          ✉️ {orderDetails.user.email}
                         </div>
                       )}
                     </div>
@@ -579,18 +543,22 @@ export default function RepairOrders() {
                     </div>
                     <div className="space-y-2">
                       <div className="font-semibold text-lg text-slate-900">
-                        {orderDetails.vehicle?.licensePlate ??
-                          orderDetails.licensePlate ??
-                          "—"}
+                        {orderDetails.vehicle?.licensePlate ?? "—"}
                       </div>
                       <div className="text-sm text-slate-600">
-                        {orderDetails.vehicle?.model ??
-                          orderDetails.vehicleId ??
-                          ""}
+                        {orderDetails.vehicle?.brand?.brandName ?? ""} {orderDetails.vehicle?.model?.modelName ?? ""}
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        Year: {orderDetails.vehicle?.year ?? "—"} | Color: {orderDetails.vehicle?.color?.colorName ?? "—"}
                       </div>
                       {orderDetails.vehicle?.vin && (
                         <div className="text-sm text-slate-600">
                           VIN: {orderDetails.vehicle.vin}
+                        </div>
+                      )}
+                      {orderDetails.vehicle?.odometer && (
+                        <div className="text-sm text-slate-600">
+                          Odometer: {orderDetails.vehicle.odometer.toLocaleString()} km
                         </div>
                       )}
                     </div>
@@ -600,56 +568,137 @@ export default function RepairOrders() {
                 {/* Services */}
                 <div className="bg-white p-5 rounded-xl border shadow-sm">
                   <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">
-                    Services
+                    Services ({orderDetails.repairOrderServices?.length ?? 0})
                   </div>
-                  {(
-                    orderDetails.jobs ||
-                    orderDetails.repairOrderServices ||
-                    orderDetails.services ||
-                    []
-                  ).length === 0 ? (
+                  {!orderDetails.repairOrderServices || orderDetails.repairOrderServices.length === 0 ? (
                     <div className="text-sm text-slate-500 italic">
                       No services recorded
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {(
-                        orderDetails.jobs ??
-                        orderDetails.repairOrderServices ??
-                        orderDetails.services
-                      ).map((s: any, idx: number) => (
+                      {orderDetails.repairOrderServices.map((ros: any, idx: number) => (
                         <div
                           key={idx}
-                          className="flex justify-between items-center py-2 border-b last:border-b-0"
+                          className="border rounded-lg p-4 hover:bg-slate-50 transition-colors"
                         >
-                          <div className="text-sm font-medium text-slate-900">
-                            {s.service?.serviceName ??
-                              s.serviceName ??
-                              s.name ??
-                              "—"}
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <div className="font-semibold text-slate-900">
+                                {ros.service?.serviceName ?? "—"}
+                              </div>
+                              {ros.service?.description && (
+                                <div className="text-xs text-slate-500 mt-1">
+                                  {ros.service.description}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right ml-4">
+                              <div className="font-bold text-green-600">
+                                {formatCurrency(ros.service?.price ?? 0)}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-sm font-bold text-green-600">
-                            {formatCurrency(
-                              s.totalAmount ?? s.price ?? s.total ?? 0
+                          
+                          <div className="flex items-center gap-4 text-xs text-slate-600 mt-2">
+                            {ros.actualDuration && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                <span>{ros.actualDuration}h actual</span>
+                              </div>
+                            )}
+                            {ros.service?.estimatedDuration && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                <span>{ros.service.estimatedDuration}h estimated</span>
+                              </div>
+                            )}
+                            {ros.service?.isAdvanced && (
+                              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                                Advanced
+                              </span>
                             )}
                           </div>
+
+                          {ros.notes && (
+                            <div className="mt-2 p-2 bg-amber-50 rounded text-xs text-slate-600">
+                              <span className="font-medium">Note:</span> {ros.notes}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
+                {/* Branch Information */}
+                {orderDetails.branch && (
+                  <div className="bg-white p-5 rounded-xl border shadow-sm">
+                    <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                      Service Location
+                    </div>
+                    <div className="space-y-2">
+                      <div className="font-semibold text-slate-900">
+                        {orderDetails.branch.branchName}
+                      </div>
+                      <div className="text-sm text-slate-600">
+                        📍 {orderDetails.branch.street}, {orderDetails.branch.commune}, {orderDetails.branch.province}
+                      </div>
+                      {orderDetails.branch.phoneNumber && (
+                        <div className="text-sm text-slate-600">
+                          📞 {orderDetails.branch.phoneNumber}
+                        </div>
+                      )}
+                      {orderDetails.branch.email && (
+                        <div className="text-sm text-slate-600">
+                          ✉️ {orderDetails.branch.email}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Notes */}
-                {(orderDetails.note || orderDetails.notes) && (
+                {orderDetails.note && (
                   <div className="bg-amber-50 p-5 rounded-xl border border-amber-200">
                     <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">
                       Notes
                     </div>
                     <div className="text-sm text-slate-700 whitespace-pre-wrap">
-                      {orderDetails.note ?? orderDetails.notes}
+                      {orderDetails.note}
                     </div>
                   </div>
                 )}
+
+                {/* Timeline */}
+                <div className="bg-white p-5 rounded-xl border shadow-sm">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                    Timeline
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Received:</span>
+                      <span className="font-medium">{new Date(orderDetails.receiveDate).toLocaleString("en-GB")}</span>
+                    </div>
+                    {orderDetails.estimatedCompletionDate && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Est. Completion:</span>
+                        <span className="font-medium">{new Date(orderDetails.estimatedCompletionDate).toLocaleString("en-GB")}</span>
+                      </div>
+                    )}
+                    {orderDetails.completionDate && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Completed:</span>
+                        <span className="font-medium text-green-600">{new Date(orderDetails.completionDate).toLocaleString("en-GB")}</span>
+                      </div>
+                    )}
+                    {orderDetails.estimatedRepairTime && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-600">Est. Repair Time:</span>
+                        <span className="font-medium">{orderDetails.estimatedRepairTime} minutes</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </ScrollArea>
           ) : (
