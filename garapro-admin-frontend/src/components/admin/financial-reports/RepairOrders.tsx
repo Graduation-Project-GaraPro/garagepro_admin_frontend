@@ -397,9 +397,9 @@ export default function RepairOrders() {
                       Amount
                     </TableHead>
                     <TableHead className="font-semibold">Status</TableHead>
-                    <TableHead className="text-center font-semibold">
+                    {/* <TableHead className="text-center font-semibold">
                       Action
-                    </TableHead>
+                    </TableHead> */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -441,7 +441,7 @@ export default function RepairOrders() {
                             {status}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center">
+                        {/* <TableCell className="text-center">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -450,7 +450,7 @@ export default function RepairOrders() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                        </TableCell>
+                        </TableCell> */}
                       </TableRow>
                     );
                   })}
