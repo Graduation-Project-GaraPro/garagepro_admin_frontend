@@ -15,6 +15,7 @@ export type Touched = {
   branches: boolean;
   durationEstimate: boolean;
   description: boolean;
+  partCategories: boolean; 
 };
 
 export const useServiceForm = (service?: Service) => {
@@ -87,6 +88,7 @@ export const useServiceForm = (service?: Service) => {
     branches: false,
     durationEstimate: false,
     description: false,
+    partCategories: false,
   });
 
   const availableSubCategories = useMemo(() => {
@@ -114,13 +116,17 @@ export const useServiceForm = (service?: Service) => {
     };
   }, [nameLen, descLen, formData.serviceTypeId, availableSubCategories.length]);
 
+
+  const hasValidPartCategories = selectedPartCategoryIds.length > 0;
+
   const isSubmitDisabled =
-    !isNameValid ||
-    !hasValidCategory ||
-    formData.branchIds.length === 0 ||
-    !isDescriptionValid ||
-    formData.basePrice < 1000 ||
-    (selectedParentCategory && availableSubCategories.length === 0);
+  !isNameValid ||
+  !hasValidCategory ||
+  formData.branchIds.length === 0 ||
+  !isDescriptionValid ||
+  formData.basePrice < 1000 ||
+  (selectedParentCategory && availableSubCategories.length === 0) ||
+  !hasValidPartCategories; 
 
   useEffect(() => {
     const load = async () => {
@@ -322,6 +328,26 @@ export const useServiceForm = (service?: Service) => {
   }, [selectedPartCategoryIds, partCategories]);
 
   const submit = async () => {
+
+    setTouched((t) => ({
+    ...t,
+    name: true,
+    serviceType: true,
+    basePrice: true,
+    branches: true,
+    description: true,
+    partCategories: true,
+  }));
+
+  // ✅ bắt buộc chọn part category
+  if (selectedPartCategoryIds.length === 0) {
+    toast.error("Please select at least 1 part category.");
+    return;
+  }
+
+  setIsSubmitting(true);
+
+
     setIsSubmitting(true);
     const toastId = toast.loading(service ? "Updating service..." : "Creating new service...", {
       description: "Please wait while we save your changes.",
@@ -377,6 +403,7 @@ export const useServiceForm = (service?: Service) => {
     serviceCategories,
     partCategories,
     branches,
+    hasValidPartCategories,
     isLoading,
     isSubmitting,
 

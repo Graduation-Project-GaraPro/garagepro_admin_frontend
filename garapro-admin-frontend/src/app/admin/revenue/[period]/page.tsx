@@ -1056,7 +1056,7 @@ export default function RevenuePage() {
           ) : selectedOrder ? (
             <>
               <DialogHeader>
-                <DialogTitle>Repair Order #{selectedOrder.id}</DialogTitle>
+                <DialogTitle>Repair Order #{selectedOrder.repairOrderId}</DialogTitle>
                 <DialogDescription>
                   Detailed information for this repair order
                 </DialogDescription>
@@ -1074,7 +1074,7 @@ export default function RevenuePage() {
                         <div>
                           <p className="text-sm text-muted-foreground">Date</p>
                           <p className="font-medium">
-                            {formatDate(selectedOrder.date ?? "")}
+                            {formatDate(selectedOrder.completionDate ?? "")}
                           </p>
                         </div>
                         <div>
@@ -1082,7 +1082,7 @@ export default function RevenuePage() {
                             Status
                           </p>
                           <StatusBadge
-                            status={selectedOrder.status ?? "unknown"}
+                            status={selectedOrder.statusId.toString() ?? "unknown"}
                           />
                         </div>
                       </div>
@@ -1092,7 +1092,7 @@ export default function RevenuePage() {
                             Total Amount
                           </p>
                           <p className="font-medium text-xl">
-                            {formatCurrency(selectedOrder.totalAmount ?? 0)}
+                            {formatCurrency(selectedOrder.paidAmount ?? 0)}
                           </p>
                         </div>
                         <div>
@@ -1101,7 +1101,7 @@ export default function RevenuePage() {
                           </p>
                           <p className="font-medium">
                             {formatDate(
-                              selectedOrder.estimatedCompletion ?? ""
+                              selectedOrder.estimatedCompletionDate ?? ""
                             )}
                           </p>
                         </div>
@@ -1119,20 +1119,20 @@ export default function RevenuePage() {
                         <div>
                           <p className="text-sm text-muted-foreground">Name</p>
                           <p className="font-medium">
-                            {selectedOrder.customerName}
+                            {selectedOrder.user.fullName}
                           </p>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground">Phone</p>
                           <p className="font-medium">
-                            {selectedOrder.customerPhone}
+                            {selectedOrder.user.phoneNumber}
                           </p>
                         </div>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Email</p>
                         <p className="font-medium">
-                          {selectedOrder.customerEmail}
+                          {selectedOrder.user.email}
                         </p>
                       </div>
                     </CardContent>
@@ -1150,8 +1150,8 @@ export default function RevenuePage() {
                             Make & Model
                           </p>
                           <p className="font-medium">
-                            {selectedOrder.vehicle?.make ?? "N/A"}{" "}
-                            {selectedOrder.vehicle?.model ?? ""}
+                            {selectedOrder.vehicle?.brand.brandName ?? "N/A"}{" "}
+                            {selectedOrder.vehicle?.model.modelName ?? ""}
                           </p>
                         </div>
 
@@ -1181,14 +1181,7 @@ export default function RevenuePage() {
                         </div>
                       </div>
 
-                      <div>
-                        <p className="text-sm text-muted-foreground">Mileage</p>
-                        <p className="font-medium">
-                          {selectedOrder.vehicle?.mileage
-                            ? `${selectedOrder.vehicle.mileage.toLocaleString()} miles`
-                            : "N/A"}
-                        </p>
-                      </div>
+                     
                     </CardContent>
                   </Card>
 
@@ -1206,26 +1199,26 @@ export default function RevenuePage() {
                           <div className="col-span-3 text-right">Total</div>
                         </div>
 
-                        {(selectedOrder.services ?? []).map(
+                        {(selectedOrder.repairOrderServices ?? []).map(
                           (service, index) => {
-                            const price = service.price ?? 0;
-                            const quantity = service.quantity ?? 0;
-                            const total = service.total ?? price * quantity;
-                            const technician = service.technician ?? "N/A";
-                            const duration = service.durationMinutes ?? 0;
+                            const price = service.service.price ?? 0;
+                            const quantity = service.service.estimatedDuration ?? 0;
+                            const total = service.actualDuration ?? price * quantity;
+                            const technician = service.actualDuration ?? "N/A";
+                            const duration = service.repairOrder ?? 0;
 
                             return (
                               <div
-                                key={service.id ?? index}
+                                key={service.repairOrder ?? index}
                                 className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0"
                               >
                                 <div className="col-span-5">
                                   <p className="font-medium">
-                                    {service.name ?? "Unnamed service"}
+                                    {service.notes ?? "Unnamed service"}
                                   </p>
-                                  {service.description && (
+                                  {service.notes && (
                                     <p className="text-sm text-muted-foreground">
-                                      {service.description}
+                                      {service.notes}
                                     </p>
                                   )}
                                   <p className="text-sm text-muted-foreground">
@@ -1269,20 +1262,20 @@ export default function RevenuePage() {
                           <div className="col-span-3 text-right">Total</div>
                         </div>
 
-                        {(selectedOrder.parts ?? []).map((part, index) => {
-                          const price = part.price ?? 0;
-                          const qty = part.quantity ?? 0;
-                          const total = part.total ?? price * qty;
-                          const inStock = part.inStock ?? false;
+                        {(selectedOrder.repairOrderServices ?? []).map((part, index) => {
+                          const price = part.actualDuration ?? 0;
+                          const qty = part.actualDuration ?? 0;
+                          const total = part.actualDuration ?? price * qty;
+                          const inStock = part.actualDuration ?? false;
 
                           return (
                             <div
-                              key={part.id ?? index}
+                              key={part.repairOrder ?? index}
                               className="grid grid-cols-12 gap-4 p-4 border-b last:border-b-0"
                             >
                               <div className="col-span-5">
                                 <p className="font-medium">
-                                  {part.name ?? "Unnamed part"}
+                                  {part.actualDuration ?? "Unnamed part"}
                                 </p>
 
                                 {/* {part.description && (
@@ -1320,13 +1313,13 @@ export default function RevenuePage() {
                   </Card>
 
                   {/* Notes */}
-                  {selectedOrder.notes && (
+                  {selectedOrder.orderStatus && (
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle>Notes</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm">{selectedOrder.notes}</p>
+                        <p className="text-sm">{selectedOrder.orderStatus.labels}</p>
                       </CardContent>
                     </Card>
                   )}
